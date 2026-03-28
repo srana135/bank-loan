@@ -248,8 +248,18 @@ const EMICalculator = () => {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-6" ref={printRef}>
+        <div className="lg:col-span-2 space-y-6 print-area" ref={printRef}>
           {summary && (
+            <>
+              {/* Print-only header with loan parameters */}
+              <div className="hidden print-only" style={{ display: 'none' }}>
+                <h2 className="text-xl font-bold mb-2">EMI Amortization Schedule</h2>
+                <div className="text-sm mb-4 space-y-1">
+                  <p>Principal: ৳{form.getValues('principal').toLocaleString()} | Rate: {form.getValues('rate')}% | Tenure: {form.getValues('tenureValue')} {form.getValues('tenureUnit')}</p>
+                  <p>Disbursement: {form.getValues('disbursementDate')} | Method: {form.getValues('interestMethod')} | Frequency: {form.getValues('frequency')}</p>
+                  {form.getValues('gracePeriod') > 0 && <p>Grace Period: {form.getValues('gracePeriod')} ({form.getValues('graceType')})</p>}
+                </div>
+              </div>
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 text-center">
