@@ -260,7 +260,7 @@ const EMICalculator = () => {
                   {form.getValues('gracePeriod') > 0 && <p>Grace Period: {form.getValues('gracePeriod')} ({form.getValues('graceType')})</p>}
                 </div>
               </div>
-            <>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Installment (EMI)</p>
