@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useBranches } from '@/hooks/useBranches';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ const TEMPLATE_COLUMNS = [
   'Account No', 'Account Name', 'Borrower Name', 'Mobile', 'Account Type',
   'Account Status', 'Address', 'Latitude', 'Longitude', 'Installment Amount',
   'Overdue Installment Number', 'Overdue Amount', 'Outstanding Amount', 'Classification',
-  'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch ID',
+  'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch Code',
 ];
 
 const COL_MAP: Record<string, string> = {
@@ -39,7 +40,6 @@ const COL_MAP: Record<string, string> = {
   'Guarantor 1 Mobile': 'guarantor_1_mobile',
   'Guarantor 2 Name': 'guarantor_2_name',
   'Guarantor 2 Mobile': 'guarantor_2_mobile',
-  'Branch ID': 'branch_id',
 };
 
 interface RowError {
@@ -63,6 +63,7 @@ interface Props {
 
 const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const { user } = useAuth();
+  const { data: branches = [] } = useBranches();
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -99,19 +100,26 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
 
         // Validate columns
         const headers = Object.keys(rows[0]);
-        const missing = TEMPLATE_COLUMNS.filter(c => c !== 'Branch ID' && !headers.includes(c));
+        const missing = TEMPLATE_COLUMNS.filter(c => c !== 'Branch Code' && !headers.includes(c));
         if (missing.length > 0) {
           toast.error(`Missing columns: ${missing.join(', ')}`);
           setImporting(false);
           return;
         }
 
+        // Build branch code → UUID lookup map
+        const branchMap = new Map<string, string>();
+        branches.forEach(b => {
+          branchMap.set(b.branch_code.toLowerCase(), b.id);
+          branchMap.set(b.branch_name.toLowerCase(), b.id);
+        });
+
         const errors: RowError[] = [];
         let success = 0;
 
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
-          const rowNum = i + 2; // Excel row number (header is row 1)
+          const rowNum = i + 2;
 
           try {
             const accountNo = String(row['Account No'] || '').trim();
@@ -132,19 +140,24 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               continue;
             }
 
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            // Resolve Branch Code to UUID
+            const branchCodeVal = String(row['Branch Code'] || '').trim();
+            let resolvedBranchId = defaultBranchId || null;
+            if (branchCodeVal) {
+              const found = branchMap.get(branchCodeVal.toLowerCase());
+              if (found) {
+                resolvedBranchId = found;
+              } else {
+                errors.push({ row: rowNum, accountNo, error: `Branch "${branchCodeVal}" not found. Check Branch Code or Branch Name.` });
+                continue;
+              }
+            }
+
             const payload: Record<string, any> = {};
             for (const [excelCol, dbCol] of Object.entries(COL_MAP)) {
               let val = row[excelCol];
               if (val === undefined || val === null || val === '') {
-                if (dbCol === 'branch_id') {
-                  val = defaultBranchId || null;
-                } else {
-                  val = ['latitude', 'longitude', 'installment_amount', 'overdue_installment_number', 'overdue_amount', 'outstanding_amount'].includes(dbCol) ? 0 : '';
-                }
-              }
-              if (dbCol === 'branch_id' && val && !uuidRegex.test(String(val))) {
-                val = defaultBranchId || null;
+                val = ['latitude', 'longitude', 'installment_amount', 'overdue_installment_number', 'overdue_amount', 'outstanding_amount'].includes(dbCol) ? 0 : '';
               }
               if (['latitude', 'longitude', 'installment_amount', 'overdue_amount', 'outstanding_amount'].includes(dbCol)) {
                 val = Number(val) || 0;
@@ -155,6 +168,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               payload[dbCol] = val;
             }
 
+            payload.branch_id = resolvedBranchId;
             payload.created_by = user?.id;
 
             const { error } = await supabase.from('loans').upsert(payload, { onConflict: 'account_no' });
