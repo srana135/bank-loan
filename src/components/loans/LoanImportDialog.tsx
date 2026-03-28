@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useBranches } from '@/hooks/useBranches';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ const TEMPLATE_COLUMNS = [
   'Account No', 'Account Name', 'Borrower Name', 'Mobile', 'Account Type',
   'Account Status', 'Address', 'Latitude', 'Longitude', 'Installment Amount',
   'Overdue Installment Number', 'Overdue Amount', 'Outstanding Amount', 'Classification',
-  'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch ID',
+  'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch Code',
 ];
 
 const COL_MAP: Record<string, string> = {
@@ -39,7 +40,6 @@ const COL_MAP: Record<string, string> = {
   'Guarantor 1 Mobile': 'guarantor_1_mobile',
   'Guarantor 2 Name': 'guarantor_2_name',
   'Guarantor 2 Mobile': 'guarantor_2_mobile',
-  'Branch ID': 'branch_id',
 };
 
 interface RowError {
