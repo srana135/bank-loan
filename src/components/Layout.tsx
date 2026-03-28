@@ -126,6 +126,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+                    <Link to="/profile"><User className="h-3.5 w-3.5" /> My Profile</Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => signOut()} className="gap-2 cursor-pointer text-destructive">
                     <LogOut className="h-3.5 w-3.5" /> Sign Out
                   </DropdownMenuItem>
@@ -183,6 +186,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   {user && (
                     <>
                       <Separator className="my-1" />
+                      <Button variant="ghost" className="justify-start gap-2 h-9" asChild onClick={() => setMobileOpen(false)}>
+                        <Link to="/profile"><User className="h-4 w-4" /> My Profile</Link>
+                      </Button>
                       <Button variant="ghost" className="justify-start gap-2 h-9 text-destructive" onClick={() => { signOut(); setMobileOpen(false); }}>
                         <LogOut className="h-4 w-4" /> Sign Out
                       </Button>
