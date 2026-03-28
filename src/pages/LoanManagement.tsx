@@ -37,6 +37,7 @@ import LoanForm, { type LoanFormData } from '@/components/loans/LoanForm';
 import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import LoanImportDialog from '@/components/loans/LoanImportDialog';
 import SmsUtility from '@/components/loans/SmsUtility';
+import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
 
 const LoanManagement = () => {
   const { user, profile, userRole } = useAuth();
@@ -261,17 +262,16 @@ const LoanManagement = () => {
         </Card>
       )}
 
-      {/* Error */}
+      {/* Database setup banner or error */}
       {loansError && (
+        <DatabaseSetupBanner error={(loansError as any)?.message || String(loansError)} />
+      )}
+      {loansError && !(loansError as any)?.message?.includes('PGRST205') && !(loansError as any)?.message?.includes('Could not find the table') && (
         <Card className="border-destructive/30">
           <CardContent className="py-6 text-center space-y-2">
             <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
             <p className="text-destructive font-medium">Failed to load loans</p>
-            <p className="text-sm text-muted-foreground">
-              {(loansError as any)?.message?.includes('does not exist')
-                ? 'The loans table has not been created yet. Please run the database migration first.'
-                : 'Please check your connection and permissions, then refresh.'}
-            </p>
+            <p className="text-sm text-muted-foreground">Please check your connection and permissions, then refresh.</p>
           </CardContent>
         </Card>
       )}
