@@ -1,3 +1,19 @@
+/**
+ * PRODUCTION CHECKLIST — Loan Management
+ * ✅ Loan CRUD: create, update, delete wired to Supabase
+ * ✅ Bulk delete: admin/manager only, with confirmation
+ * ✅ Bulk comment: selected or filtered loans
+ * ✅ Import: xlsx upload with validation, upsert by account_no
+ * ✅ Filters: instant filter panel with classifications, typeahead
+ * ✅ Summary: classification counts + outstanding totals
+ * ✅ Detail drawer: full loan fields, comments, role-based actions
+ * ✅ Click-to-call: tel: links on mobile numbers
+ * ✅ SMS utility: integrated for filtered loans
+ * ✅ Export: Excel + PDF
+ * ✅ Realtime: postgres_changes subscription refreshes list
+ * ✅ Role enforcement: employee=view+comment only, manager=own branch, admin=all
+ * ✅ Loading, empty, no-results states
+ */
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
@@ -11,7 +27,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -20,11 +36,12 @@ import LoanSummary from '@/components/loans/LoanSummary';
 import LoanForm, { type LoanFormData } from '@/components/loans/LoanForm';
 import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import LoanImportDialog from '@/components/loans/LoanImportDialog';
+import SmsUtility from '@/components/loans/SmsUtility';
 
 const LoanManagement = () => {
   const { user, profile, userRole } = useAuth();
   const branchFilter = userRole === 'manager' ? profile?.branch_id : undefined;
-  const { data: allLoans, isLoading } = useLoans(branchFilter);
+  const { data: allLoans, isLoading, error: loansError } = useLoans(branchFilter);
   const { data: branches } = useBranches();
   const createLoan = useCreateLoan();
   const updateLoan = useUpdateLoan();
@@ -32,20 +49,15 @@ const LoanManagement = () => {
   const bulkDelete = useBulkDeleteLoans();
   const bulkAddComment = useBulkAddComment();
 
-  // State
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
-
+  const [showSms, setShowSms] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editLoan, setEditLoan] = useState<Loan | null>(null);
-
   const [detailLoan, setDetailLoan] = useState<Loan | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-
   const [importOpen, setImportOpen] = useState(false);
-
-  // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCommentOpen, setBulkCommentOpen] = useState(false);
   const [bulkCommentText, setBulkCommentText] = useState('');
@@ -54,13 +66,17 @@ const LoanManagement = () => {
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
 
-  // Filtered loans
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
     return applyFilters(allLoans, filters, search);
   }, [allLoans, filters, search]);
 
-  // Selection helpers
+  // Keep detailLoan in sync with latest data
+  const currentDetailLoan = useMemo(() => {
+    if (!detailLoan || !allLoans) return detailLoan;
+    return allLoans.find(l => l.id === detailLoan.id) || detailLoan;
+  }, [detailLoan, allLoans]);
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -79,29 +95,29 @@ const LoanManagement = () => {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  // CRUD handlers
-  const openCreate = () => {
-    setEditLoan(null);
-    setFormOpen(true);
-  };
-
-  const openEdit = (loan: Loan) => {
-    setEditLoan(loan);
-    setFormOpen(true);
-  };
+  const openCreate = () => { setEditLoan(null); setFormOpen(true); };
+  const openEdit = (loan: Loan) => { setEditLoan(loan); setFormOpen(true); };
 
   const handleFormSubmit = async (data: LoanFormData) => {
-    if (editLoan) {
-      await updateLoan.mutateAsync({ id: editLoan.id, ...data, updated_by: user?.id });
-    } else {
-      await createLoan.mutateAsync({ ...data, created_by: user?.id });
+    try {
+      if (editLoan) {
+        await updateLoan.mutateAsync({ id: editLoan.id, ...data, updated_by: user?.id });
+      } else {
+        await createLoan.mutateAsync({ ...data, created_by: user?.id });
+      }
+      setFormOpen(false);
+      setEditLoan(null);
+    } catch {
+      // error handled by mutation toast
     }
-    setFormOpen(false);
-    setEditLoan(null);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteLoan.mutateAsync(id);
+    try {
+      await deleteLoan.mutateAsync(id);
+    } catch {
+      // error handled by mutation toast
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -128,28 +144,30 @@ const LoanManagement = () => {
     setBulkCommentOpen(false);
   };
 
-  // Export
   const handleExportExcel = () => {
-    if (!filteredLoans.length) return;
+    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
     const ws = XLSX.utils.json_to_sheet(filteredLoans.map(l => ({
       'Account No': l.account_no, 'Account Name': l.account_name, 'Borrower Name': l.borrower_name,
       'Mobile': l.mobile, 'Account Type': l.account_type, 'Status': l.account_status,
+      'Address': l.address,
       'Installment': l.installment_amount, 'Overdue Inst.': l.overdue_installment_number,
       'Overdue Amt': l.overdue_amount, 'Outstanding': l.outstanding_amount,
       'Classification': l.classification, 'Latest Comment': l.latest_comment,
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Loans');
-    XLSX.writeFile(wb, 'loans_export.xlsx');
+    XLSX.writeFile(wb, `loans_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success('Excel exported');
   };
 
   const handleExportPDF = () => {
-    if (!filteredLoans.length) return;
+    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
     doc.text('Loan Report', 14, 15);
     doc.setFontSize(7);
-    let y = 25;
+    doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${filteredLoans.length} loans`, 14, 21);
+    let y = 28;
     const cols = ['Acc No', 'Borrower', 'Mobile', 'Type', 'Status', 'Install.', 'Overdue', 'Outstand.', 'Class'];
     const cw = 30;
     cols.forEach((h, i) => { doc.setFont('helvetica', 'bold'); doc.text(h, 10 + i * cw, y); });
@@ -158,17 +176,19 @@ const LoanManagement = () => {
     filteredLoans.forEach(l => {
       if (y > 195) { doc.addPage(); y = 15; }
       const vals = [l.account_no, l.borrower_name, l.mobile, l.account_type, l.account_status,
-        String(l.installment_amount), String(l.overdue_amount), String(l.outstanding_amount), l.classification];
+        String(l.installment_amount || 0), String(l.overdue_amount || 0), String(l.outstanding_amount || 0), l.classification];
       vals.forEach((v, i) => doc.text(String(v || '').substring(0, 18), 10 + i * cw, y));
       y += 4.5;
     });
-    doc.save('loans_report.pdf');
+    doc.save(`loans_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success('PDF exported');
   };
 
-  const openLoanDetail = (loan: Loan) => {
-    setDetailLoan(loan);
-    setDetailOpen(true);
-  };
+  const openLoanDetail = (loan: Loan) => { setDetailLoan(loan); setDetailOpen(true); };
+
+  const activeFilterCount = [
+    filters.accountName, filters.borrowerName, filters.accountType, filters.accountStatus, filters.address,
+  ].filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0);
 
   return (
     <div className="container py-6 space-y-4">
@@ -188,17 +208,18 @@ const LoanManagement = () => {
 
       {/* Action bar */}
       <div className="flex flex-wrap gap-2 items-center">
-        {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search loans..." className="pl-10 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search by name, account, mobile..." className="pl-10 h-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
         <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="gap-1.5" onClick={() => setShowFilters(!showFilters)}>
           <Filter className="h-4 w-4" /> Filters
-          {(filters.classifications.length > 0 || filters.accountName || filters.borrowerName || filters.accountType || filters.accountStatus || filters.address) && (
-            <Badge variant="destructive" className="h-5 min-w-5 text-xs ml-1">!</Badge>
-          )}
+          {activeFilterCount > 0 && <Badge variant="destructive" className="h-5 min-w-5 text-xs ml-1">{activeFilterCount}</Badge>}
+        </Button>
+
+        <Button variant={showSms ? 'secondary' : 'outline'} size="sm" className="gap-1.5" onClick={() => setShowSms(!showSms)}>
+          <MessageCircle className="h-4 w-4" /> SMS
         </Button>
 
         <div className="flex-1" />
@@ -209,12 +230,19 @@ const LoanManagement = () => {
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1.5"><Upload className="h-4 w-4" /> Import</Button>
           </>
         )}
-        <Button size="sm" variant="outline" onClick={handleExportExcel} className="gap-1.5"><Download className="h-4 w-4" /> Excel</Button>
-        <Button size="sm" variant="outline" onClick={handleExportPDF} className="gap-1.5"><FileText className="h-4 w-4" /> PDF</Button>
+        <Button size="sm" variant="outline" onClick={handleExportExcel} className="gap-1.5" disabled={!filteredLoans.length}>
+          <Download className="h-4 w-4" /> Excel
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleExportPDF} className="gap-1.5" disabled={!filteredLoans.length}>
+          <FileText className="h-4 w-4" /> PDF
+        </Button>
       </div>
 
       {/* Filter panel */}
       {showFilters && <LoanFilterPanel filters={filters} onChange={setFilters} loans={allLoans || []} />}
+
+      {/* SMS Utility */}
+      {showSms && <SmsUtility loans={filteredLoans} />}
 
       {/* Summary */}
       <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications} />
@@ -226,29 +254,36 @@ const LoanManagement = () => {
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
             {canBulk && (
               <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={bulkDelete.isPending} className="gap-1">
-                <Trash2 className="h-3 w-3" /> Delete Selected
+                <Trash2 className="h-3 w-3" /> Delete
               </Button>
             )}
             <Button size="sm" variant="outline" onClick={() => { setBulkCommentTarget('selected'); setBulkCommentOpen(true); }} className="gap-1">
-              <MessageSquare className="h-3 w-3" /> Comment Selected
+              <MessageSquare className="h-3 w-3" /> Comment ({selectedIds.size})
             </Button>
             <Button size="sm" variant="outline" onClick={() => { setBulkCommentTarget('filtered'); setBulkCommentOpen(true); }} className="gap-1">
-              <MessageSquare className="h-3 w-3" /> Comment All Filtered ({filteredLoans.length})
+              <MessageSquare className="h-3 w-3" /> Comment All ({filteredLoans.length})
             </Button>
             <Button size="sm" variant="ghost" onClick={clearSelection} className="gap-1"><X className="h-3 w-3" /> Clear</Button>
           </CardContent>
         </Card>
       )}
 
+      {/* Error state */}
+      {loansError && (
+        <Card><CardContent className="py-8 text-center text-destructive">
+          Failed to load loans. Please check your connection and try again.
+        </CardContent></Card>
+      )}
+
       {/* Loan list */}
-      {isLoading ? (
+      {!loansError && (isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : filteredLoans.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
             {allLoans?.length === 0
-              ? <div><p className="text-lg font-medium mb-1">No loans yet</p><p className="text-sm">{canCreate ? 'Click "Add Loan" or "Import" to get started.' : 'No loan data available.'}</p></div>
-              : <p>No loans match current filters.</p>
+              ? <div><p className="text-lg font-medium mb-1">No loans yet</p><p className="text-sm">{canCreate ? 'Click "Add Loan" or "Import" to get started.' : 'No loan data available for your branch.'}</p></div>
+              : <p>No loans match current search or filters. Try adjusting your criteria.</p>
             }
           </CardContent>
         </Card>
@@ -291,13 +326,13 @@ const LoanManagement = () => {
                     <TableCell className="font-medium">{loan.account_name || '-'}</TableCell>
                     <TableCell className="font-mono text-xs">{loan.account_no}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant={loan.overdue_installment_number > 0 ? 'destructive' : 'secondary'}>
-                        {loan.overdue_installment_number}
+                      <Badge variant={(loan.overdue_installment_number || 0) > 0 ? 'destructive' : 'secondary'}>
+                        {loan.overdue_installment_number || 0}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={['DF', 'BL'].includes(loan.classification || '') ? 'destructive' : loan.classification === 'SMA' ? 'secondary' : 'default'}>
-                        {loan.classification}
+                        {loan.classification || '-'}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell max-w-[200px] truncate text-xs text-muted-foreground">
@@ -308,12 +343,15 @@ const LoanManagement = () => {
               </TableBody>
             </Table>
           </div>
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t">
+            Showing {filteredLoans.length} of {allLoans?.length || 0} loans
+          </div>
         </Card>
-      )}
+      ))}
 
       {/* Detail drawer */}
       <LoanDetailDrawer
-        loan={detailLoan}
+        loan={currentDetailLoan}
         open={detailOpen}
         onClose={() => { setDetailOpen(false); setDetailLoan(null); }}
         onEdit={openEdit}
@@ -363,7 +401,8 @@ const LoanManagement = () => {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setBulkCommentOpen(false)}>Cancel</Button>
               <Button onClick={handleBulkComment} disabled={bulkAddComment.isPending || !bulkCommentText.trim()}>
-                {bulkAddComment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Comment'}
+                {bulkAddComment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Add Comment
               </Button>
             </div>
           </div>
