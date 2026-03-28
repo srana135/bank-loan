@@ -53,7 +53,7 @@ SET role = 'admin', is_active = true
 WHERE email = 'your-admin@email.com';`}
             </pre>
             <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={handleCopy}>
-              {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+              {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
             </Button>
           </div>
         )}
