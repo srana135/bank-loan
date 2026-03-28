@@ -63,6 +63,7 @@ interface Props {
 
 const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const { user } = useAuth();
+  const { data: branches = [] } = useBranches();
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
