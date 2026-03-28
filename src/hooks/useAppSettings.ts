@@ -35,11 +35,16 @@ const DEFAULTS: AppSettingsMap = {
   emi_rounding: 1,
 };
 
+const isPGRST205 = (err: unknown) =>
+  typeof (err as any)?.message === 'string' && ((err as any).message.includes('PGRST205') || (err as any).message.includes('Could not find the table'));
+
 export const useAppSettings = () => {
   return useQuery({
     queryKey: ['app-settings-all'],
     queryFn: async () => {
-      const { data } = await supabase.from('app_settings').select('setting_key, setting_value');
+      const { data, error } = await supabase.from('app_settings').select('setting_key, setting_value');
+      // If table doesn't exist, just return defaults
+      if (error && isPGRST205(error)) return DEFAULTS;
       const settings = { ...DEFAULTS } as any;
       if (data) {
         for (const row of data) {
@@ -51,5 +56,6 @@ export const useAppSettings = () => {
       return settings as AppSettingsMap;
     },
     staleTime: 5 * 60 * 1000,
+    retry: (count, error) => isPGRST205(error) ? false : count < 3,
   });
 };

@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { Profile, RegistrationRequest } from '@/types';
 import { toast } from 'sonner';
 
+const isPGRST205 = (err: unknown) =>
+  typeof (err as any)?.message === 'string' && ((err as any).message.includes('PGRST205') || (err as any).message.includes('Could not find the table'));
+
 export const useProfiles = () => {
   return useQuery({
     queryKey: ['profiles'],
@@ -11,6 +14,7 @@ export const useProfiles = () => {
       if (error) throw error;
       return (data || []) as Profile[];
     },
+    retry: (count, error) => isPGRST205(error) ? false : count < 3,
   });
 };
 
@@ -37,6 +41,7 @@ export const useRegistrationRequests = () => {
       if (error) throw error;
       return (data || []) as RegistrationRequest[];
     },
+    retry: (count, error) => isPGRST205(error) ? false : count < 3,
   });
 };
 
@@ -55,7 +60,6 @@ export const useApproveRequest = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ requestId, reviewerId, role, branchId }: { requestId: string; reviewerId: string; role: string; branchId: string | null }) => {
-      // Get the request
       const { data: req, error: fetchErr } = await supabase
         .from('registration_requests')
         .select('*')
@@ -63,7 +67,6 @@ export const useApproveRequest = () => {
         .single();
       if (fetchErr) throw fetchErr;
 
-      // Update profile
       const { data: profiles } = await supabase.from('profiles').select('id').eq('email', req.email);
       if (profiles && profiles.length > 0) {
         await supabase.from('profiles').update({
@@ -76,7 +79,6 @@ export const useApproveRequest = () => {
         }).eq('id', profiles[0].id);
       }
 
-      // Update request status
       const { error } = await supabase.from('registration_requests').update({
         status: 'approved',
         reviewed_by: reviewerId,

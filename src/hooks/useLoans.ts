@@ -4,6 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { Loan, LoanComment } from '@/types';
 import { toast } from 'sonner';
 
+const isPGRST205 = (err: unknown) =>
+  typeof (err as any)?.message === 'string' && ((err as any).message.includes('PGRST205') || (err as any).message.includes('Could not find the table'));
+
 export const useLoans = (branchId?: string | null) => {
   const qc = useQueryClient();
 
@@ -16,10 +19,10 @@ export const useLoans = (branchId?: string | null) => {
       if (error) throw error;
       return (data || []) as Loan[];
     },
-    enabled: branchId !== null, // null means don't fetch (e.g. logged out), undefined means fetch all
+    enabled: branchId !== null,
+    retry: (count, error) => isPGRST205(error) ? false : count < 3,
   });
 
-  // Realtime subscription for loans
   useEffect(() => {
     const channel = supabase
       .channel('loans-realtime')
@@ -101,6 +104,7 @@ export const useLoanComments = (loanId: string | null) => {
       return (data || []) as LoanComment[];
     },
     enabled: !!loanId,
+    retry: (count, error) => isPGRST205(error) ? false : count < 3,
   });
 
   useEffect(() => {
@@ -143,7 +147,6 @@ export const useBulkAddComment = () => {
       const comments = loanIds.map(loan_id => ({ loan_id, comment_text, author_id, author_name, author_role }));
       const { error } = await supabase.from('loan_comments').insert(comments);
       if (error) throw error;
-      // Update latest_comment on all affected loans
       for (const lid of loanIds) {
         await supabase.from('loans').update({ latest_comment: comment_text, updated_by: author_id }).eq('id', lid);
       }
