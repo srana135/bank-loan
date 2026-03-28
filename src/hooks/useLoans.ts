@@ -16,6 +16,7 @@ export const useLoans = (branchId?: string | null) => {
       if (error) throw error;
       return (data || []) as Loan[];
     },
+    enabled: branchId !== null, // null means don't fetch (e.g. logged out), undefined means fetch all
   });
 
   // Realtime subscription for loans
