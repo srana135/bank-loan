@@ -157,6 +157,36 @@ const LoanEligibility = () => {
     toast.success('PDF exported');
   };
 
+  const exportDisbursementPDF = () => {
+    const disbursed = proposals?.filter(p => p.status === 'disbursement');
+    if (!disbursed?.length) { toast.error('No disbursement proposals to export'); return; }
+    const doc = new jsPDF();
+    doc.setFontSize(14); doc.text('Disbursement Loan Proposals', 14, 15);
+    doc.setFontSize(8);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
+    let y = 30;
+    const headers = ['Customer', 'Mobile', 'Type', 'Income', 'Eligible Amount', 'Date'];
+    const cw = [30, 25, 20, 25, 30, 25];
+    doc.setFont('helvetica', 'bold');
+    headers.forEach((h, i) => doc.text(h, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    disbursed.forEach(p => {
+      if (y > 280) { doc.addPage(); y = 15; }
+      const vals = [
+        (p.customer_name || '').substring(0, 18),
+        (p.mobile || '').substring(0, 14),
+        LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type || '',
+        `${(p.monthly_income || 0).toLocaleString()}`,
+        `${(p.eligible_amount || 0).toLocaleString()}`,
+        p.probable_disbursement_date || '',
+      ];
+      vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 5;
+    });
+    doc.save('disbursement_proposals.pdf');
+    toast.success('PDF exported');
+
   const canManage = userRole === 'admin' || userRole === 'manager';
   const tableNotReady = proposalsError && (proposalsError as any)?.code === 'PGRST205';
 
@@ -249,6 +279,9 @@ const LoanEligibility = () => {
             </Select>
             <Button variant="outline" size="sm" onClick={exportRejectedPDF} className="gap-1" disabled={!proposals?.some(p => p.status === 'rejected')}>
               <Download className="h-3 w-3" /> Rejected PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportDisbursementPDF} className="gap-1" disabled={!proposals?.some(p => p.status === 'disbursement')}>
+              <Download className="h-3 w-3" /> Disbursement PDF
             </Button>
           </div>
 
