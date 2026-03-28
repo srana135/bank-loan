@@ -17,7 +17,7 @@
  */
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
+import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ const LoanManagement = () => {
   const deleteLoan = useDeleteLoan();
   const bulkDelete = useBulkDeleteLoans();
   const bulkAddComment = useBulkAddComment();
+  const addComment = useAddComment();
   const isMobile = useIsMobile();
 
   const [search, setSearch] = useState('');
@@ -67,6 +68,8 @@ const LoanManagement = () => {
   const [bulkCommentOpen, setBulkCommentOpen] = useState(false);
   const [bulkCommentText, setBulkCommentText] = useState('');
   const [bulkCommentTarget, setBulkCommentTarget] = useState<'selected' | 'filtered'>('selected');
+  const [quickCommentLoanId, setQuickCommentLoanId] = useState<string | null>(null);
+  const [quickCommentText, setQuickCommentText] = useState('');
 
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
@@ -132,6 +135,16 @@ const LoanManagement = () => {
     });
     setBulkCommentText('');
     setBulkCommentOpen(false);
+  };
+
+  const handleQuickComment = async (loanId: string) => {
+    if (!quickCommentText.trim() || !user) return;
+    await addComment.mutateAsync({
+      loan_id: loanId, comment_text: quickCommentText.trim(),
+      author_id: user.id, author_name: profile?.full_name || user.email || '', author_role: userRole || 'employee',
+    });
+    setQuickCommentText('');
+    setQuickCommentLoanId(null);
   };
 
   const handleExportExcel = () => {
@@ -319,14 +332,22 @@ const LoanManagement = () => {
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
                 </div>
                 {loan.latest_comment && (
-                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded truncate">💬 {loan.latest_comment}</p>
-                )}
-                {canBulk && (
-                  <div className="flex items-center gap-2 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
-                    <Checkbox checked={selectedIds.has(loan.id)} onCheckedChange={() => toggleSelect(loan.id)} />
-                    <span className="text-xs text-muted-foreground">Select</span>
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-0.5">
+                    <p className="truncate">💬 {loan.latest_comment}</p>
+                    <p className="text-[10px] text-muted-foreground/70">{new Date(loan.updated_at).toLocaleString('bn-BD', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 )}
+                <div className="flex items-center justify-between pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => { setQuickCommentLoanId(loan.id); setQuickCommentText(''); }}>
+                    <MessageCircle className="h-3.5 w-3.5" /> Comment
+                  </Button>
+                  {canBulk && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={selectedIds.has(loan.id)} onCheckedChange={() => toggleSelect(loan.id)} />
+                      <span className="text-xs text-muted-foreground">Select</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -417,6 +438,25 @@ const LoanManagement = () => {
               <Button onClick={handleBulkComment} disabled={bulkAddComment.isPending || !bulkCommentText.trim()}>
                 {bulkAddComment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Add Comment
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Comment Dialog */}
+      <Dialog open={!!quickCommentLoanId} onOpenChange={v => { if (!v) { setQuickCommentLoanId(null); setQuickCommentText(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Add Comment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea placeholder="Write your comment..." value={quickCommentText} onChange={e => setQuickCommentText(e.target.value)} className="min-h-[80px]" autoFocus />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setQuickCommentLoanId(null); setQuickCommentText(''); }}>Cancel</Button>
+              <Button size="sm" onClick={() => quickCommentLoanId && handleQuickComment(quickCommentLoanId)} disabled={addComment.isPending || !quickCommentText.trim()}>
+                {addComment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Submit
               </Button>
             </div>
           </div>
