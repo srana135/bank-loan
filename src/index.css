@@ -121,6 +121,7 @@
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    grid-column: 1 / -1 !important;
   }
   .print-area .max-h-\[400px\] {
     max-height: none !important;
@@ -129,5 +130,8 @@
   body {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+  .container {
+    max-width: 100% !important;
   }
 }
