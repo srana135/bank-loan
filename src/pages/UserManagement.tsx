@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfiles, useUpdateProfile } from '@/hooks/useUsers';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types';
@@ -23,6 +24,7 @@ const UserManagement = () => {
   const { data: profiles, isLoading } = useProfiles();
   const { data: branches } = useBranches();
   const updateProfile = useUpdateProfile();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const isAdmin = userRole === 'admin';
 
@@ -81,15 +83,16 @@ const UserManagement = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !isAdmin) return;
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', deleteTarget.id);
       if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
       toast.success('User deleted successfully');
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete user');
+      toast.error(err.message || 'Failed to delete user. Please ensure the DELETE policy exists in Supabase.');
     }
   };
 

@@ -19,6 +19,7 @@ import LoanEligibility from "./pages/LoanEligibility";
 import CurrencyConverter from "./pages/CurrencyConverter";
 import ServiceProductList from "./pages/ServiceProductList";
 import ConnectUs from "./pages/ConnectUs";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/emi-calculator/currency" element={<CurrencyConverter />} />
               <Route path="/services" element={<ServiceProductList />} />
               <Route path="/connect" element={<ConnectUs />} />
+              <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
