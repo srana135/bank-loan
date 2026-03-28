@@ -51,6 +51,7 @@ const LoanManagement = () => {
   const deleteLoan = useDeleteLoan();
   const bulkDelete = useBulkDeleteLoans();
   const bulkAddComment = useBulkAddComment();
+  const addComment = useAddComment();
   const isMobile = useIsMobile();
 
   const [search, setSearch] = useState('');
