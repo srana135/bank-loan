@@ -51,6 +51,7 @@ const LoanManagement = () => {
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
+  const [adminBranchFilter, setAdminBranchFilter] = useState('__all__');
   const [showFilters, setShowFilters] = useState(false);
   const [showSms, setShowSms] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -69,8 +70,13 @@ const LoanManagement = () => {
 
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
-    return applyFilters(allLoans, filters, search);
-  }, [allLoans, filters, search]);
+    let loans = applyFilters(allLoans, filters, search);
+    // Admin branch filter (client-side since admin fetches all)
+    if (userRole === 'admin' && adminBranchFilter !== '__all__') {
+      loans = loans.filter(l => l.branch_id === adminBranchFilter);
+    }
+    return loans;
+  }, [allLoans, filters, search, adminBranchFilter, userRole]);
 
   const currentDetailLoan = useMemo(() => {
     if (!detailLoan || !allLoans) return detailLoan;
@@ -214,7 +220,17 @@ const LoanManagement = () => {
         </Button>
       </div>
 
-      {showFilters && <LoanFilterPanel filters={filters} onChange={setFilters} loans={allLoans || []} />}
+      {showFilters && (
+        <LoanFilterPanel
+          filters={filters}
+          onChange={setFilters}
+          loans={allLoans || []}
+          branches={branches}
+          showBranchFilter={userRole === 'admin'}
+          branchFilter={adminBranchFilter}
+          onBranchFilterChange={setAdminBranchFilter}
+        />
+      )}
       {showSms && <SmsUtility loans={filteredLoans} />}
       <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications} />
 
