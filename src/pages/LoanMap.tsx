@@ -150,20 +150,20 @@ const LoanMap = () => {
   const loansWithCoords = filteredLoans.filter(l => l.latitude && l.longitude).length;
 
   return (
-    <div className="container py-6 space-y-4">
-      <div>
-        <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Map View</h1>
-        <p className="text-xs text-muted-foreground mt-1">
+    <div className="container py-6 space-y-4 overflow-hidden">
+      <div className="min-w-0">
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground truncate">Loan Map View</h1>
+        <p className="text-xs text-muted-foreground mt-1 truncate">
           {userRole === 'admin' ? 'Viewing all branches' : userRole === 'manager' ? `Restricted to ${currentBranch?.branch_name || 'your branch'}` : 'Branch view'}
           {' · '}{loansWithCoords} of {filteredLoans.length} loans with coordinates
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-end">
-        <div className="space-y-1.5 w-full sm:w-64">
+        <div className="space-y-1.5 w-full sm:w-64 min-w-0">
           <Label className="text-xs">Branch</Label>
           <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="Select branch" /></SelectTrigger>
+            <SelectTrigger className="h-9 overflow-hidden"><SelectValue placeholder="Select branch" /></SelectTrigger>
             <SelectContent>
               {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
             </SelectContent>
