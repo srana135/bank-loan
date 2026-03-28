@@ -186,6 +186,7 @@ const LoanEligibility = () => {
     });
     doc.save('disbursement_proposals.pdf');
     toast.success('PDF exported');
+  };
 
   const canManage = userRole === 'admin' || userRole === 'manager';
   const tableNotReady = proposalsError && (proposalsError as any)?.code === 'PGRST205';
