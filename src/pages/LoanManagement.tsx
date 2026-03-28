@@ -17,7 +17,7 @@
  */
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
+import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,8 @@ const LoanManagement = () => {
   const [bulkCommentOpen, setBulkCommentOpen] = useState(false);
   const [bulkCommentText, setBulkCommentText] = useState('');
   const [bulkCommentTarget, setBulkCommentTarget] = useState<'selected' | 'filtered'>('selected');
+  const [quickCommentLoanId, setQuickCommentLoanId] = useState<string | null>(null);
+  const [quickCommentText, setQuickCommentText] = useState('');
 
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
