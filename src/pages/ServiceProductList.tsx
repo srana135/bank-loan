@@ -5,10 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Upload, FileText, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ServiceFile } from '@/types';
 
 const ServiceProductList = () => {
   const { user, userRole } = useAuth();
@@ -17,29 +20,33 @@ const ServiceProductList = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [visibleTo, setVisibleTo] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const canUpload = userRole === 'admin' || userRole === 'manager';
 
   const { data: files, isLoading, error } = useQuery({
-    queryKey: ['service-products'],
+    queryKey: ['service-files'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('service_products')
+        .from('service_files')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as ServiceFile[];
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('service_products').delete().eq('id', id);
+    mutationFn: async (sf: ServiceFile) => {
+      if (sf.file_path) {
+        await supabase.storage.from('documents').remove([sf.file_path]);
+      }
+      const { error } = await supabase.from('service_files').delete().eq('id', sf.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service-products'] });
+      queryClient.invalidateQueries({ queryKey: ['service-files'] });
       toast.success('File deleted');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -53,35 +60,38 @@ const ServiceProductList = () => {
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const filePath = `service-products/${Date.now()}.${fileExt}`;
+      const filePath = `service-files/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file);
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath);
 
-      const { error: insertError } = await supabase.from('service_products').insert({
+      const { error: insertError } = await supabase.from('service_files').insert({
         title: title.trim(),
-        description: description.trim(),
-        file_url: urlData.publicUrl,
+        description: description.trim() || null,
         file_name: file.name,
+        file_path: filePath,
+        file_type: file.type || fileExt,
         uploaded_by: user?.id,
+        visible_to: visibleTo,
       });
       if (insertError) throw insertError;
 
-      queryClient.invalidateQueries({ queryKey: ['service-products'] });
+      queryClient.invalidateQueries({ queryKey: ['service-files'] });
       toast.success('File uploaded successfully');
-      setTitle('');
-      setDescription('');
-      setFile(null);
+      setTitle(''); setDescription(''); setFile(null); setVisibleTo('all');
       setDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
+  };
+
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return data.publicUrl;
   };
 
   return (
@@ -100,15 +110,26 @@ const ServiceProductList = () => {
               <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Title</Label>
+                  <Label>Title *</Label>
                   <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Document title" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Description (optional)</Label>
-                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description" />
+                  <Label>Description</Label>
+                  <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description" />
                 </div>
                 <div className="space-y-2">
-                  <Label>File</Label>
+                  <Label>Visibility</Label>
+                  <Select value={visibleTo} onValueChange={setVisibleTo}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="admin">Admin Only</SelectItem>
+                      <SelectItem value="manager">Manager & Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>File *</Label>
                   <Input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
                 </div>
                 <Button onClick={handleUpload} disabled={uploading} className="w-full">
@@ -120,26 +141,17 @@ const ServiceProductList = () => {
         )}
       </div>
 
-      {isLoading && (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-      )}
-
-      {error && (
-        <Card><CardContent className="py-8 text-center text-destructive">
-          Failed to load documents. Please connect your Supabase project.
-        </CardContent></Card>
-      )}
-
+      {isLoading && <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+      {error && <Card><CardContent className="py-8 text-center text-destructive">Failed to load documents.</CardContent></Card>}
       {!isLoading && !error && files?.length === 0 && (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
           <FileText className="h-12 w-12 mx-auto mb-4 opacity-40" />
           No documents uploaded yet.
         </CardContent></Card>
       )}
-
       {files && files.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {files.map((f: any) => (
+          {files.map(f => (
             <Card key={f.id} className="card-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-start gap-2">
@@ -152,12 +164,12 @@ const ServiceProductList = () => {
                 <p className="text-xs text-muted-foreground mb-3">{f.file_name}</p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" asChild>
-                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="gap-1">
+                    <a href={f.file_path ? getPublicUrl(f.file_path) : '#'} target="_blank" rel="noopener noreferrer" className="gap-1">
                       <Download className="h-3 w-3" /> View
                     </a>
                   </Button>
                   {canUpload && (
-                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(f.id)} className="gap-1">
+                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(f)} className="gap-1">
                       <Trash2 className="h-3 w-3" /> Delete
                     </Button>
                   )}
