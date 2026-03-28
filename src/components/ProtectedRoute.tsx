@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, profile, userRole, loading } = useAuth();
 
   if (loading) {
     return (
@@ -21,6 +21,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if profile is active
+  if (profile && !profile.is_active) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center max-w-md mx-auto p-8">
+          <h2 className="text-2xl font-heading font-bold text-foreground">Account Inactive</h2>
+          <p className="mt-2 text-muted-foreground">Your account has been deactivated. Please contact an administrator.</p>
+        </div>
+      </div>
+    );
   }
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
