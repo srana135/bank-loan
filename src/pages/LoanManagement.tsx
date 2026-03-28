@@ -443,6 +443,25 @@ const LoanManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Quick Comment Dialog */}
+      <Dialog open={!!quickCommentLoanId} onOpenChange={v => { if (!v) { setQuickCommentLoanId(null); setQuickCommentText(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Add Comment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea placeholder="Write your comment..." value={quickCommentText} onChange={e => setQuickCommentText(e.target.value)} className="min-h-[80px]" autoFocus />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setQuickCommentLoanId(null); setQuickCommentText(''); }}>Cancel</Button>
+              <Button size="sm" onClick={() => quickCommentLoanId && handleQuickComment(quickCommentLoanId)} disabled={addComment.isPending || !quickCommentText.trim()}>
+                {addComment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Submit
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
