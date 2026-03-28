@@ -332,14 +332,22 @@ const LoanManagement = () => {
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
                 </div>
                 {loan.latest_comment && (
-                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded truncate">💬 {loan.latest_comment}</p>
-                )}
-                {canBulk && (
-                  <div className="flex items-center gap-2 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
-                    <Checkbox checked={selectedIds.has(loan.id)} onCheckedChange={() => toggleSelect(loan.id)} />
-                    <span className="text-xs text-muted-foreground">Select</span>
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-0.5">
+                    <p className="truncate">💬 {loan.latest_comment}</p>
+                    <p className="text-[10px] text-muted-foreground/70">{new Date(loan.updated_at).toLocaleString('bn-BD', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 )}
+                <div className="flex items-center justify-between pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => { setQuickCommentLoanId(loan.id); setQuickCommentText(''); }}>
+                    <MessageCircle className="h-3.5 w-3.5" /> Comment
+                  </Button>
+                  {canBulk && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={selectedIds.has(loan.id)} onCheckedChange={() => toggleSelect(loan.id)} />
+                      <span className="text-xs text-muted-foreground">Select</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
