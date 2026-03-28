@@ -72,7 +72,7 @@ const Index = () => {
               onClick={() => user ? navigate('/loan-management') : navigate('/login')}>
               Get Started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button size="lg" variant="outline" className="bg-accent" asChild>
+            <Button size="lg" className="bg-accent" asChild>
               <Link to="/emi-calculator">Try EMI Calculator</Link>
             </Button>
           </div>
