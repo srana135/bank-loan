@@ -190,7 +190,7 @@ const LoanMap = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
-          <div ref={mapRef} className="h-[500px] sm:h-[600px] w-full" />
+          <div ref={mapRef} className="h-[500px] sm:h-[600px] w-full z-0 relative" />
         </CardContent>
       </Card>
 
