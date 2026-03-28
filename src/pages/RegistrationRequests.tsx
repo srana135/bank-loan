@@ -47,7 +47,7 @@ const RegistrationRequests = () => {
       requestId: selectedReq.id,
       reviewerId: user.id,
       role: assignRole,
-      branchId: assignBranch || null,
+      branchId: assignBranch && assignBranch !== 'none' ? assignBranch : null,
     });
     setApproveDialogOpen(false);
   };

@@ -65,7 +65,7 @@ const UserManagement = () => {
       user_id: editUserId || null,
       mobile: editMobile || null,
       role: editRole as any,
-      branch_id: editBranch || null,
+      branch_id: editBranch && editBranch !== 'none' ? editBranch : null,
     });
     setEditDialogOpen(false);
   };
@@ -97,7 +97,7 @@ const UserManagement = () => {
         user_id: newUserId || null,
         mobile: newMobile || null,
         role: newRole,
-        branch_id: newBranch || null,
+        branch_id: newBranch && newBranch !== 'none' ? newBranch : null,
         is_active: true,
       }).eq('id', authData.user.id);
 
