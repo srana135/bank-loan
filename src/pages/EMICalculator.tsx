@@ -190,9 +190,9 @@ const EMICalculator = () => {
 
   return (
     <div className="container py-6 space-y-6">
-      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">EMI Calculator</h1>
+      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground no-print">EMI Calculator</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 card-shadow">
+        <Card className="lg:col-span-1 card-shadow no-print">
           <CardHeader><CardTitle className="font-heading text-lg">Loan Parameters</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(calculate)} className="space-y-3">
