@@ -137,6 +137,16 @@ const LoanManagement = () => {
     setBulkCommentOpen(false);
   };
 
+  const handleQuickComment = async (loanId: string) => {
+    if (!quickCommentText.trim() || !user) return;
+    await addComment.mutateAsync({
+      loan_id: loanId, comment_text: quickCommentText.trim(),
+      author_id: user.id, author_name: profile?.full_name || user.email || '', author_role: userRole || 'employee',
+    });
+    setQuickCommentText('');
+    setQuickCommentLoanId(null);
+  };
+
   const handleExportExcel = () => {
     if (!filteredLoans.length) { toast.error('No loans to export'); return; }
     const ws = XLSX.utils.json_to_sheet(filteredLoans.map(l => ({
