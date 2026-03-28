@@ -1,118 +1,288 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-
-const emiSchema = z.object({
-  principal: z.coerce.number().positive('Enter a valid amount'),
-  rate: z.coerce.number().positive('Enter a valid rate'),
-  tenure: z.coerce.number().int().positive('Enter valid tenure in months'),
-});
-
-type EMIResult = {
-  emi: number;
-  totalPayment: number;
-  totalInterest: number;
-};
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Download, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const COLORS = ['hsl(215,70%,22%)', 'hsl(42,85%,52%)'];
 
-const EMICalculator = () => {
-  const [result, setResult] = useState<EMIResult | null>(null);
+const FREQUENCIES: Record<string, number> = {
+  weekly: 52, 'semi-monthly': 24, monthly: 12, quarterly: 4, 'half-yearly': 2, yearly: 1,
+};
 
-  const form = useForm<z.infer<typeof emiSchema>>({
-    resolver: zodResolver(emiSchema),
-    defaultValues: { principal: 0, rate: 0, tenure: 0 },
+const schema = z.object({
+  principal: z.coerce.number().positive('Required'),
+  rate: z.coerce.number().positive('Required'),
+  tenureValue: z.coerce.number().positive('Required'),
+  tenureUnit: z.enum(['months', 'years']),
+  frequency: z.string(),
+  interestMethod: z.enum(['reducing', 'simple']),
+  gracePeriod: z.coerce.number().min(0).default(0),
+  graceType: z.enum(['in-period', 'ex-period']),
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface ScheduleRow {
+  period: number;
+  payment: number;
+  principal: number;
+  interest: number;
+  balance: number;
+}
+
+const EMICalculator = () => {
+  const { data: settings } = useAppSettings();
+  const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
+  const [summary, setSummary] = useState<{ emi: number; totalPayment: number; totalInterest: number } | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      principal: 100000, rate: 10, tenureValue: 12, tenureUnit: 'months',
+      frequency: 'monthly', interestMethod: 'reducing', gracePeriod: 0, graceType: 'in-period',
+    },
   });
 
-  const calculate = (data: z.infer<typeof emiSchema>) => {
-    const { principal, rate, tenure } = data;
-    const monthlyRate = rate / 12 / 100;
-    const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / (Math.pow(1 + monthlyRate, tenure) - 1);
-    const totalPayment = emi * tenure;
-    const totalInterest = totalPayment - principal;
-    setResult({ emi, totalPayment, totalInterest });
+  const calculate = (data: FormData) => {
+    const { principal, rate, tenureValue, tenureUnit, frequency, interestMethod, gracePeriod, graceType } = data;
+    const totalMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
+    const periodsPerYear = FREQUENCIES[frequency] || 12;
+    const totalPeriods = Math.round(totalMonths * periodsPerYear / 12);
+    const periodicRate = rate / 100 / periodsPerYear;
+    const rounding = settings?.emi_rounding || 1;
+
+    const effectivePeriods = graceType === 'in-period' ? totalPeriods : totalPeriods + gracePeriod;
+    const paymentPeriods = graceType === 'in-period' ? totalPeriods - gracePeriod : totalPeriods;
+
+    let emi: number;
+    if (interestMethod === 'reducing') {
+      if (periodicRate === 0) {
+        emi = principal / paymentPeriods;
+      } else {
+        emi = (principal * periodicRate * Math.pow(1 + periodicRate, paymentPeriods)) /
+          (Math.pow(1 + periodicRate, paymentPeriods) - 1);
+      }
+    } else {
+      const totalInterest = principal * (rate / 100) * (totalMonths / 12);
+      emi = (principal + totalInterest) / paymentPeriods;
+    }
+
+    emi = Math.ceil(emi / rounding) * rounding;
+
+    const rows: ScheduleRow[] = [];
+    let balance = principal;
+    let totalPayment = 0;
+    let totalInterest = 0;
+
+    for (let i = 1; i <= effectivePeriods; i++) {
+      const isGrace = i <= gracePeriod;
+      const interest = interestMethod === 'reducing'
+        ? balance * periodicRate
+        : (principal * (rate / 100)) / periodsPerYear;
+
+      let payment: number;
+      let principalPart: number;
+
+      if (isGrace) {
+        payment = graceType === 'in-period' ? interest : 0;
+        principalPart = 0;
+        if (graceType === 'ex-period') balance += interest;
+      } else {
+        payment = Math.min(emi, balance + interest);
+        principalPart = payment - interest;
+        balance = Math.max(0, balance - principalPart);
+      }
+
+      totalPayment += payment;
+      totalInterest += interest;
+      rows.push({ period: i, payment: Math.round(payment * 100) / 100, principal: Math.round(principalPart * 100) / 100, interest: Math.round(interest * 100) / 100, balance: Math.round(balance * 100) / 100 });
+    }
+
+    setSchedule(rows);
+    setSummary({ emi, totalPayment, totalInterest });
   };
 
-  const chartData = result ? [
+  const chartData = schedule.map(r => ({ period: r.period, balance: r.balance }));
+  const pieData = summary ? [
     { name: 'Principal', value: Math.round(form.getValues('principal')) },
-    { name: 'Interest', value: Math.round(result.totalInterest) },
+    { name: 'Interest', value: Math.round(summary.totalInterest) },
   ] : [];
 
+  const exportPDF = () => {
+    if (!schedule.length || !summary) return;
+    const doc = new jsPDF();
+    doc.setFontSize(16); doc.text('EMI Amortization Schedule', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Principal: ৳${form.getValues('principal').toLocaleString()} | Rate: ${form.getValues('rate')}% | EMI: ৳${summary.emi.toFixed(2)}`, 14, 23);
+    doc.text(`Total Payment: ৳${summary.totalPayment.toFixed(2)} | Total Interest: ৳${summary.totalInterest.toFixed(2)}`, 14, 29);
+
+    let y = 38;
+    const cols = ['#', 'Payment', 'Principal', 'Interest', 'Balance'];
+    const cw = [12, 32, 32, 32, 32];
+    doc.setFont('helvetica', 'bold');
+    cols.forEach((c, i) => doc.text(c, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    schedule.forEach(r => {
+      if (y > 280) { doc.addPage(); y = 15; }
+      const vals = [String(r.period), r.payment.toFixed(2), r.principal.toFixed(2), r.interest.toFixed(2), r.balance.toFixed(2)];
+      vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 4.5;
+    });
+    doc.save('emi_schedule.pdf');
+  };
+
   return (
-    <div className="container py-8">
-      <h1 className="font-heading text-3xl font-bold text-foreground mb-8">EMI Calculator</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="card-shadow">
-          <CardHeader>
-            <CardTitle className="font-heading">Calculate Your EMI</CardTitle>
-          </CardHeader>
+    <div className="container py-6 space-y-6">
+      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">EMI Calculator</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1 card-shadow">
+          <CardHeader><CardTitle className="font-heading text-lg">Loan Parameters</CardTitle></CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(calculate)} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Loan Amount (৳)</Label>
-                <Input type="number" step="any" {...form.register('principal')} />
-                {form.formState.errors.principal && <p className="text-sm text-destructive">{form.formState.errors.principal.message}</p>}
+            <form onSubmit={form.handleSubmit(calculate)} className="space-y-3">
+              <div className="space-y-1.5"><Label className="text-xs">Principal Amount (৳)</Label>
+                <Input type="number" step="any" {...form.register('principal')} className="h-9" />
+                {form.formState.errors.principal && <p className="text-xs text-destructive">{form.formState.errors.principal.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Annual Interest Rate (%)</Label>
-                <Input type="number" step="any" {...form.register('rate')} />
-                {form.formState.errors.rate && <p className="text-sm text-destructive">{form.formState.errors.rate.message}</p>}
+              <div className="space-y-1.5"><Label className="text-xs">Annual Interest Rate (%)</Label>
+                <Input type="number" step="any" {...form.register('rate')} className="h-9" />
               </div>
-              <div className="space-y-2">
-                <Label>Tenure (Months)</Label>
-                <Input type="number" {...form.register('tenure')} />
-                {form.formState.errors.tenure && <p className="text-sm text-destructive">{form.formState.errors.tenure.message}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label className="text-xs">Tenure</Label>
+                  <Input type="number" {...form.register('tenureValue')} className="h-9" />
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Unit</Label>
+                  <Select value={form.watch('tenureUnit')} onValueChange={v => form.setValue('tenureUnit', v as any)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="months">Months</SelectItem><SelectItem value="years">Years</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Installment Frequency</Label>
+                <Select value={form.watch('frequency')} onValueChange={v => form.setValue('frequency', v)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(FREQUENCIES).map(f => <SelectItem key={f} value={f} className="capitalize">{f.replace('-', ' ')}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Interest Method</Label>
+                <Select value={form.watch('interestMethod')} onValueChange={v => form.setValue('interestMethod', v as any)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="reducing">Reducing Balance</SelectItem><SelectItem value="simple">Simple Interest</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label className="text-xs">Grace Period</Label>
+                  <Input type="number" min={0} {...form.register('gracePeriod')} className="h-9" />
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Grace Type</Label>
+                  <Select value={form.watch('graceType')} onValueChange={v => form.setValue('graceType', v as any)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="in-period">In-Period</SelectItem><SelectItem value="ex-period">Ex-Period</SelectItem></SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button type="submit" className="w-full">Calculate EMI</Button>
             </form>
           </CardContent>
         </Card>
 
-        {result && (
-          <Card className="card-shadow">
-            <CardHeader>
-              <CardTitle className="font-heading">EMI Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-4 rounded-lg bg-primary/5">
-                    <p className="text-sm text-muted-foreground">Monthly EMI</p>
-                    <p className="text-2xl font-bold text-primary">৳{result.emi.toFixed(2)}</p>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-accent/10">
-                    <p className="text-sm text-muted-foreground">Total Interest</p>
-                    <p className="text-2xl font-bold text-accent">৳{result.totalInterest.toFixed(2)}</p>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-muted">
-                    <p className="text-sm text-muted-foreground">Total Payment</p>
-                    <p className="text-2xl font-bold text-foreground">৳{result.totalPayment.toFixed(2)}</p>
-                  </div>
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                        {chartData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => `৳${value.toLocaleString()}`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex justify-center gap-6 text-sm">
-                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-primary inline-block" /> Principal</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-accent inline-block" /> Interest</span>
-                  </div>
-                </div>
+        <div className="lg:col-span-2 space-y-6" ref={printRef}>
+          {summary && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Installment (EMI)</p>
+                  <p className="text-2xl font-bold text-primary">৳{summary.emi.toFixed(2)}</p>
+                </CardContent></Card>
+                <Card className="bg-accent/10 border-accent/20"><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Total Interest</p>
+                  <p className="text-2xl font-bold text-accent-foreground">৳{summary.totalInterest.toFixed(2)}</p>
+                </CardContent></Card>
+                <Card className="border"><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Total Payment</p>
+                  <p className="text-2xl font-bold text-foreground">৳{summary.totalPayment.toFixed(2)}</p>
+                </CardContent></Card>
               </div>
-            </CardContent>
-          </Card>
-        )}
+
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1"><Download className="h-3 w-3" /> PDF</Button>
+                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1"><Printer className="h-3 w-3" /> Print</Button>
+              </div>
+
+              <Tabs defaultValue="schedule">
+                <TabsList><TabsTrigger value="schedule">Schedule</TabsTrigger><TabsTrigger value="charts">Charts</TabsTrigger></TabsList>
+                <TabsContent value="schedule">
+                  <Card><div className="overflow-auto max-h-[400px]">
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead>#</TableHead><TableHead className="text-right">Payment</TableHead>
+                        <TableHead className="text-right">Principal</TableHead><TableHead className="text-right">Interest</TableHead>
+                        <TableHead className="text-right">Balance</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {schedule.map(r => (
+                          <TableRow key={r.period}>
+                            <TableCell>{r.period}</TableCell>
+                            <TableCell className="text-right">৳{r.payment.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">৳{r.principal.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">৳{r.interest.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">৳{r.balance.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div></Card>
+                </TabsContent>
+                <TabsContent value="charts">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card><CardContent className="p-4">
+                      <p className="text-sm font-medium mb-2 text-center">Principal vs Interest</p>
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
+                            {pieData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                          </Pie><Tooltip formatter={(v: number) => `৳${v.toLocaleString()}`} /></PieChart>
+                        </ResponsiveContainer>
+                        <div className="flex justify-center gap-4 text-xs">
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-primary" /> Principal</span>
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-accent" /> Interest</span>
+                        </div>
+                      </div>
+                    </CardContent></Card>
+                    <Card><CardContent className="p-4">
+                      <p className="text-sm font-medium mb-2 text-center">Balance Reduction</p>
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" tick={{ fontSize: 10 }} />
+                            <YAxis tick={{ fontSize: 10 }} />
+                            <Tooltip formatter={(v: number) => `৳${v.toLocaleString()}`} />
+                            <Line type="monotone" dataKey="balance" stroke="hsl(215,70%,22%)" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent></Card>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
