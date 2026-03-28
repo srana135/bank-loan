@@ -171,7 +171,7 @@ const LoanManagement = () => {
   const openLoanDetail = (loan: Loan) => { setDetailLoan(loan); setDetailOpen(true); };
 
   const activeFilterCount = [filters.accountName, filters.borrowerName, filters.accountType, filters.accountStatus, filters.address]
-    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0);
+    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0) + (adminBranchFilter !== '__all__' ? 1 : 0);
 
   return (
     <div className="container py-6 space-y-4">
