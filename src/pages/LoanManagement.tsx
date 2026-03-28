@@ -51,6 +51,7 @@ const LoanManagement = () => {
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
+  const [adminBranchFilter, setAdminBranchFilter] = useState('__all__');
   const [showFilters, setShowFilters] = useState(false);
   const [showSms, setShowSms] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -69,8 +70,13 @@ const LoanManagement = () => {
 
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
-    return applyFilters(allLoans, filters, search);
-  }, [allLoans, filters, search]);
+    let loans = applyFilters(allLoans, filters, search);
+    // Admin branch filter (client-side since admin fetches all)
+    if (userRole === 'admin' && adminBranchFilter !== '__all__') {
+      loans = loans.filter(l => l.branch_id === adminBranchFilter);
+    }
+    return loans;
+  }, [allLoans, filters, search, adminBranchFilter, userRole]);
 
   const currentDetailLoan = useMemo(() => {
     if (!detailLoan || !allLoans) return detailLoan;
@@ -165,7 +171,7 @@ const LoanManagement = () => {
   const openLoanDetail = (loan: Loan) => { setDetailLoan(loan); setDetailOpen(true); };
 
   const activeFilterCount = [filters.accountName, filters.borrowerName, filters.accountType, filters.accountStatus, filters.address]
-    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0);
+    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0) + (adminBranchFilter !== '__all__' ? 1 : 0);
 
   return (
     <div className="container py-6 space-y-4">
@@ -176,12 +182,18 @@ const LoanManagement = () => {
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm text-muted-foreground">{profile?.full_name || user?.email}</span>
             {userRole && <Badge variant="secondary" className="capitalize text-[10px] h-4">{userRole}</Badge>}
-            {branchName && (
+            {userRole === 'admin' && <span className="text-xs text-muted-foreground">Viewing all branches</span>}
+            {userRole === 'manager' && branchName && (
               <Badge variant="outline" className="text-[10px] h-4 gap-1">
-                <Building2 className="h-2.5 w-2.5" />{branchName}
+                <Building2 className="h-2.5 w-2.5" />Branch: {branchName} (restricted)
               </Badge>
             )}
-            {isEmployee && <span className="text-xs text-muted-foreground">(View & Comment only)</span>}
+            {userRole === 'employee' && (
+              <>
+                {branchName && <Badge variant="outline" className="text-[10px] h-4 gap-1"><Building2 className="h-2.5 w-2.5" />{branchName}</Badge>}
+                <span className="text-xs text-muted-foreground">(View & Comment only)</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -214,7 +226,17 @@ const LoanManagement = () => {
         </Button>
       </div>
 
-      {showFilters && <LoanFilterPanel filters={filters} onChange={setFilters} loans={allLoans || []} />}
+      {showFilters && (
+        <LoanFilterPanel
+          filters={filters}
+          onChange={setFilters}
+          loans={allLoans || []}
+          branches={branches}
+          showBranchFilter={userRole === 'admin'}
+          branchFilter={adminBranchFilter}
+          onBranchFilterChange={setAdminBranchFilter}
+        />
+      )}
       {showSms && <SmsUtility loans={filteredLoans} />}
       <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications} />
 

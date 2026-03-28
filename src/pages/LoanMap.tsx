@@ -151,7 +151,13 @@ const LoanMap = () => {
 
   return (
     <div className="container py-6 space-y-4">
-      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Map View</h1>
+      <div>
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Map View</h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          {userRole === 'admin' ? 'Viewing all branches' : userRole === 'manager' ? `Restricted to ${currentBranch?.branch_name || 'your branch'}` : 'Branch view'}
+          {' · '}{loansWithCoords} of {filteredLoans.length} loans with coordinates
+        </p>
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-end">
         <div className="space-y-1.5 w-full sm:w-64">
@@ -188,9 +194,11 @@ const LoanMap = () => {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground text-center">
-        Showing {loansWithCoords} of {filteredLoans.length} loans with coordinates
-      </p>
+      {currentBranch && (
+        <p className="text-xs text-muted-foreground text-center">
+          Branch: <strong>{currentBranch.branch_name}</strong> · Radius: {radius} km · {loansWithCoords} markers shown
+        </p>
+      )}
 
       <LoanDetailDrawer
         loan={currentDetailLoan}
