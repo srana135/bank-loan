@@ -13,11 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { format, lastDayOfMonth, addMonths, addWeeks, getDate } from 'date-fns';
 
 const COLORS = ['hsl(215,70%,22%)', 'hsl(42,85%,52%)'];
 
 const FREQUENCIES: Record<string, number> = {
   weekly: 52, 'semi-monthly': 24, monthly: 12, quarterly: 4, 'half-yearly': 2, yearly: 1,
+};
+
+const FREQUENCY_MONTHS: Record<string, number> = {
+  weekly: 0, 'semi-monthly': 0, monthly: 1, quarterly: 3, 'half-yearly': 6, yearly: 12,
 };
 
 const schema = z.object({
@@ -29,16 +34,34 @@ const schema = z.object({
   interestMethod: z.enum(['reducing', 'simple']),
   gracePeriod: z.coerce.number().min(0).default(0),
   graceType: z.enum(['in-period', 'ex-period']),
+  disbursementDate: z.string().min(1, 'Required'),
 });
 
 type FormData = z.infer<typeof schema>;
 
 interface ScheduleRow {
   period: number;
+  date: string;
   payment: number;
   principal: number;
   interest: number;
   balance: number;
+}
+
+/** Get the installment date for a given period offset from disbursement */
+function getInstallmentDate(disbursement: Date, periodOffset: number, frequency: string, isLastDayDisbursement: boolean): Date {
+  if (frequency === 'weekly') {
+    return addWeeks(disbursement, periodOffset);
+  }
+  const monthsToAdd = periodOffset * (FREQUENCY_MONTHS[frequency] || 1);
+  const target = addMonths(disbursement, monthsToAdd);
+  if (isLastDayDisbursement) {
+    return lastDayOfMonth(target);
+  }
+  // Clamp day to last day of target month (e.g. Jan 31 → Feb 28)
+  const lastDay = lastDayOfMonth(target);
+  if (target > lastDay) return lastDay;
+  return target;
 }
 
 const EMICalculator = () => {
@@ -47,24 +70,29 @@ const EMICalculator = () => {
   const [summary, setSummary] = useState<{ emi: number; totalPayment: number; totalInterest: number } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       principal: 100000, rate: 10, tenureValue: 12, tenureUnit: 'months',
       frequency: 'monthly', interestMethod: 'reducing', gracePeriod: 0, graceType: 'in-period',
+      disbursementDate: today,
     },
   });
 
   const calculate = (data: FormData) => {
-    const { principal, rate, tenureValue, tenureUnit, frequency, interestMethod, gracePeriod, graceType } = data;
+    const { principal, rate, tenureValue, tenureUnit, frequency, interestMethod, gracePeriod, graceType, disbursementDate } = data;
     const totalMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
     const periodsPerYear = FREQUENCIES[frequency] || 12;
     const totalPeriods = Math.round(totalMonths * periodsPerYear / 12);
     const periodicRate = rate / 100 / periodsPerYear;
-    const rounding = settings?.emi_rounding || 1;
 
     const effectivePeriods = graceType === 'in-period' ? totalPeriods : totalPeriods + gracePeriod;
     const paymentPeriods = graceType === 'in-period' ? totalPeriods - gracePeriod : totalPeriods;
+
+    // Round up to next 10 (দশক)
+    const rounding = 10;
 
     let emi: number;
     if (interestMethod === 'reducing') {
@@ -80,6 +108,12 @@ const EMICalculator = () => {
     }
 
     emi = Math.ceil(emi / rounding) * rounding;
+
+    // Date logic
+    const disbursement = new Date(disbursementDate + 'T00:00:00');
+    const disbDay = getDate(disbursement);
+    const lastDayOfDisbMonth = getDate(lastDayOfMonth(disbursement));
+    const isLastDayDisbursement = disbDay === lastDayOfDisbMonth;
 
     const rows: ScheduleRow[] = [];
     let balance = principal;
@@ -107,7 +141,17 @@ const EMICalculator = () => {
 
       totalPayment += payment;
       totalInterest += interest;
-      rows.push({ period: i, payment: Math.round(payment * 100) / 100, principal: Math.round(principalPart * 100) / 100, interest: Math.round(interest * 100) / 100, balance: Math.round(balance * 100) / 100 });
+
+      const installmentDate = getInstallmentDate(disbursement, i, frequency, isLastDayDisbursement);
+
+      rows.push({
+        period: i,
+        date: format(installmentDate, 'dd-MM-yyyy'),
+        payment: Math.round(payment * 100) / 100,
+        principal: Math.round(principalPart * 100) / 100,
+        interest: Math.round(interest * 100) / 100,
+        balance: Math.round(balance * 100) / 100,
+      });
     }
 
     setSchedule(rows);
@@ -126,18 +170,18 @@ const EMICalculator = () => {
     doc.setFontSize(16); doc.text('EMI Amortization Schedule', 14, 15);
     doc.setFontSize(9);
     doc.text(`Principal: ৳${form.getValues('principal').toLocaleString()} | Rate: ${form.getValues('rate')}% | EMI: ৳${summary.emi.toFixed(2)}`, 14, 23);
-    doc.text(`Total Payment: ৳${summary.totalPayment.toFixed(2)} | Total Interest: ৳${summary.totalInterest.toFixed(2)}`, 14, 29);
+    doc.text(`Disbursement: ${form.getValues('disbursementDate')} | Total Payment: ৳${summary.totalPayment.toFixed(2)} | Total Interest: ৳${summary.totalInterest.toFixed(2)}`, 14, 29);
 
     let y = 38;
-    const cols = ['#', 'Payment', 'Principal', 'Interest', 'Balance'];
-    const cw = [12, 32, 32, 32, 32];
+    const cols = ['#', 'Date', 'Payment', 'Principal', 'Interest', 'Balance'];
+    const cw = [10, 24, 28, 28, 28, 28];
     doc.setFont('helvetica', 'bold');
     cols.forEach((c, i) => doc.text(c, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
     y += 5;
     doc.setFont('helvetica', 'normal');
     schedule.forEach(r => {
       if (y > 280) { doc.addPage(); y = 15; }
-      const vals = [String(r.period), r.payment.toFixed(2), r.principal.toFixed(2), r.interest.toFixed(2), r.balance.toFixed(2)];
+      const vals = [String(r.period), r.date, r.payment.toFixed(2), r.principal.toFixed(2), r.interest.toFixed(2), r.balance.toFixed(2)];
       vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
       y += 4.5;
     });
@@ -169,6 +213,10 @@ const EMICalculator = () => {
                     <SelectContent><SelectItem value="months">Months</SelectItem><SelectItem value="years">Years</SelectItem></SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Disbursement Date</Label>
+                <Input type="date" {...form.register('disbursementDate')} className="h-9" />
+                {form.formState.errors.disbursementDate && <p className="text-xs text-destructive">{form.formState.errors.disbursementDate.message}</p>}
               </div>
               <div className="space-y-1.5"><Label className="text-xs">Installment Frequency</Label>
                 <Select value={form.watch('frequency')} onValueChange={v => form.setValue('frequency', v)}>
@@ -229,7 +277,7 @@ const EMICalculator = () => {
                   <Card><div className="overflow-auto max-h-[400px]">
                     <Table>
                       <TableHeader><TableRow>
-                        <TableHead>#</TableHead><TableHead className="text-right">Payment</TableHead>
+                        <TableHead>#</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Payment</TableHead>
                         <TableHead className="text-right">Principal</TableHead><TableHead className="text-right">Interest</TableHead>
                         <TableHead className="text-right">Balance</TableHead>
                       </TableRow></TableHeader>
@@ -237,6 +285,7 @@ const EMICalculator = () => {
                         {schedule.map(r => (
                           <TableRow key={r.period}>
                             <TableCell>{r.period}</TableCell>
+                            <TableCell className="whitespace-nowrap">{r.date}</TableCell>
                             <TableCell className="text-right">৳{r.payment.toLocaleString()}</TableCell>
                             <TableCell className="text-right">৳{r.principal.toLocaleString()}</TableCell>
                             <TableCell className="text-right">৳{r.interest.toLocaleString()}</TableCell>
