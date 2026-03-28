@@ -38,6 +38,8 @@ const App = () => (
               <Route path="/loan-management" element={<ProtectedRoute><LoanManagement /></ProtectedRoute>} />
               <Route path="/loan-map" element={<ProtectedRoute><LoanMap /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/loan-management" element={<ProtectedRoute><LoanManagement /></ProtectedRoute>} />
+              <Route path="/loan-map" element={<ProtectedRoute><LoanMap /></ProtectedRoute>} />
               <Route path="/emi-calculator" element={<EMICalculator />} />
               <Route path="/emi-calculator/dps" element={<DPSCalculator />} />
               <Route path="/emi-calculator/fdr" element={<FDRCalculator />} />
