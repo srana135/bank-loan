@@ -107,3 +107,31 @@
     box-shadow: var(--shadow-elevated);
   }
 }
+
+/* Print styles for EMI Calculator */
+@media print {
+  header, footer, nav, .card-shadow, .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    grid-column: 1 / -1 !important;
+  }
+  .print-area .max-h-\[400px\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .container {
+    max-width: 100% !important;
+  }
+}

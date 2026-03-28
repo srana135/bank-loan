@@ -190,9 +190,9 @@ const EMICalculator = () => {
 
   return (
     <div className="container py-6 space-y-6">
-      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">EMI Calculator</h1>
+      <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground no-print">EMI Calculator</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 card-shadow">
+        <Card className="lg:col-span-1 card-shadow no-print">
           <CardHeader><CardTitle className="font-heading text-lg">Loan Parameters</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(calculate)} className="space-y-3">
@@ -248,9 +248,20 @@ const EMICalculator = () => {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-6" ref={printRef}>
+        <div className="lg:col-span-2 space-y-6 print-area" ref={printRef}>
           {summary && (
             <>
+              {/* Print-only header with loan parameters */}
+              <div className="print-only hidden">
+                <h2 className="text-xl font-bold mb-2">EMI Amortization Schedule</h2>
+                <div className="text-sm mb-4 space-y-1">
+                  <p><strong>Principal:</strong> ৳{form.getValues('principal').toLocaleString()} | <strong>Rate:</strong> {form.getValues('rate')}% | <strong>Tenure:</strong> {form.getValues('tenureValue')} {form.getValues('tenureUnit')}</p>
+                  <p><strong>Disbursement:</strong> {form.getValues('disbursementDate')} | <strong>Method:</strong> {form.getValues('interestMethod')} | <strong>Frequency:</strong> {form.getValues('frequency')}</p>
+                  {form.getValues('gracePeriod') > 0 && <p><strong>Grace Period:</strong> {form.getValues('gracePeriod')} ({form.getValues('graceType')})</p>}
+                  <p><strong>EMI:</strong> ৳{summary.emi.toFixed(2)} | <strong>Total Interest:</strong> ৳{summary.totalInterest.toFixed(2)} | <strong>Total Payment:</strong> ৳{summary.totalPayment.toFixed(2)}</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Installment (EMI)</p>
@@ -266,7 +277,7 @@ const EMICalculator = () => {
                 </CardContent></Card>
               </div>
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-2 justify-end no-print">
                 <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1"><Download className="h-3 w-3" /> PDF</Button>
                 <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1"><Printer className="h-3 w-3" /> Print</Button>
               </div>
