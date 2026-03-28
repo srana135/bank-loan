@@ -182,12 +182,18 @@ const LoanManagement = () => {
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm text-muted-foreground">{profile?.full_name || user?.email}</span>
             {userRole && <Badge variant="secondary" className="capitalize text-[10px] h-4">{userRole}</Badge>}
-            {branchName && (
+            {userRole === 'admin' && <span className="text-xs text-muted-foreground">Viewing all branches</span>}
+            {userRole === 'manager' && branchName && (
               <Badge variant="outline" className="text-[10px] h-4 gap-1">
-                <Building2 className="h-2.5 w-2.5" />{branchName}
+                <Building2 className="h-2.5 w-2.5" />Branch: {branchName} (restricted)
               </Badge>
             )}
-            {isEmployee && <span className="text-xs text-muted-foreground">(View & Comment only)</span>}
+            {userRole === 'employee' && (
+              <>
+                {branchName && <Badge variant="outline" className="text-[10px] h-4 gap-1"><Building2 className="h-2.5 w-2.5" />{branchName}</Badge>}
+                <span className="text-xs text-muted-foreground">(View & Comment only)</span>
+              </>
+            )}
           </div>
         </div>
       </div>
