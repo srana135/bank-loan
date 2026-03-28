@@ -1,3 +1,15 @@
+/**
+ * PRODUCTION CHECKLIST — Loan Eligibility
+ * ✅ Eligibility calculator using DTI rules from app_settings
+ * ✅ Save proposals to loan_proposals table
+ * ✅ Status flow: Proposed → In Progress → Disbursement / Rejected
+ * ✅ Rejection requires comment and date
+ * ✅ Filter by status
+ * ✅ Rejected proposals PDF export
+ * ✅ Click-to-call on mobile numbers
+ * ✅ Role-aware actions (admin/manager can manage)
+ * ✅ Graceful handling if loan_proposals table doesn't exist yet
+ */
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -17,24 +29,30 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Download, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 
 const eligibilitySchema = z.object({
-  customerName: z.string().min(2, 'Required'),
-  mobile: z.string().min(5, 'Required'),
-  monthlyIncome: z.coerce.number().positive('Required'),
+  customerName: z.string().trim().min(2, 'Name is required'),
+  mobile: z.string().trim().min(5, 'Mobile is required'),
+  monthlyIncome: z.coerce.number().positive('Income must be positive'),
   loanType: z.enum(['cmsme', 'personal', 'home_loan']),
-  disbursementDate: z.string().min(1, 'Required'),
+  disbursementDate: z.string().min(1, 'Date is required'),
 });
 
 type EligibilityForm = z.infer<typeof eligibilitySchema>;
 
 const LOAN_TYPE_LABELS: Record<string, string> = { cmsme: 'CMSME', personal: 'Personal', home_loan: 'Home Loan' };
 
+const DEFAULT_RULES: Record<string, { dti_ratio: number; max_amount: number; default_rate: number; max_tenure: number }> = {
+  cmsme: { dti_ratio: 0.5, max_amount: 5000000, default_rate: 9, max_tenure: 60 },
+  personal: { dti_ratio: 0.4, max_amount: 2000000, default_rate: 12, max_tenure: 48 },
+  home_loan: { dti_ratio: 0.45, max_amount: 10000000, default_rate: 9.5, max_tenure: 240 },
+};
+
 const LoanEligibility = () => {
-  const { user, profile, userRole } = useAuth();
+  const { user, userRole } = useAuth();
   const { data: settings } = useAppSettings();
   const qc = useQueryClient();
 
@@ -49,13 +67,17 @@ const LoanEligibility = () => {
     defaultValues: { customerName: '', mobile: '', monthlyIncome: 0, loanType: 'personal', disbursementDate: new Date().toISOString().split('T')[0] },
   });
 
-  const { data: proposals, isLoading } = useQuery({
+  const { data: proposals, isLoading, error: proposalsError } = useQuery({
     queryKey: ['loan-proposals'],
     queryFn: async () => {
       const { data, error } = await supabase.from('loan_proposals').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') return [] as LoanProposal[];
+        throw error;
+      }
       return (data || []) as LoanProposal[];
     },
+    retry: 1,
   });
 
   const updateProposal = useMutation({
@@ -68,7 +90,8 @@ const LoanEligibility = () => {
   });
 
   const calculate = (data: EligibilityForm) => {
-    const rules = settings?.loan_eligibility?.[data.loanType === 'home_loan' ? 'home_loan' : data.loanType] || { dti_ratio: 0.4, max_amount: 2000000, default_rate: 12, max_tenure: 48 };
+    const typeKey = data.loanType === 'home_loan' ? 'home_loan' : data.loanType;
+    const rules = settings?.loan_eligibility?.[typeKey] || DEFAULT_RULES[typeKey];
     const maxEMI = data.monthlyIncome * rules.dti_ratio;
     const monthlyRate = rules.default_rate / 12 / 100;
     const maxAmount = monthlyRate > 0
@@ -95,7 +118,7 @@ const LoanEligibility = () => {
   };
 
   const handleReject = async () => {
-    if (!rejectComment.trim()) { toast.error('Rejection comment required'); return; }
+    if (!rejectComment.trim()) { toast.error('Rejection comment is required'); return; }
     await updateProposal.mutateAsync({ id: rejectId, status: 'rejected', rejection_comment: rejectComment.trim(), rejection_date: new Date().toISOString().split('T')[0] });
     setRejectDialogOpen(false);
     setRejectComment('');
@@ -105,20 +128,37 @@ const LoanEligibility = () => {
 
   const exportRejectedPDF = () => {
     const rejected = proposals?.filter(p => p.status === 'rejected');
-    if (!rejected?.length) { toast.error('No rejected proposals'); return; }
+    if (!rejected?.length) { toast.error('No rejected proposals to export'); return; }
     const doc = new jsPDF();
     doc.setFontSize(14); doc.text('Rejected Loan Proposals', 14, 15);
     doc.setFontSize(8);
-    let y = 25;
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
+    let y = 30;
+    const headers = ['Customer', 'Mobile', 'Type', 'Amount', 'Reason', 'Date'];
+    const cw = [30, 25, 20, 25, 55, 25];
+    doc.setFont('helvetica', 'bold');
+    headers.forEach((h, i) => doc.text(h, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 5;
+    doc.setFont('helvetica', 'normal');
     rejected.forEach(p => {
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.text(`${p.customer_name} | ${p.mobile} | ${LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type} | ৳${(p.eligible_amount || 0).toLocaleString()} | ${p.rejection_comment || ''} | ${p.rejection_date || ''}`, 14, y);
+      if (y > 280) { doc.addPage(); y = 15; }
+      const vals = [
+        (p.customer_name || '').substring(0, 18),
+        (p.mobile || '').substring(0, 14),
+        LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type || '',
+        `${(p.eligible_amount || 0).toLocaleString()}`,
+        (p.rejection_comment || '').substring(0, 35),
+        p.rejection_date || '',
+      ];
+      vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
       y += 5;
     });
     doc.save('rejected_proposals.pdf');
+    toast.success('PDF exported');
   };
 
   const canManage = userRole === 'admin' || userRole === 'manager';
+  const tableNotReady = proposalsError && (proposalsError as any)?.code === 'PGRST205';
 
   return (
     <div className="container py-6 space-y-6">
@@ -137,10 +177,12 @@ const LoanEligibility = () => {
                     {form.formState.errors.customerName && <p className="text-xs text-destructive">{form.formState.errors.customerName.message}</p>}
                   </div>
                   <div className="space-y-1.5"><Label className="text-xs">Mobile</Label>
-                    <Input {...form.register('mobile')} className="h-9" />
+                    <Input {...form.register('mobile')} className="h-9" placeholder="01XXXXXXXXX" />
+                    {form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}
                   </div>
                   <div className="space-y-1.5"><Label className="text-xs">Monthly Income (৳)</Label>
                     <Input type="number" {...form.register('monthlyIncome')} className="h-9" />
+                    {form.formState.errors.monthlyIncome && <p className="text-xs text-destructive">{form.formState.errors.monthlyIncome.message}</p>}
                   </div>
                   <div className="space-y-1.5"><Label className="text-xs">Loan Type</Label>
                     <Select value={form.watch('loanType')} onValueChange={v => form.setValue('loanType', v as any)}>
@@ -150,6 +192,7 @@ const LoanEligibility = () => {
                   </div>
                   <div className="space-y-1.5"><Label className="text-xs">Probable Disbursement Date</Label>
                     <Input type="date" {...form.register('disbursementDate')} className="h-9" />
+                    {form.formState.errors.disbursementDate && <p className="text-xs text-destructive">{form.formState.errors.disbursementDate.message}</p>}
                   </div>
                   <Button type="submit" className="w-full">Check Eligibility</Button>
                 </form>
@@ -161,7 +204,7 @@ const LoanEligibility = () => {
                 <CardHeader><CardTitle className="font-heading text-lg">Result</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-muted">
-                    {eligResult.eligible ? <CheckCircle className="h-8 w-8 text-success" /> : <XCircle className="h-8 w-8 text-destructive" />}
+                    {eligResult.eligible ? <CheckCircle className="h-8 w-8 text-green-600" /> : <XCircle className="h-8 w-8 text-destructive" />}
                     <div>
                       <p className="font-semibold">{eligResult.eligible ? 'Eligible!' : 'Not Eligible'}</p>
                       <p className="text-xs text-muted-foreground">Based on DTI ratio for {LOAN_TYPE_LABELS[form.getValues('loanType')]}</p>
@@ -184,7 +227,16 @@ const LoanEligibility = () => {
         </TabsContent>
 
         <TabsContent value="proposals" className="space-y-4">
-          <div className="flex items-center gap-3">
+          {tableNotReady && (
+            <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="py-4 flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-800 dark:text-amber-200">The loan_proposals table has not been created yet. Please run the migration SQL in your Supabase dashboard.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -195,7 +247,9 @@ const LoanEligibility = () => {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={exportRejectedPDF} className="gap-1"><Download className="h-3 w-3" /> Rejected PDF</Button>
+            <Button variant="outline" size="sm" onClick={exportRejectedPDF} className="gap-1" disabled={!proposals?.some(p => p.status === 'rejected')}>
+              <Download className="h-3 w-3" /> Rejected PDF
+            </Button>
           </div>
 
           {isLoading ? (
@@ -255,7 +309,10 @@ const LoanEligibility = () => {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleReject} disabled={updateProposal.isPending}>Reject</Button>
+              <Button variant="destructive" onClick={handleReject} disabled={updateProposal.isPending || !rejectComment.trim()}>
+                {updateProposal.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Reject
+              </Button>
             </div>
           </div>
         </DialogContent>
