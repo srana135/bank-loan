@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import LoanManagement from "./pages/LoanManagement";
+import AdminDashboard from "./pages/AdminDashboard";
 import EMICalculator from "./pages/EMICalculator";
 import DPSCalculator from "./pages/DPSCalculator";
 import FDRCalculator from "./pages/FDRCalculator";
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/loan-management" element={<ProtectedRoute><LoanManagement /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
               <Route path="/emi-calculator" element={<EMICalculator />} />
               <Route path="/emi-calculator/dps" element={<DPSCalculator />} />
               <Route path="/emi-calculator/fdr" element={<FDRCalculator />} />
