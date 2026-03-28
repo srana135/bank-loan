@@ -265,7 +265,7 @@ const UserManagement = () => {
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => openEdit(p)} title="Edit"><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => handleToggleActive(p)} title={p.is_active ? 'Deactivate' : 'Activate'}>
-                          {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-green-600" />}
+                          {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-success" />}
                         </Button>
                         {p.email && (
                           <Button size="icon" variant="ghost" onClick={() => handleResetPassword(p.email!)} title="Reset Password">
