@@ -1,5 +1,5 @@
 import { Loan } from '@/types';
-import { LoanFilters, defaultFilters } from '@/hooks/useLoans';
+import { type LoanFilters as LoanFiltersType, defaultFilters } from '@/hooks/useLoans';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
