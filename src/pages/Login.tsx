@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Landmark, Loader2 } from 'lucide-react';
+import { Landmark, Loader2, Shield } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
@@ -126,9 +127,22 @@ const Login = () => {
     setLoading(false);
   };
 
+  const fillCredentials = (email: string, password: string) => {
+    loginForm.setValue('email', email);
+    loginForm.setValue('password', password);
+    setMode('login');
+  };
+
+  const testAccounts = [
+    { role: 'Admin', email: 'admin@loanmanager.test', password: 'Admin@123456', scope: 'All Branches', badge: 'destructive' as const },
+    { role: 'Manager', email: 'manager@loanmanager.test', password: 'Manager@123456', scope: 'Own Branch Only', badge: 'default' as const },
+    { role: 'Employee', email: 'employee@loanmanager.test', password: 'Employee@123456', scope: 'Own Branch (View & Comment)', badge: 'secondary' as const },
+  ];
+
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center py-12 px-4">
-      <Card className="w-full max-w-md card-shadow">
+      <div className="w-full max-w-md space-y-4">
+      <Card className="card-shadow">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Landmark className="h-6 w-6 text-primary" />
@@ -268,6 +282,59 @@ const Login = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dev Test Credentials Panel */}
+      {mode === 'login' && (
+        <Card className="border-2 border-accent/40 bg-accent/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Shield className="h-4 w-4 text-accent" />
+              Development Test Accounts
+            </CardTitle>
+            <CardDescription className="text-xs">Click any account to auto-fill the login form</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {testAccounts.map(acc => (
+              <button
+                key={acc.role}
+                type="button"
+                onClick={() => fillCredentials(acc.email, acc.password)}
+                className="w-full text-left p-3 rounded-lg border border-border/60 hover:bg-muted/60 transition-colors space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm text-foreground">{acc.role}</span>
+                  <Badge variant={acc.badge} className="text-[10px] capitalize h-4">{acc.role}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground font-mono">{acc.email}</p>
+                <p className="text-xs text-muted-foreground">Password: <span className="font-mono">{acc.password}</span></p>
+                <p className="text-xs text-muted-foreground">Scope: {acc.scope}</p>
+              </button>
+            ))}
+            <div className="mt-3 p-2.5 rounded bg-muted/50 border border-border/40">
+              <p className="text-xs font-semibold text-foreground mb-1">⚠️ Setup Required (one-time)</p>
+              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Sign up each account above via "Create New Account"</li>
+                <li>Confirm emails (or disable email confirmation in Supabase Auth settings)</li>
+                <li>Run this SQL in your Supabase SQL Editor:</li>
+              </ol>
+              <pre className="mt-1.5 text-[10px] bg-background p-2 rounded overflow-x-auto text-muted-foreground leading-relaxed">
+{`UPDATE public.profiles SET role='admin', is_active=true,
+  full_name='Admin User', user_id='ADM001'
+WHERE email='admin@loanmanager.test';
+
+UPDATE public.profiles SET role='manager', is_active=true,
+  full_name='Manager User', user_id='MGR001'
+WHERE email='manager@loanmanager.test';
+
+UPDATE public.profiles SET role='employee', is_active=true,
+  full_name='Employee User', user_id='EMP001'
+WHERE email='employee@loanmanager.test';`}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      </div>
     </div>
   );
 };
