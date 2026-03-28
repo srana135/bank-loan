@@ -9,8 +9,8 @@ import { X } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface Props {
-  filters: LoanFilters;
-  onChange: (f: LoanFilters) => void;
+  filters: LoanFiltersType;
+  onChange: (f: LoanFiltersType) => void;
   loans: Loan[];
 }
 
@@ -23,7 +23,7 @@ const LoanFilters = ({ filters, onChange, loans }: Props) => {
     return Array.from(types).sort();
   }, [loans]);
 
-  const update = (partial: Partial<LoanFilters>) => onChange({ ...filters, ...partial });
+  const update = (partial: Partial<LoanFiltersType>) => onChange({ ...filters, ...partial });
 
   const toggleClassification = (cls: string) => {
     const current = filters.classifications;
