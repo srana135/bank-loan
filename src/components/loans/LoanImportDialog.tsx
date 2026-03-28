@@ -132,6 +132,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               continue;
             }
 
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             const payload: Record<string, any> = {};
             for (const [excelCol, dbCol] of Object.entries(COL_MAP)) {
               let val = row[excelCol];
@@ -141,6 +142,9 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
                 } else {
                   val = ['latitude', 'longitude', 'installment_amount', 'overdue_installment_number', 'overdue_amount', 'outstanding_amount'].includes(dbCol) ? 0 : '';
                 }
+              }
+              if (dbCol === 'branch_id' && val && !uuidRegex.test(String(val))) {
+                val = defaultBranchId || null;
               }
               if (['latitude', 'longitude', 'installment_amount', 'overdue_amount', 'outstanding_amount'].includes(dbCol)) {
                 val = Number(val) || 0;
