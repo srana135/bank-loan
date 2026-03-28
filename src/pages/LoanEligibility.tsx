@@ -9,8 +9,9 @@
  * ✅ Click-to-call on mobile numbers
  * ✅ Role-aware actions (admin/manager can manage)
  * ✅ Graceful handling if loan_proposals table doesn't exist yet
+ * ✅ Manual Interest Rate & Tenure input with defaults from rules
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Download, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const eligibilitySchema = z.object({
   customerName: z.string().trim().min(2, 'Name is required'),
@@ -39,6 +41,8 @@ const eligibilitySchema = z.object({
   monthlyIncome: z.coerce.number().positive('Income must be positive'),
   loanType: z.enum(['cmsme', 'personal', 'home_loan']),
   disbursementDate: z.string().min(1, 'Date is required'),
+  interestRate: z.coerce.number().min(0.1, 'Rate must be > 0').max(50, 'Rate too high'),
+  tenure: z.coerce.number().int().min(1, 'Min 1 month').max(600, 'Max 600 months'),
 });
 
 type EligibilityForm = z.infer<typeof eligibilitySchema>;
@@ -55,6 +59,7 @@ const LoanEligibility = () => {
   const { user, userRole } = useAuth();
   const { data: settings } = useAppSettings();
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
 
   const [eligResult, setEligResult] = useState<{ eligible: boolean; maxAmount: number; maxEMI: number; rate: number; maxTenure: number } | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -64,8 +69,23 @@ const LoanEligibility = () => {
 
   const form = useForm<EligibilityForm>({
     resolver: zodResolver(eligibilitySchema),
-    defaultValues: { customerName: '', mobile: '', monthlyIncome: 0, loanType: 'personal', disbursementDate: new Date().toISOString().split('T')[0] },
+    defaultValues: {
+      customerName: '', mobile: '', monthlyIncome: 0, loanType: 'personal',
+      disbursementDate: new Date().toISOString().split('T')[0],
+      interestRate: DEFAULT_RULES.personal.default_rate,
+      tenure: DEFAULT_RULES.personal.max_tenure,
+    },
   });
+
+  // Auto-fill interest rate & tenure when loan type changes
+  const watchedLoanType = form.watch('loanType');
+  useEffect(() => {
+    const rules = settings?.loan_eligibility?.[watchedLoanType] || DEFAULT_RULES[watchedLoanType];
+    if (rules) {
+      form.setValue('interestRate', rules.default_rate);
+      form.setValue('tenure', rules.max_tenure);
+    }
+  }, [watchedLoanType, settings]);
 
   const { data: proposals, isLoading, error: proposalsError } = useQuery({
     queryKey: ['loan-proposals'],
@@ -90,14 +110,16 @@ const LoanEligibility = () => {
   });
 
   const calculate = (data: EligibilityForm) => {
-    const typeKey = data.loanType === 'home_loan' ? 'home_loan' : data.loanType;
+    const typeKey = data.loanType;
     const rules = settings?.loan_eligibility?.[typeKey] || DEFAULT_RULES[typeKey];
     const maxEMI = data.monthlyIncome * rules.dti_ratio;
-    const monthlyRate = rules.default_rate / 12 / 100;
+    const rate = data.interestRate;
+    const tenure = data.tenure;
+    const monthlyRate = rate / 12 / 100;
     const maxAmount = monthlyRate > 0
-      ? Math.min(rules.max_amount, (maxEMI * (Math.pow(1 + monthlyRate, rules.max_tenure) - 1)) / (monthlyRate * Math.pow(1 + monthlyRate, rules.max_tenure)))
+      ? Math.min(rules.max_amount, (maxEMI * (Math.pow(1 + monthlyRate, tenure) - 1)) / (monthlyRate * Math.pow(1 + monthlyRate, tenure)))
       : 0;
-    setEligResult({ eligible: maxAmount > 0, maxAmount: Math.round(maxAmount), maxEMI: Math.round(maxEMI), rate: rules.default_rate, maxTenure: rules.max_tenure });
+    setEligResult({ eligible: maxAmount > 0, maxAmount: Math.round(maxAmount), maxEMI: Math.round(maxEMI), rate, maxTenure: tenure });
   };
 
   const addToProposals = async () => {
@@ -221,6 +243,16 @@ const LoanEligibility = () => {
                       <SelectContent><SelectItem value="cmsme">CMSME</SelectItem><SelectItem value="personal">Personal</SelectItem><SelectItem value="home_loan">Home Loan</SelectItem></SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5"><Label className="text-xs">Interest Rate (%)</Label>
+                      <Input type="number" step="0.1" {...form.register('interestRate')} className="h-9" />
+                      {form.formState.errors.interestRate && <p className="text-xs text-destructive">{form.formState.errors.interestRate.message}</p>}
+                    </div>
+                    <div className="space-y-1.5"><Label className="text-xs">Tenure (Months)</Label>
+                      <Input type="number" {...form.register('tenure')} className="h-9" />
+                      {form.formState.errors.tenure && <p className="text-xs text-destructive">{form.formState.errors.tenure.message}</p>}
+                    </div>
+                  </div>
                   <div className="space-y-1.5"><Label className="text-xs">Probable Disbursement Date</Label>
                     <Input type="date" {...form.register('disbursementDate')} className="h-9" />
                     {form.formState.errors.disbursementDate && <p className="text-xs text-destructive">{form.formState.errors.disbursementDate.message}</p>}
@@ -247,7 +279,7 @@ const LoanEligibility = () => {
                         <Card className="bg-primary/5"><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Max Loan</p><p className="text-lg font-bold text-primary">৳{eligResult.maxAmount.toLocaleString()}</p></CardContent></Card>
                         <Card className="bg-accent/10"><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Max EMI</p><p className="text-lg font-bold">৳{eligResult.maxEMI.toLocaleString()}</p></CardContent></Card>
                       </div>
-                      <p className="text-xs text-muted-foreground">Rate: {eligResult.rate}% | Max Tenure: {eligResult.maxTenure} months</p>
+                      <p className="text-xs text-muted-foreground">Rate: {eligResult.rate}% | Tenure: {eligResult.maxTenure} months</p>
                       <Button onClick={addToProposals} className="w-full">Add to Proposal List</Button>
                     </>
                   )}
@@ -290,7 +322,43 @@ const LoanEligibility = () => {
             <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : !filteredProposals?.length ? (
             <Card><CardContent className="py-8 text-center text-muted-foreground">No proposals found.</CardContent></Card>
+          ) : isMobile ? (
+            /* Mobile: Card layout */
+            <div className="space-y-3">
+              {filteredProposals.map(p => (
+                <Card key={p.id} className="card-shadow">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-sm">{p.customer_name}</p>
+                        <a href={`tel:${p.mobile}`} className="text-xs text-primary hover:underline">{p.mobile}</a>
+                      </div>
+                      <Badge variant={p.status === 'rejected' ? 'destructive' : p.status === 'disbursement' ? 'default' : 'secondary'} className="capitalize text-[10px]">
+                        {p.status?.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type}</span></div>
+                      <div><span className="text-muted-foreground">Income:</span> <span className="font-medium">৳{(p.monthly_income || 0).toLocaleString()}</span></div>
+                      <div><span className="text-muted-foreground">Eligible:</span> <span className="font-medium text-primary">৳{(p.eligible_amount || 0).toLocaleString()}</span></div>
+                      <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{p.probable_disbursement_date}</span></div>
+                    </div>
+                    {canManage && p.status !== 'disbursement' && p.status !== 'rejected' && (
+                      <div className="flex gap-2 pt-1">
+                        {p.status === 'proposed' && <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'in_progress' })}>Progress</Button>}
+                        {p.status === 'in_progress' && <Button size="sm" variant="default" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'disbursement' })}>Disburse</Button>}
+                        <Button size="sm" variant="destructive" className="flex-1 h-8 text-xs" onClick={() => { setRejectId(p.id); setRejectDialogOpen(true); }}>Reject</Button>
+                      </div>
+                    )}
+                    {p.status === 'rejected' && p.rejection_comment && (
+                      <p className="text-xs text-destructive bg-destructive/5 p-2 rounded">Reason: {p.rejection_comment}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : (
+            /* Desktop: Table layout */
             <Card><div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>

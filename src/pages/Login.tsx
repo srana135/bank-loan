@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Landmark, Loader2, Shield } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Landmark, Loader2, Shield, Building2, TrendingUp, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
@@ -127,40 +126,74 @@ const Login = () => {
     setLoading(false);
   };
 
-  const fillCredentials = (email: string, password: string) => {
-    loginForm.setValue('email', email);
-    loginForm.setValue('password', password);
-    setMode('login');
-  };
-
-  const testAccounts = [
-    { role: 'Admin', email: 'admin@loanmanager.test', password: 'Admin@123456', scope: 'All Branches', badge: 'destructive' as const },
-    { role: 'Manager', email: 'manager@loanmanager.test', password: 'Manager@123456', scope: 'Own Branch Only', badge: 'default' as const },
-    { role: 'Employee', email: 'employee@loanmanager.test', password: 'Employee@123456', scope: 'Own Branch (View & Comment)', badge: 'secondary' as const },
+  const features = [
+    { icon: Building2, title: 'Branch Management', desc: 'Multi-branch loan tracking & oversight' },
+    { icon: TrendingUp, title: 'Loan Analytics', desc: 'Real-time eligibility & EMI calculations' },
+    { icon: Users, title: 'Role-Based Access', desc: 'Admin, Manager & Employee controls' },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md space-y-4">
-      <Card className="card-shadow">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Landmark className="h-6 w-6 text-primary" />
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center py-8 px-4">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-0 rounded-2xl overflow-hidden shadow-xl border border-border/50">
+        {/* Left: Branded Hero Panel — hidden on mobile */}
+        <div className="hidden lg:flex flex-col justify-center p-10 hero-gradient text-primary-foreground relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, hsl(42 85% 52% / 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, hsl(210 40% 98% / 0.15) 0%, transparent 50%)' }} />
+          <div className="relative z-10 space-y-8">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+                <Landmark className="h-7 w-7" />
+              </div>
+              <div>
+                <h1 className="font-heading text-2xl font-bold">Steady Loan Aid</h1>
+                <p className="text-sm text-primary-foreground/70">Bangladesh Development Bank PLC</p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h2 className="font-heading text-3xl font-bold leading-tight">Empowering Financial<br />Growth & Recovery</h2>
+              <p className="text-sm text-primary-foreground/70 max-w-sm">Streamlined loan management system for efficient tracking, recovery, and branch oversight.</p>
+            </div>
+            <div className="space-y-4 pt-2">
+              {features.map((f, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <f.icon className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{f.title}</p>
+                    <p className="text-xs text-primary-foreground/60">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <CardTitle className="font-heading text-2xl">
-            {mode === 'login' && 'Sign In'}
-            {mode === 'signup' && 'Create Account'}
-            {mode === 'forgot' && 'Reset Password'}
-            {mode === 'register-request' && 'Registration Request'}
-          </CardTitle>
-          <CardDescription>
-            {mode === 'login' && 'Access your loan management dashboard'}
-            {mode === 'signup' && 'Register for a new account'}
-            {mode === 'forgot' && 'Enter your email to receive a reset link'}
-            {mode === 'register-request' && 'Submit a request for account access'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        </div>
+
+        {/* Right: Form Panel */}
+        <div className="bg-card p-6 sm:p-10 flex flex-col justify-center">
+          {/* Mobile-only branding */}
+          <div className="lg:hidden text-center mb-6">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full hero-gradient">
+              <Landmark className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <h1 className="font-heading text-xl font-bold text-foreground">Steady Loan Aid</h1>
+            <p className="text-xs text-muted-foreground">Bangladesh Development Bank PLC</p>
+          </div>
+
+          <div className="space-y-1 mb-6">
+            <h2 className="font-heading text-2xl font-bold text-foreground">
+              {mode === 'login' && 'Welcome Back'}
+              {mode === 'signup' && 'Create Account'}
+              {mode === 'forgot' && 'Reset Password'}
+              {mode === 'register-request' && 'Registration Request'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {mode === 'login' && 'Sign in to access your dashboard'}
+              {mode === 'signup' && 'Register for a new account'}
+              {mode === 'forgot' && 'Enter your email to receive a reset link'}
+              {mode === 'register-request' && 'Submit a request for account access'}
+            </p>
+          </div>
+
           {/* LOGIN */}
           {mode === 'login' && (
             <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
@@ -174,10 +207,10 @@ const Login = () => {
                 <Input id="password" type="password" placeholder="••••••" {...loginForm.register('password')} />
                 {loginForm.formState.errors.password && <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign In'}
               </Button>
-              <div className="flex flex-col gap-2 text-center text-sm">
+              <div className="flex flex-col gap-2 text-center text-sm pt-2">
                 <button type="button" onClick={() => setMode('forgot')} className="text-primary hover:underline">Forgot Password?</button>
                 <button type="button" onClick={() => setMode('signup')} className="text-primary hover:underline">Create New Account</button>
                 <button type="button" onClick={() => setMode('register-request')} className="text-primary hover:underline">New User? Request Registration</button>
@@ -208,7 +241,7 @@ const Login = () => {
                 <Input type="password" placeholder="••••••" {...signupForm.register('confirmPassword')} />
                 {signupForm.formState.errors.confirmPassword && <p className="text-sm text-destructive">{signupForm.formState.errors.confirmPassword.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Register'}
               </Button>
               <div className="text-center text-sm">
@@ -225,7 +258,7 @@ const Login = () => {
                 <Input type="email" placeholder="you@example.com" {...forgotForm.register('email')} />
                 {forgotForm.formState.errors.email && <p className="text-sm text-destructive">{forgotForm.formState.errors.email.message}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Reset Link'}
               </Button>
               <div className="text-center text-sm">
@@ -236,43 +269,43 @@ const Login = () => {
 
           {/* REGISTRATION REQUEST */}
           {mode === 'register-request' && (
-            <form onSubmit={regForm.handleSubmit(onRegRequest)} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Preferred User ID</Label>
-                <Input placeholder="e.g. srana001" {...regForm.register('requestedUserId')} />
-                {regForm.formState.errors.requestedUserId && <p className="text-sm text-destructive">{regForm.formState.errors.requestedUserId.message}</p>}
+            <form onSubmit={regForm.handleSubmit(onRegRequest)} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Preferred User ID</Label>
+                <Input placeholder="e.g. srana001" {...regForm.register('requestedUserId')} className="h-9" />
+                {regForm.formState.errors.requestedUserId && <p className="text-xs text-destructive">{regForm.formState.errors.requestedUserId.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <Input placeholder="Your full name" {...regForm.register('fullName')} />
-                {regForm.formState.errors.fullName && <p className="text-sm text-destructive">{regForm.formState.errors.fullName.message}</p>}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Full Name</Label>
+                <Input placeholder="Your full name" {...regForm.register('fullName')} className="h-9" />
+                {regForm.formState.errors.fullName && <p className="text-xs text-destructive">{regForm.formState.errors.fullName.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" placeholder="you@example.com" {...regForm.register('email')} />
-                {regForm.formState.errors.email && <p className="text-sm text-destructive">{regForm.formState.errors.email.message}</p>}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email</Label>
+                <Input type="email" placeholder="you@example.com" {...regForm.register('email')} className="h-9" />
+                {regForm.formState.errors.email && <p className="text-xs text-destructive">{regForm.formState.errors.email.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Mobile</Label>
-                <Input placeholder="01XXXXXXXXX" {...regForm.register('mobile')} />
-                {regForm.formState.errors.mobile && <p className="text-sm text-destructive">{regForm.formState.errors.mobile.message}</p>}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Mobile</Label>
+                <Input placeholder="01XXXXXXXXX" {...regForm.register('mobile')} className="h-9" />
+                {regForm.formState.errors.mobile && <p className="text-xs text-destructive">{regForm.formState.errors.mobile.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Requested Role</Label>
-                <select {...regForm.register('requestedRole')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Requested Role</Label>
+                <select {...regForm.register('requestedRole')} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label>Branch Name (Optional)</Label>
-                <Input placeholder="Branch name" {...regForm.register('branchName')} />
+              <div className="space-y-1.5">
+                <Label className="text-xs">Branch Name (Optional)</Label>
+                <Input placeholder="Branch name" {...regForm.register('branchName')} className="h-9" />
               </div>
-              <div className="space-y-2">
-                <Label>Note (Optional)</Label>
-                <Textarea placeholder="Any additional notes..." {...regForm.register('note')} />
+              <div className="space-y-1.5">
+                <Label className="text-xs">Note (Optional)</Label>
+                <Textarea placeholder="Any additional notes..." {...regForm.register('note')} className="min-h-[60px]" />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit Request'}
               </Button>
               <div className="text-center text-sm">
@@ -280,60 +313,7 @@ const Login = () => {
               </div>
             </form>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Dev Test Credentials Panel */}
-      {mode === 'login' && (
-        <Card className="border-2 border-accent/40 bg-accent/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4 text-accent" />
-              Development Test Accounts
-            </CardTitle>
-            <CardDescription className="text-xs">Click any account to auto-fill the login form</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {testAccounts.map(acc => (
-              <button
-                key={acc.role}
-                type="button"
-                onClick={() => fillCredentials(acc.email, acc.password)}
-                className="w-full text-left p-3 rounded-lg border border-border/60 hover:bg-muted/60 transition-colors space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm text-foreground">{acc.role}</span>
-                  <Badge variant={acc.badge} className="text-[10px] capitalize h-4">{acc.role}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground font-mono">{acc.email}</p>
-                <p className="text-xs text-muted-foreground">Password: <span className="font-mono">{acc.password}</span></p>
-                <p className="text-xs text-muted-foreground">Scope: {acc.scope}</p>
-              </button>
-            ))}
-            <div className="mt-3 p-2.5 rounded bg-muted/50 border border-border/40">
-              <p className="text-xs font-semibold text-foreground mb-1">⚠️ Setup Required (one-time)</p>
-              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Sign up each account above via "Create New Account"</li>
-                <li>Confirm emails (or disable email confirmation in Supabase Auth settings)</li>
-                <li>Run this SQL in your Supabase SQL Editor:</li>
-              </ol>
-              <pre className="mt-1.5 text-[10px] bg-background p-2 rounded overflow-x-auto text-muted-foreground leading-relaxed">
-{`UPDATE public.profiles SET role='admin', is_active=true,
-  full_name='Admin User', user_id='ADM001'
-WHERE email='admin@loanmanager.test';
-
-UPDATE public.profiles SET role='manager', is_active=true,
-  full_name='Manager User', user_id='MGR001'
-WHERE email='manager@loanmanager.test';
-
-UPDATE public.profiles SET role='employee', is_active=true,
-  full_name='Employee User', user_id='EMP001'
-WHERE email='employee@loanmanager.test';`}
-              </pre>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        </div>
       </div>
     </div>
   );

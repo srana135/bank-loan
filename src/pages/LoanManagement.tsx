@@ -13,6 +13,7 @@
  * ✅ Realtime: postgres_changes subscription refreshes list
  * ✅ Role enforcement: employee=view+comment only, manager=own branch, admin=all
  * ✅ Loading, empty, no-results states
+ * ✅ Mobile card-based responsive layout
  */
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import LoanImportDialog from '@/components/loans/LoanImportDialog';
 import SmsUtility from '@/components/loans/SmsUtility';
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const LoanManagement = () => {
   const { user, profile, userRole } = useAuth();
@@ -49,6 +51,7 @@ const LoanManagement = () => {
   const deleteLoan = useDeleteLoan();
   const bulkDelete = useBulkDeleteLoans();
   const bulkAddComment = useBulkAddComment();
+  const isMobile = useIsMobile();
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
@@ -72,7 +75,6 @@ const LoanManagement = () => {
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
     let loans = applyFilters(allLoans, filters, search);
-    // Admin branch filter (client-side since admin fetches all)
     if (userRole === 'admin' && adminBranchFilter !== '__all__') {
       loans = loans.filter(l => l.branch_id === adminBranchFilter);
     }
@@ -287,7 +289,50 @@ const LoanManagement = () => {
               : <p>No loans match current search or filters. Try adjusting your criteria.</p>}
           </CardContent>
         </Card>
+      ) : isMobile ? (
+        /* Mobile: Card-based layout */
+        <div className="space-y-3">
+          <div className="text-xs text-muted-foreground">Showing {filteredLoans.length} of {allLoans?.length || 0} loans</div>
+          {filteredLoans.map(loan => (
+            <Card key={loan.id} className="card-shadow cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openLoanDetail(loan)}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{loan.account_no}</p>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0 ml-2">
+                    <Badge variant={['DF', 'BL'].includes(loan.classification || '') ? 'destructive' : loan.classification === 'SMA' ? 'secondary' : 'default'} className="text-[10px]">
+                      {loan.classification || '-'}
+                    </Badge>
+                    {(loan.overdue_installment_number || 0) > 0 && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        OD: {loan.overdue_installment_number}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Account:</span> <span className="font-medium">{loan.account_name || '-'}</span></div>
+                  <div><span className="text-muted-foreground">Mobile:</span> <a href={`tel:${loan.mobile}`} className="text-primary font-medium" onClick={e => e.stopPropagation()}>{loan.mobile || '-'}</a></div>
+                  <div><span className="text-muted-foreground">Outstanding:</span> <span className="font-semibold">৳{(loan.outstanding_amount || 0).toLocaleString()}</span></div>
+                  <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
+                </div>
+                {loan.latest_comment && (
+                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded truncate">💬 {loan.latest_comment}</p>
+                )}
+                {canBulk && (
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                    <Checkbox checked={selectedIds.has(loan.id)} onCheckedChange={() => toggleSelect(loan.id)} />
+                    <span className="text-xs text-muted-foreground">Select</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : (
+        /* Desktop: Table layout */
         <Card>
           <div className="overflow-x-auto">
             <Table>
