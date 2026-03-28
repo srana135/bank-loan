@@ -252,12 +252,13 @@ const EMICalculator = () => {
           {summary && (
             <>
               {/* Print-only header with loan parameters */}
-              <div className="hidden print-only" style={{ display: 'none' }}>
+              <div className="print-only hidden">
                 <h2 className="text-xl font-bold mb-2">EMI Amortization Schedule</h2>
                 <div className="text-sm mb-4 space-y-1">
-                  <p>Principal: ৳{form.getValues('principal').toLocaleString()} | Rate: {form.getValues('rate')}% | Tenure: {form.getValues('tenureValue')} {form.getValues('tenureUnit')}</p>
-                  <p>Disbursement: {form.getValues('disbursementDate')} | Method: {form.getValues('interestMethod')} | Frequency: {form.getValues('frequency')}</p>
-                  {form.getValues('gracePeriod') > 0 && <p>Grace Period: {form.getValues('gracePeriod')} ({form.getValues('graceType')})</p>}
+                  <p><strong>Principal:</strong> ৳{form.getValues('principal').toLocaleString()} | <strong>Rate:</strong> {form.getValues('rate')}% | <strong>Tenure:</strong> {form.getValues('tenureValue')} {form.getValues('tenureUnit')}</p>
+                  <p><strong>Disbursement:</strong> {form.getValues('disbursementDate')} | <strong>Method:</strong> {form.getValues('interestMethod')} | <strong>Frequency:</strong> {form.getValues('frequency')}</p>
+                  {form.getValues('gracePeriod') > 0 && <p><strong>Grace Period:</strong> {form.getValues('gracePeriod')} ({form.getValues('graceType')})</p>}
+                  <p><strong>EMI:</strong> ৳{summary.emi.toFixed(2)} | <strong>Total Interest:</strong> ৳{summary.totalInterest.toFixed(2)} | <strong>Total Payment:</strong> ৳{summary.totalPayment.toFixed(2)}</p>
                 </div>
               </div>
 
