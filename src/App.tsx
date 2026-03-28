@@ -3,24 +3,50 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Layout from "@/components/Layout";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
+import LoanManagement from "./pages/LoanManagement";
+import EMICalculator from "./pages/EMICalculator";
+import DPSCalculator from "./pages/DPSCalculator";
+import FDRCalculator from "./pages/FDRCalculator";
+import LoanEligibility from "./pages/LoanEligibility";
+import CurrencyConverter from "./pages/CurrencyConverter";
+import ServiceProductList from "./pages/ServiceProductList";
+import ConnectUs from "./pages/ConnectUs";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/loan-management" element={<ProtectedRoute><LoanManagement /></ProtectedRoute>} />
+              <Route path="/emi-calculator" element={<EMICalculator />} />
+              <Route path="/emi-calculator/dps" element={<DPSCalculator />} />
+              <Route path="/emi-calculator/fdr" element={<FDRCalculator />} />
+              <Route path="/emi-calculator/eligibility" element={<LoanEligibility />} />
+              <Route path="/emi-calculator/currency" element={<CurrencyConverter />} />
+              <Route path="/services" element={<ServiceProductList />} />
+              <Route path="/connect" element={<ConnectUs />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
