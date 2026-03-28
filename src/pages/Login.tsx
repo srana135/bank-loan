@@ -126,9 +126,22 @@ const Login = () => {
     setLoading(false);
   };
 
+  const fillCredentials = (email: string, password: string) => {
+    loginForm.setValue('email', email);
+    loginForm.setValue('password', password);
+    setMode('login');
+  };
+
+  const testAccounts = [
+    { role: 'Admin', email: 'admin@loanmanager.test', password: 'Admin@123456', scope: 'All Branches', badge: 'destructive' as const },
+    { role: 'Manager', email: 'manager@loanmanager.test', password: 'Manager@123456', scope: 'Own Branch Only', badge: 'default' as const },
+    { role: 'Employee', email: 'employee@loanmanager.test', password: 'Employee@123456', scope: 'Own Branch (View & Comment)', badge: 'secondary' as const },
+  ];
+
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center py-12 px-4">
-      <Card className="w-full max-w-md card-shadow">
+      <div className="w-full max-w-md space-y-4">
+      <Card className="card-shadow">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Landmark className="h-6 w-6 text-primary" />
