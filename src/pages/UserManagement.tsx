@@ -306,7 +306,7 @@ const UserManagement = () => {
               <Select value={editBranch} onValueChange={setEditBranch}>
                 <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Branch</SelectItem>
+                  <SelectItem value="none">No Branch</SelectItem>
                   {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -347,7 +347,7 @@ const UserManagement = () => {
               <Select value={newBranch} onValueChange={setNewBranch}>
                 <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Branch</SelectItem>
+                  <SelectItem value="none">No Branch</SelectItem>
                   {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
                 </SelectContent>
               </Select>
