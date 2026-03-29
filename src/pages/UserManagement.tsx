@@ -28,6 +28,16 @@ const UserManagement = () => {
   const isMobile = useIsMobile();
   const isAdmin = userRole === 'admin';
 
+  const downloadImportTemplate = () => {
+    const headers = [['User ID', 'Full Name', 'Email', 'Mobile', 'Role', 'Branch ID', 'Password']];
+    const sampleRow = [['EMP001', 'John Doe', 'john@example.com', '01712345678', 'employee', '', 'Default@123']];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRow]);
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 38 }, { wch: 15 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    XLSX.writeFile(wb, 'user_import_template.xlsx');
+  };
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
