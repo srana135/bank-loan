@@ -211,6 +211,9 @@ const UserManagement = () => {
         {isAdmin && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setCreateDialogOpen(true)} className="gap-2"><UserPlus className="h-4 w-4" /> Create User</Button>
+            <Button variant="outline" className="gap-2" onClick={downloadImportTemplate}>
+              <Download className="h-4 w-4" /> Template
+            </Button>
             <label>
               <Button variant="outline" className="gap-2 cursor-pointer" asChild>
                 <span><Upload className="h-4 w-4" /> Bulk Import</span>

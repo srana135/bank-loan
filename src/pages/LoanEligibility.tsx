@@ -1,15 +1,10 @@
 /**
- * PRODUCTION CHECKLIST — Loan Eligibility
- * ✅ Eligibility calculator using DTI rules from app_settings
- * ✅ Save proposals to loan_proposals table
- * ✅ Status flow: Proposed → In Progress → Disbursement / Rejected
- * ✅ Rejection requires comment and date
- * ✅ Filter by status
- * ✅ Rejected proposals PDF export
- * ✅ Click-to-call on mobile numbers
- * ✅ Role-aware actions (admin/manager can manage)
- * ✅ Graceful handling if loan_proposals table doesn't exist yet
- * ✅ Manual Interest Rate & Tenure input with defaults from rules
+ * Loan Eligibility Calculator & Proposal Management
+ * - Eligibility calculator using DTI rules from app_settings
+ * - Save proposals to loan_proposals table
+ * - Status flow: Proposed → In Progress → Disbursement / Rejected
+ * - Delete: Admin/Manager only
+ * - Rejection requires comment and date
  */
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,8 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Download, CheckCircle, XCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -66,6 +62,8 @@ const LoanEligibility = () => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectId, setRejectId] = useState('');
   const [rejectComment, setRejectComment] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState('');
 
   const form = useForm<EligibilityForm>({
     resolver: zodResolver(eligibilitySchema),
@@ -77,7 +75,6 @@ const LoanEligibility = () => {
     },
   });
 
-  // Auto-fill interest rate & tenure when loan type changes
   const watchedLoanType = form.watch('loanType');
   useEffect(() => {
     const rules = settings?.loan_eligibility?.[watchedLoanType] || DEFAULT_RULES[watchedLoanType];
@@ -106,6 +103,15 @@ const LoanEligibility = () => {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['loan-proposals'] }); toast.success('Proposal updated'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteProposal = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('loan_proposals').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['loan-proposals'] }); toast.success('Proposal deleted'); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -144,6 +150,12 @@ const LoanEligibility = () => {
     await updateProposal.mutateAsync({ id: rejectId, status: 'rejected', rejection_comment: rejectComment.trim(), rejection_date: new Date().toISOString().split('T')[0] });
     setRejectDialogOpen(false);
     setRejectComment('');
+  };
+
+  const handleDelete = async () => {
+    await deleteProposal.mutateAsync(deleteId);
+    setDeleteDialogOpen(false);
+    setDeleteId('');
   };
 
   const filteredProposals = proposals?.filter(p => statusFilter === 'all' || p.status === statusFilter);
@@ -246,16 +258,13 @@ const LoanEligibility = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5"><Label className="text-xs">Interest Rate (%)</Label>
                       <Input type="number" step="0.1" {...form.register('interestRate')} className="h-9" />
-                      {form.formState.errors.interestRate && <p className="text-xs text-destructive">{form.formState.errors.interestRate.message}</p>}
                     </div>
                     <div className="space-y-1.5"><Label className="text-xs">Tenure (Months)</Label>
                       <Input type="number" {...form.register('tenure')} className="h-9" />
-                      {form.formState.errors.tenure && <p className="text-xs text-destructive">{form.formState.errors.tenure.message}</p>}
                     </div>
                   </div>
                   <div className="space-y-1.5"><Label className="text-xs">Probable Disbursement Date</Label>
                     <Input type="date" {...form.register('disbursementDate')} className="h-9" />
-                    {form.formState.errors.disbursementDate && <p className="text-xs text-destructive">{form.formState.errors.disbursementDate.message}</p>}
                   </div>
                   <Button type="submit" className="w-full">Check Eligibility</Button>
                 </form>
@@ -323,7 +332,6 @@ const LoanEligibility = () => {
           ) : !filteredProposals?.length ? (
             <Card><CardContent className="py-8 text-center text-muted-foreground">No proposals found.</CardContent></Card>
           ) : isMobile ? (
-            /* Mobile: Card layout */
             <div className="space-y-3">
               {filteredProposals.map(p => (
                 <Card key={p.id} className="card-shadow">
@@ -343,11 +351,18 @@ const LoanEligibility = () => {
                       <div><span className="text-muted-foreground">Eligible:</span> <span className="font-medium text-primary">৳{(p.eligible_amount || 0).toLocaleString()}</span></div>
                       <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{p.probable_disbursement_date}</span></div>
                     </div>
-                    {canManage && p.status !== 'disbursement' && p.status !== 'rejected' && (
+                    {canManage && (
                       <div className="flex gap-2 pt-1">
-                        {p.status === 'proposed' && <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'in_progress' })}>Progress</Button>}
-                        {p.status === 'in_progress' && <Button size="sm" variant="default" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'disbursement' })}>Disburse</Button>}
-                        <Button size="sm" variant="destructive" className="flex-1 h-8 text-xs" onClick={() => { setRejectId(p.id); setRejectDialogOpen(true); }}>Reject</Button>
+                        {p.status !== 'disbursement' && p.status !== 'rejected' && (
+                          <>
+                            {p.status === 'proposed' && <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'in_progress' })}>Progress</Button>}
+                            {p.status === 'in_progress' && <Button size="sm" variant="default" className="flex-1 h-8 text-xs" onClick={() => updateProposal.mutate({ id: p.id, status: 'disbursement' })}>Disburse</Button>}
+                            <Button size="sm" variant="destructive" className="flex-1 h-8 text-xs" onClick={() => { setRejectId(p.id); setRejectDialogOpen(true); }}>Reject</Button>
+                          </>
+                        )}
+                        <Button size="sm" variant="outline" className="h-8 text-xs text-destructive" onClick={() => { setDeleteId(p.id); setDeleteDialogOpen(true); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     )}
                     {p.status === 'rejected' && p.rejection_comment && (
@@ -358,7 +373,6 @@ const LoanEligibility = () => {
               ))}
             </div>
           ) : (
-            /* Desktop: Table layout */
             <Card><div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
@@ -390,6 +404,9 @@ const LoanEligibility = () => {
                                 <Button size="sm" variant="destructive" onClick={() => { setRejectId(p.id); setRejectDialogOpen(true); }}>Reject</Button>
                               </>
                             )}
+                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => { setDeleteId(p.id); setDeleteDialogOpen(true); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       )}
@@ -402,6 +419,7 @@ const LoanEligibility = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reject Proposal</DialogTitle></DialogHeader>
@@ -419,6 +437,25 @@ const LoanEligibility = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Proposal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this proposal? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteProposal.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

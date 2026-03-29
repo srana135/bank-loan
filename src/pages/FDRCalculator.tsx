@@ -23,6 +23,7 @@ const schema = z.object({
   interestType: z.enum(['simple', 'compound']),
   hasTin: z.boolean(),
   prematureMonths: z.coerce.number().min(0).optional(),
+  prematureRate: z.coerce.number().min(0).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -45,22 +46,20 @@ const FDRCalculator = () => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { principal: 500000, rate: 9, tenureMonths: 12, payoutMode: 'maturity', periodicType: 'quarterly', interestType: 'compound', hasTin: true, prematureMonths: 0 },
+    defaultValues: { principal: 500000, rate: 9, tenureMonths: 12, payoutMode: 'maturity', periodicType: 'quarterly', interestType: 'compound', hasTin: true, prematureMonths: 0, prematureRate: 0 },
   });
 
   const calculate = (data: FormData) => {
-    const { principal, rate, tenureMonths, payoutMode, periodicType, interestType, hasTin, prematureMonths } = data;
+    const { principal, rate, tenureMonths, payoutMode, periodicType, interestType, hasTin, prematureMonths, prematureRate } = data;
     const years = tenureMonths / 12;
 
     let grossMaturity: number;
-    let totalInterest: number;
-
     if (interestType === 'compound') {
       grossMaturity = principal * Math.pow(1 + rate / 100, years);
     } else {
       grossMaturity = principal + (principal * rate * years / 100);
     }
-    totalInterest = grossMaturity - principal;
+    const totalInterest = grossMaturity - principal;
 
     const taxRate = hasTin ? (settings?.tax_rate_with_tin || 10) : (settings?.tax_rate_without_tin || 15);
     const taxAmount = totalInterest * taxRate / 100;
@@ -75,7 +74,6 @@ const FDRCalculator = () => {
 
     const netPayable = grossMaturity - taxAmount - exciseDuty;
 
-    // Periodic payments
     let periodicPayments: FDRResult['periodicPayments'];
     if (payoutMode === 'periodic') {
       const periods = periodicType === 'monthly' ? tenureMonths : periodicType === 'quarterly' ? Math.floor(tenureMonths / 3) : periodicType === 'half-yearly' ? Math.floor(tenureMonths / 6) : 1;
@@ -86,11 +84,17 @@ const FDRCalculator = () => {
       }));
     }
 
-    // Premature
+    // Premature encashment
     let premature: FDRResult['premature'];
     if (prematureMonths && prematureMonths > 0 && prematureMonths < tenureMonths) {
-      const discount = settings?.premature_encashment_rate_discount || 2;
-      const adjRate = Math.max(0, rate - discount);
+      // Use user-provided premature rate if > 0, otherwise use default discount logic
+      let adjRate: number;
+      if (prematureRate && prematureRate > 0) {
+        adjRate = prematureRate;
+      } else {
+        const discount = settings?.premature_encashment_rate_discount || 2;
+        adjRate = Math.max(0, rate - discount);
+      }
       const premYears = prematureMonths / 12;
       const premInterest = interestType === 'compound'
         ? principal * Math.pow(1 + adjRate / 100, premYears) - principal
@@ -170,8 +174,14 @@ const FDRCalculator = () => {
                 <Switch checked={form.watch('hasTin')} onCheckedChange={v => form.setValue('hasTin', v)} />
               </div>
               <Separator />
-              <div className="space-y-1.5"><Label className="text-xs">Premature Encashment (months, 0 = none)</Label>
-                <Input type="number" min={0} {...form.register('prematureMonths')} className="h-9" />
+              <p className="text-xs font-medium text-muted-foreground">Premature Encashment</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label className="text-xs">Months (0 = none)</Label>
+                  <Input type="number" min={0} {...form.register('prematureMonths')} className="h-9" />
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Custom Rate % (0 = default)</Label>
+                  <Input type="number" step="0.1" min={0} {...form.register('prematureRate')} className="h-9" />
+                </div>
               </div>
               <Button type="submit" className="w-full">Calculate</Button>
             </form>
