@@ -124,7 +124,7 @@ const EMICalculator = () => {
       const isGrace = i <= gracePeriod;
       const interest = interestMethod === 'reducing'
         ? balance * periodicRate
-        : (principal * (rate / 100)) / periodsPerYear;
+        : (balance * (rate / 100)) / periodsPerYear;
 
       let payment: number;
       let principalPart: number;

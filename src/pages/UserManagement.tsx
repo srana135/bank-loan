@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Pencil, UserPlus, Upload, Search, UserX, UserCheck, KeyRound, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, UserPlus, Upload, Download, Search, UserX, UserCheck, KeyRound, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,6 +27,16 @@ const UserManagement = () => {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const isAdmin = userRole === 'admin';
+
+  const downloadImportTemplate = () => {
+    const headers = [['User ID', 'Full Name', 'Email', 'Mobile', 'Role', 'Branch ID', 'Password']];
+    const sampleRow = [['EMP001', 'John Doe', 'john@example.com', '01712345678', 'employee', '', 'Default@123']];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRow]);
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 38 }, { wch: 15 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    XLSX.writeFile(wb, 'user_import_template.xlsx');
+  };
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -211,6 +221,9 @@ const UserManagement = () => {
         {isAdmin && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setCreateDialogOpen(true)} className="gap-2"><UserPlus className="h-4 w-4" /> Create User</Button>
+            <Button variant="outline" className="gap-2" onClick={downloadImportTemplate}>
+              <Download className="h-4 w-4" /> Template
+            </Button>
             <label>
               <Button variant="outline" className="gap-2 cursor-pointer" asChild>
                 <span><Upload className="h-4 w-4" /> Bulk Import</span>

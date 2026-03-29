@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateRegistrationRequest } from '@/hooks/useUsers';
+import { supabase } from '@/lib/supabase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,12 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Landmark, Loader2, Shield, Building2, TrendingUp, Users } from 'lucide-react';
+import { Landmark, Loader2, Building2, TrendingUp, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
-  email: z.string().trim().email('Invalid email address'),
+  identifier: z.string().trim().min(1, 'Email or User ID is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -53,7 +53,7 @@ const Login = () => {
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
   });
 
   const signupForm = useForm<z.infer<typeof signupSchema>>({
@@ -73,7 +73,28 @@ const Login = () => {
 
   const onLogin = async (data: z.infer<typeof loginSchema>) => {
     setLoading(true);
-    const { error } = await signIn(data.email, data.password);
+    let email = data.identifier;
+
+    // Check if identifier looks like an email
+    const isEmail = email.includes('@');
+
+    if (!isEmail) {
+      // Look up email from profiles table using user_id
+      const { data: profileData, error: lookupError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', data.identifier)
+        .single();
+
+      if (lookupError || !profileData?.email) {
+        setLoading(false);
+        toast.error('User ID not found. Please check and try again.');
+        return;
+      }
+      email = profileData.email;
+    }
+
+    const { error } = await signIn(email, data.password);
     setLoading(false);
     if (error) {
       toast.error(error.message);
@@ -135,7 +156,7 @@ const Login = () => {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center py-8 px-4">
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-0 rounded-2xl overflow-hidden shadow-xl border border-border/50">
-        {/* Left: Branded Hero Panel — hidden on mobile */}
+        {/* Left: Branded Hero Panel */}
         <div className="hidden lg:flex flex-col justify-center p-10 hero-gradient text-primary-foreground relative overflow-hidden">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, hsl(42 85% 52% / 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, hsl(210 40% 98% / 0.15) 0%, transparent 50%)' }} />
           <div className="relative z-10 space-y-8">
@@ -187,7 +208,7 @@ const Login = () => {
               {mode === 'register-request' && 'Registration Request'}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {mode === 'login' && 'Sign in to access your dashboard'}
+              {mode === 'login' && 'Sign in with your email or User ID'}
               {mode === 'signup' && 'Register for a new account'}
               {mode === 'forgot' && 'Enter your email to receive a reset link'}
               {mode === 'register-request' && 'Submit a request for account access'}
@@ -198,9 +219,9 @@ const Login = () => {
           {mode === 'login' && (
             <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" {...loginForm.register('email')} />
-                {loginForm.formState.errors.email && <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
+                <Label htmlFor="identifier">Email or User ID</Label>
+                <Input id="identifier" placeholder="you@example.com or your User ID" {...loginForm.register('identifier')} />
+                {loginForm.formState.errors.identifier && <p className="text-sm text-destructive">{loginForm.formState.errors.identifier.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

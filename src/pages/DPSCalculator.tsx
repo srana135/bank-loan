@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 
@@ -20,6 +21,8 @@ const schema = z.object({
   tenureUnit: z.enum(['months', 'years']),
   startDate: z.string().min(1, 'Required'),
   hasTin: z.boolean(),
+  prematureMonths: z.coerce.number().min(0).optional(),
+  prematureRate: z.coerce.number().min(0).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -32,8 +35,8 @@ interface DPSResult {
   taxAmount: number;
   exciseDuty: number;
   netPayable: number;
-  maturityDate: string;
-  monthlyBreakdown: { month: number; deposit: number; cumDeposit: number; interest: number; balance: number }[];
+  monthlyBreakdown: { month: number; deposit: number; cumDeposit: number; interest: number; balance: number; exciseDutyApplied: number }[];
+  premature?: { adjustedRate: number; interest: number; tax: number; net: number };
 }
 
 const DPSCalculator = () => {
@@ -42,52 +45,110 @@ const DPSCalculator = () => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { monthlyDeposit: 5000, rate: 8, tenureValue: 5, tenureUnit: 'years', startDate: new Date().toISOString().split('T')[0], hasTin: true },
+    defaultValues: { monthlyDeposit: 5000, rate: 8, tenureValue: 5, tenureUnit: 'years', startDate: new Date().toISOString().split('T')[0], hasTin: true, prematureMonths: 0, prematureRate: 0 },
   });
 
   const calculate = (data: FormData) => {
-    const { monthlyDeposit, rate, tenureValue, tenureUnit, startDate, hasTin } = data;
+    const { monthlyDeposit, rate, tenureValue, tenureUnit, startDate, hasTin, prematureMonths, prematureRate } = data;
     const months = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
     const monthlyRate = rate / 12 / 100;
     const totalDeposit = monthlyDeposit * months;
 
+    const slabs = settings?.excise_duty_slabs || [];
+    const taxRate = hasTin ? (settings?.tax_rate_with_tin || 10) : (settings?.tax_rate_without_tin || 15);
+
+    const startDateObj = new Date(startDate);
     const breakdown: DPSResult['monthlyBreakdown'] = [];
     let balance = 0;
+    let totalExciseDuty = 0;
+
     for (let m = 1; m <= months; m++) {
       balance += monthlyDeposit;
       const interest = balance * monthlyRate;
       balance += interest;
-      breakdown.push({ month: m, deposit: monthlyDeposit, cumDeposit: monthlyDeposit * m, interest: Math.round(interest * 100) / 100, balance: Math.round(balance * 100) / 100 });
+
+      // December year-end excise duty check
+      const currentMonth = new Date(startDateObj);
+      currentMonth.setMonth(currentMonth.getMonth() + m);
+      const isDecember = currentMonth.getMonth() === 11; // 0-indexed, 11 = December
+
+      let exciseDutyApplied = 0;
+      if (isDecember) {
+        const cumDeposit = monthlyDeposit * m;
+        for (const slab of slabs) {
+          if (cumDeposit >= slab.min && cumDeposit <= (slab.max === null ? Infinity : slab.max)) {
+            exciseDutyApplied = slab.duty;
+            break;
+          }
+        }
+        if (exciseDutyApplied > 0) {
+          balance -= exciseDutyApplied;
+          totalExciseDuty += exciseDutyApplied;
+        }
+      }
+
+      breakdown.push({
+        month: m,
+        deposit: monthlyDeposit,
+        cumDeposit: monthlyDeposit * m,
+        interest: Math.round(interest * 100) / 100,
+        balance: Math.round(balance * 100) / 100,
+        exciseDutyApplied,
+      });
     }
 
-    const grossMaturity = balance;
+    const grossMaturity = balance + totalExciseDuty; // gross before deductions
     const totalProfit = grossMaturity - totalDeposit;
-    const taxRate = hasTin ? (settings?.tax_rate_with_tin || 10) : (settings?.tax_rate_without_tin || 15);
     const taxAmount = totalProfit * taxRate / 100;
 
-    // Excise duty
-    const slabs = settings?.excise_duty_slabs || [];
-    let exciseDuty = 0;
+    // Final excise duty on maturity amount
+    let finalExciseDuty = 0;
     for (const slab of slabs) {
-      if (grossMaturity >= slab.min && grossMaturity <= (slab.max === null ? Infinity : slab.max)) {
-        exciseDuty = slab.duty;
+      if (balance >= slab.min && balance <= (slab.max === null ? Infinity : slab.max)) {
+        finalExciseDuty = slab.duty;
         break;
       }
     }
 
-    const netPayable = grossMaturity - taxAmount - exciseDuty;
+    const netPayable = balance - taxAmount - finalExciseDuty;
 
-    const start = new Date(startDate);
-    const matDate = new Date(start);
-    matDate.setMonth(matDate.getMonth() + months);
+    // Premature encashment
+    let premature: DPSResult['premature'];
+    if (prematureMonths && prematureMonths > 0 && prematureMonths < months) {
+      let adjRate: number;
+      if (prematureRate && prematureRate > 0) {
+        adjRate = prematureRate;
+      } else {
+        const discount = settings?.premature_encashment_rate_discount || 2;
+        adjRate = Math.max(0, rate - discount);
+      }
+      const premMonthlyRate = adjRate / 12 / 100;
+      let premBalance = 0;
+      for (let m = 1; m <= prematureMonths; m++) {
+        premBalance += monthlyDeposit;
+        premBalance += premBalance * premMonthlyRate;
+      }
+      const premDeposit = monthlyDeposit * prematureMonths;
+      const premInterest = premBalance - premDeposit;
+      const premTax = premInterest * taxRate / 100;
+      premature = {
+        adjustedRate: adjRate,
+        interest: Math.round(premInterest * 100) / 100,
+        tax: Math.round(premTax * 100) / 100,
+        net: Math.round((premBalance - premTax) * 100) / 100,
+      };
+    }
 
     setResult({
-      totalDeposit, grossMaturity: Math.round(grossMaturity * 100) / 100,
+      totalDeposit,
+      grossMaturity: Math.round(grossMaturity * 100) / 100,
       totalProfit: Math.round(totalProfit * 100) / 100,
-      taxRate, taxAmount: Math.round(taxAmount * 100) / 100,
-      exciseDuty, netPayable: Math.round(netPayable * 100) / 100,
-      maturityDate: matDate.toLocaleDateString(),
+      taxRate,
+      taxAmount: Math.round(taxAmount * 100) / 100,
+      exciseDuty: totalExciseDuty + finalExciseDuty,
+      netPayable: Math.round(netPayable * 100) / 100,
       monthlyBreakdown: breakdown,
+      premature,
     });
   };
 
@@ -106,8 +167,13 @@ const DPSCalculator = () => {
       `Tax (${result.taxRate}%): ৳${result.taxAmount.toLocaleString()}`,
       `Excise Duty: ৳${result.exciseDuty.toLocaleString()}`,
       `Net Payable: ৳${result.netPayable.toLocaleString()}`,
-      `Maturity Date: ${result.maturityDate}`,
     ];
+    if (result.premature) {
+      lines.push('', '--- Premature Encashment ---',
+        `Adjusted Rate: ${result.premature.adjustedRate}%`,
+        `Interest: ৳${result.premature.interest.toLocaleString()}`,
+        `Net: ৳${result.premature.net.toLocaleString()}`);
+    }
     lines.forEach((l, i) => doc.text(l, 14, 25 + i * 7));
     doc.save('dps_report.pdf');
   };
@@ -145,6 +211,16 @@ const DPSCalculator = () => {
                 <Label className="text-xs">TIN Available?</Label>
                 <Switch checked={form.watch('hasTin')} onCheckedChange={v => form.setValue('hasTin', v)} />
               </div>
+              <Separator />
+              <p className="text-xs font-medium text-muted-foreground">Premature Encashment</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label className="text-xs">Months (0 = none)</Label>
+                  <Input type="number" min={0} {...form.register('prematureMonths')} className="h-9" />
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Custom Rate % (0 = default)</Label>
+                  <Input type="number" step="0.1" min={0} {...form.register('prematureRate')} className="h-9" />
+                </div>
+              </div>
               <Button type="submit" className="w-full">Calculate</Button>
             </form>
           </CardContent>
@@ -178,14 +254,21 @@ const DPSCalculator = () => {
                 <p className="text-lg font-bold text-primary">৳{result.netPayable.toLocaleString()}</p>
               </CardContent></Card>
             </div>
-            <p className="text-sm text-muted-foreground text-center">Maturity Date: {result.maturityDate}</p>
+            {result.premature && (
+              <Card className="border-accent/40"><CardHeader className="pb-2"><CardTitle className="text-sm">Premature Encashment</CardTitle></CardHeader><CardContent className="space-y-1">
+                <p className="text-sm">Adjusted Rate: <strong>{result.premature.adjustedRate}%</strong></p>
+                <p className="text-sm">Interest Earned: <strong>৳{result.premature.interest.toLocaleString()}</strong></p>
+                <p className="text-sm">Tax Deducted: <strong>৳{result.premature.tax.toLocaleString()}</strong></p>
+                <p className="text-sm font-bold">Net Amount: ৳{result.premature.net.toLocaleString()}</p>
+              </CardContent></Card>
+            )}
             <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1"><Download className="h-3 w-3" /> PDF</Button>
             <Card><div className="overflow-auto max-h-[300px]">
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Month</TableHead><TableHead className="text-right">Deposit</TableHead>
                   <TableHead className="text-right">Cum. Deposit</TableHead><TableHead className="text-right">Interest</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Excise</TableHead><TableHead className="text-right">Balance</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {result.monthlyBreakdown.map(r => (
@@ -194,6 +277,7 @@ const DPSCalculator = () => {
                       <TableCell className="text-right">৳{r.deposit.toLocaleString()}</TableCell>
                       <TableCell className="text-right">৳{r.cumDeposit.toLocaleString()}</TableCell>
                       <TableCell className="text-right">৳{r.interest.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{r.exciseDutyApplied > 0 ? `৳${r.exciseDutyApplied.toLocaleString()}` : '-'}</TableCell>
                       <TableCell className="text-right">৳{r.balance.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
