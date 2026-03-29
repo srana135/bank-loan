@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Pencil, UserPlus, Upload, Search, UserX, UserCheck, KeyRound, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, UserPlus, Upload, Download, Search, UserX, UserCheck, KeyRound, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useIsMobile } from '@/hooks/use-mobile';
