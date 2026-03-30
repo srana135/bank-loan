@@ -92,6 +92,15 @@ const LoanManagement = () => {
     return allLoans.find(l => l.id === detailLoan.id) || detailLoan;
   }, [detailLoan, allLoans]);
 
+  // Map loan_id -> legal case for badge display
+  const loanCaseMap = useMemo(() => {
+    const map = new Map<string, { case_number: string; next_date: string | null }>();
+    legalCases?.forEach(c => {
+      if (c.loan_id && c.status === 'active') map.set(c.loan_id, { case_number: c.case_number, next_date: c.next_date });
+    });
+    return map;
+  }, [legalCases]);
+
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
 
   const toggleSelect = (id: string) => {
