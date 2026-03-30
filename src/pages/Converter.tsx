@@ -105,7 +105,7 @@ function banglaToEnglish(text: string): string {
   let result = text;
   // Convert Bangla digits
   for (const [bn, en] of Object.entries(BN_DIGITS)) {
-    result = result.replaceAll(bn, en);
+    result = result.split(bn).join(en);
   }
   // Convert Bangla text
   for (const [pattern, replacement] of BN_TO_EN_MAP) {
@@ -118,7 +118,7 @@ function englishToBangla(text: string): string {
   let result = text;
   // Convert English digits
   for (const [en, bn] of Object.entries(EN_DIGITS)) {
-    result = result.replaceAll(en, bn);
+    result = result.split(en).join(bn);
   }
   // Convert English text (phonetic)
   for (const [pattern, replacement] of EN_TO_BN_MAP) {

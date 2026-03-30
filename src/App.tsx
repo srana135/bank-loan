@@ -20,6 +20,8 @@ import CurrencyConverter from "./pages/CurrencyConverter";
 import ServiceProductList from "./pages/ServiceProductList";
 import ConnectUs from "./pages/ConnectUs";
 import UserProfile from "./pages/UserProfile";
+import Converter from "./pages/Converter";
+import LegalManagement from "./pages/LegalManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,12 +40,14 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/loan-management" element={<ProtectedRoute><LoanManagement /></ProtectedRoute>} />
               <Route path="/loan-map" element={<ProtectedRoute><LoanMap /></ProtectedRoute>} />
+              <Route path="/legal" element={<ProtectedRoute><LegalManagement /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
               <Route path="/emi-calculator" element={<EMICalculator />} />
               <Route path="/emi-calculator/dps" element={<DPSCalculator />} />
               <Route path="/emi-calculator/fdr" element={<FDRCalculator />} />
               <Route path="/emi-calculator/eligibility" element={<LoanEligibility />} />
               <Route path="/emi-calculator/currency" element={<CurrencyConverter />} />
+              <Route path="/converter" element={<Converter />} />
               <Route path="/services" element={<ServiceProductList />} />
               <Route path="/connect" element={<ConnectUs />} />
               <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
