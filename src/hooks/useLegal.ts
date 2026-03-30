@@ -73,11 +73,20 @@ export const useCaseOrders = (caseId: string | null) => {
 export const useAddCaseOrder = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (order: Partial<LegalCaseOrder>) => {
-      const { error } = await supabase.from('legal_case_orders').insert(order);
+    mutationFn: async (order: Partial<LegalCaseOrder> & { _case_id?: string }) => {
+      const { _case_id, ...orderData } = order;
+      const { error } = await supabase.from('legal_case_orders').insert(orderData);
       if (error) throw error;
+      // Also update case next_date
+      if (orderData.next_date && orderData.case_id) {
+        await supabase.from('legal_cases').update({ next_date: orderData.next_date }).eq('id', orderData.case_id);
+      }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['case-orders'] }); toast.success('Order added'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['case-orders'] });
+      qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      toast.success('Order added');
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 };
@@ -102,6 +111,47 @@ export const useCreateLawyer = () => {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lawyers'] }); toast.success('Lawyer added'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useUpdateLawyer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Lawyer> & { id: string }) => {
+      const { error } = await supabase.from('lawyers').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lawyers'] }); toast.success('Lawyer updated'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useDeleteLawyer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('lawyers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lawyers'] }); toast.success('Lawyer deleted'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+// Bulk import legal cases
+export const useBulkImportCases = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (cases: Partial<LegalCase>[]) => {
+      const { error } = await supabase.from('legal_cases').insert(cases);
+      if (error) throw error;
+      return cases.length;
+    },
+    onSuccess: (_d, cases) => {
+      qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      toast.success(`${cases.length} case(s) imported`);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 };
