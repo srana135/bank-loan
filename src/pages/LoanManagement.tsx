@@ -19,6 +19,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
+import { useLegalCases } from '@/hooks/useLegal';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
