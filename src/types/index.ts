@@ -9,6 +9,8 @@ export interface Profile {
   role: UserRole;
   branch_id: string | null;
   is_active: boolean;
+  can_access_all_branches: boolean;
+  language_preference: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +63,8 @@ export interface Loan {
   guarantor_2_name: string | null;
   guarantor_2_mobile: string | null;
   branch_id: string | null;
+  disbursement_date: string | null;
+  disbursed_loan_amount: number | null;
   latest_comment: string | null;
   created_by: string | null;
   updated_by: string | null;
@@ -76,6 +80,67 @@ export interface LoanComment {
   author_name: string | null;
   author_role: string | null;
   created_at: string;
+}
+
+export interface LoanRecovery {
+  id: string;
+  loan_id: string;
+  recovery_date: string;
+  recovered_amount: number;
+  recovery_type: string;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface LegalCase {
+  id: string;
+  loan_id: string | null;
+  case_number: string;
+  case_type: string;
+  court_name: string | null;
+  filing_date: string | null;
+  status: string;
+  plaintiff_name: string | null;
+  defendant_name: string | null;
+  lawyer_id: string | null;
+  branch_id: string | null;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LegalCaseOrder {
+  id: string;
+  case_id: string;
+  order_date: string;
+  order_summary: string;
+  next_date: string | null;
+  order_type: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface Lawyer {
+  id: string;
+  name: string;
+  mobile: string | null;
+  email: string | null;
+  specialization: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: string;
+  old_value: any;
+  new_value: any;
+  performed_by: string | null;
+  performed_at: string;
 }
 
 export interface ServiceFile {
