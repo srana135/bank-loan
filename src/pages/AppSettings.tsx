@@ -5,15 +5,16 @@ import { useAppSettings, AppSettingsMap } from '@/hooks/useAppSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Plus, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
-/** Upsert a single setting key */
 const upsertSetting = async (key: string, value: unknown) => {
-  // Try update first
   const { data, error: selErr } = await supabase
     .from('app_settings')
     .select('id')
@@ -34,6 +35,7 @@ const AppSettings = () => {
   const { data: settings, isLoading } = useAppSettings();
   const [form, setForm] = useState<AppSettingsMap | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('tax');
 
   useEffect(() => {
     if (settings && !form) setForm({ ...settings });
@@ -57,23 +59,21 @@ const AppSettings = () => {
       }
       qc.invalidateQueries({ queryKey: ['app-settings-all'] });
       qc.invalidateQueries({ queryKey: ['app-settings'] });
-      toast.success('সেটিংস সংরক্ষিত হয়েছে');
+      toast.success('সেটিংস সফলভাবে সংরক্ষিত হয়েছে');
     } catch (err: any) {
-      toast.error(err.message || 'Save failed');
+      toast.error(err.message || 'সংরক্ষণ ব্যর্থ');
     }
     setSaving(false);
   };
 
-  // Excise duty slab helpers
+  // Excise slab helpers
   const addSlab = () => {
     const slabs = [...form.excise_duty_slabs];
     const lastMax = slabs.length ? slabs[slabs.length - 1].max : 0;
     slabs.push({ min: lastMax + 1, max: lastMax + 1000000, duty: 0 });
     update('excise_duty_slabs', slabs);
   };
-  const removeSlab = (i: number) => {
-    update('excise_duty_slabs', form.excise_duty_slabs.filter((_, idx) => idx !== i));
-  };
+  const removeSlab = (i: number) => update('excise_duty_slabs', form.excise_duty_slabs.filter((_, idx) => idx !== i));
   const updateSlab = (i: number, field: 'min' | 'max' | 'duty', val: number) => {
     const slabs = [...form.excise_duty_slabs];
     slabs[i] = { ...slabs[i], [field]: val };
@@ -88,153 +88,412 @@ const AppSettings = () => {
     });
   };
 
+  // Classification helpers
+  const updateClassDays = (field: string, val: number) => {
+    update('classification_days', { ...form.classification_days, [field]: val });
+  };
+
+  // Legal config helpers
+  const addCaseType = () => {
+    const types = [...form.legal_case_config.case_types, ''];
+    update('legal_case_config', { ...form.legal_case_config, case_types: types });
+  };
+  const removeCaseType = (i: number) => {
+    update('legal_case_config', {
+      ...form.legal_case_config,
+      case_types: form.legal_case_config.case_types.filter((_, idx) => idx !== i),
+    });
+  };
+  const updateCaseType = (i: number, val: string) => {
+    const types = [...form.legal_case_config.case_types];
+    types[i] = val;
+    update('legal_case_config', { ...form.legal_case_config, case_types: types });
+  };
+
+  // Currency helpers
+  const addCurrency = () => update('default_currencies', [...form.default_currencies, '']);
+  const removeCurrency = (i: number) => update('default_currencies', form.default_currencies.filter((_, idx) => idx !== i));
+  const updateCurrency = (i: number, val: string) => {
+    const c = [...form.default_currencies];
+    c[i] = val.toUpperCase();
+    update('default_currencies', c);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="font-heading text-2xl font-bold text-foreground">App Settings</h2>
-          <p className="text-sm text-muted-foreground">Banking parameters এবং system configuration</p>
+          <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+            <Settings className="h-6 w-6 text-primary" /> App Settings
+          </h2>
+          <p className="text-sm text-muted-foreground">পুরো সিস্টেম এখান থেকে নিয়ন্ত্রণ করুন</p>
         </div>
         <Button onClick={handleSave} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Save All
+          সব সংরক্ষণ করুন
         </Button>
       </div>
 
-      {/* Tax Rates */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Tax Rates (%)</CardTitle>
-          <CardDescription>TIN সহ এবং TIN ছাড়া কর হার</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>TIN সহ কর হার (%)</Label>
-            <Input type="number" value={form.tax_rate_with_tin} onChange={e => update('tax_rate_with_tin', +e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>TIN ছাড়া কর হার (%)</Label>
-            <Input type="number" value={form.tax_rate_without_tin} onChange={e => update('tax_rate_without_tin', +e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 h-auto">
+          <TabsTrigger value="tax" className="text-xs gap-1"><Calculator className="h-3 w-3" /> কর/শুল্ক</TabsTrigger>
+          <TabsTrigger value="interest" className="text-xs gap-1"><Scale className="h-3 w-3" /> সুদ</TabsTrigger>
+          <TabsTrigger value="eligibility" className="text-xs gap-1"><Shield className="h-3 w-3" /> যোগ্যতা</TabsTrigger>
+          <TabsTrigger value="classification" className="text-xs gap-1"><Badge className="h-3 w-3">CL</Badge> শ্রেণিবিভাগ</TabsTrigger>
+          <TabsTrigger value="calculator" className="text-xs gap-1"><Calculator className="h-3 w-3" /> ক্যালকুলেটর</TabsTrigger>
+          <TabsTrigger value="legal" className="text-xs gap-1"><Gavel className="h-3 w-3" /> মামলা</TabsTrigger>
+          <TabsTrigger value="map" className="text-xs gap-1"><MapPin className="h-3 w-3" /> ম্যাপ</TabsTrigger>
+          <TabsTrigger value="general" className="text-xs gap-1"><Globe className="h-3 w-3" /> সাধারণ</TabsTrigger>
+        </TabsList>
 
-      {/* Excise Duty Slabs */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Excise Duty Slabs</CardTitle>
-          <CardDescription>ব্যালেন্স অনুযায়ী আবগারি শুল্ক স্ল্যাব</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Header */}
-          <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-            <span>Min (৳)</span><span>Max (৳)</span><span>Duty (৳)</span><span />
-          </div>
-          {form.excise_duty_slabs.map((slab, i) => (
-            <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_40px] gap-2 items-center">
-              <div className="space-y-1 sm:space-y-0">
-                <Label className="sm:hidden text-xs">Min</Label>
-                <Input type="number" value={slab.min === Infinity ? '' : slab.min} onChange={e => updateSlab(i, 'min', +e.target.value)} />
+        {/* ============ TAX & DUTY ============ */}
+        <TabsContent value="tax" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">কর হার (Tax Rates)</CardTitle>
+              <CardDescription>TIN সহ এবং TIN ছাড়া কর হার — FDR/DPS ক্যালকুলেটরে ব্যবহৃত হয়</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>TIN সহ কর হার (%)</Label>
+                <Input type="number" value={form.tax_rate_with_tin} onChange={e => update('tax_rate_with_tin', +e.target.value)} />
               </div>
-              <div className="space-y-1 sm:space-y-0">
-                <Label className="sm:hidden text-xs">Max</Label>
-                <Input type="number" value={slab.max === Infinity ? '' : slab.max} placeholder="Infinity" onChange={e => updateSlab(i, 'max', e.target.value ? +e.target.value : Infinity)} />
+              <div className="space-y-1.5">
+                <Label>TIN ছাড়া কর হার (%)</Label>
+                <Input type="number" value={form.tax_rate_without_tin} onChange={e => update('tax_rate_without_tin', +e.target.value)} />
               </div>
-              <div className="space-y-1 sm:space-y-0">
-                <Label className="sm:hidden text-xs">Duty (৳)</Label>
-                <Input type="number" value={slab.duty} onChange={e => updateSlab(i, 'duty', +e.target.value)} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">আবগারি শুল্ক স্ল্যাব (Excise Duty)</CardTitle>
+              <CardDescription>ব্যালেন্স অনুযায়ী আবগারি শুল্ক — FDR/DPS ক্যালকুলেটরে প্রযোজ্য</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
+                <span>Min (৳)</span><span>Max (৳)</span><span>Duty (৳)</span><span />
               </div>
-              <Button size="icon" variant="ghost" className="text-destructive" onClick={() => removeSlab(i)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addSlab} className="gap-1">
-            <Plus className="h-3.5 w-3.5" /> Add Slab
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Simple Interest Engine */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Simple Interest Engine</CardTitle>
-          <CardDescription>ঋণের সুদ গণনার নিয়ম</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>EMI Rounding</Label>
-            <Input type="number" value={form.emi_rounding} onChange={e => update('emi_rounding', +e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Ceiling Rounding</Label>
-            <Input type="number" value={form.simple_interest_ceiling_rounding} onChange={e => update('simple_interest_ceiling_rounding', +e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Grace Period (Months)</Label>
-            <Input type="number" value={form.simple_interest_grace_months} onChange={e => update('simple_interest_grace_months', +e.target.value)} />
-          </div>
-          <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
-            <Switch
-              checked={form.simple_interest_grace_accumulates}
-              onCheckedChange={v => update('simple_interest_grace_accumulates', v)}
-            />
-            <Label>Grace period এ সুদ জমা হবে</Label>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Premature Encashment */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Premature Encashment</CardTitle>
-          <CardDescription>মেয়াদপূর্তির আগে ভাঙালে সুদ ছাড়</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1.5 max-w-xs">
-            <Label>Rate Discount (%)</Label>
-            <Input type="number" step="0.1" value={form.premature_encashment_rate_discount} onChange={e => update('premature_encashment_rate_discount', +e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Loan Eligibility */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Loan Eligibility Parameters</CardTitle>
-          <CardDescription>ঋণের যোগ্যতা মূল্যায়নের প্যারামিটার</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {(['cmsme', 'personal', 'home_loan'] as const).map(type => {
-            const config = form.loan_eligibility[type];
-            const label = type === 'cmsme' ? 'CMSME' : type === 'personal' ? 'Personal' : 'Home Loan';
-            return (
-              <div key={type}>
-                <h4 className="font-medium text-sm text-foreground mb-2">{label}</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">DTI Ratio</Label>
-                    <Input type="number" step="0.01" value={config.dti_ratio} onChange={e => updateElig(type, 'dti_ratio', +e.target.value)} />
+              {form.excise_duty_slabs.map((slab, i) => (
+                <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_40px] gap-2 items-center">
+                  <div className="space-y-1 sm:space-y-0">
+                    <Label className="sm:hidden text-xs">Min</Label>
+                    <Input type="number" value={slab.min === Infinity ? '' : slab.min} onChange={e => updateSlab(i, 'min', +e.target.value)} />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Max Amount (৳)</Label>
-                    <Input type="number" value={config.max_amount} onChange={e => updateElig(type, 'max_amount', +e.target.value)} />
+                  <div className="space-y-1 sm:space-y-0">
+                    <Label className="sm:hidden text-xs">Max</Label>
+                    <Input type="number" value={slab.max === Infinity ? '' : slab.max} placeholder="∞" onChange={e => updateSlab(i, 'max', e.target.value ? +e.target.value : Infinity)} />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Default Rate (%)</Label>
-                    <Input type="number" step="0.1" value={config.default_rate} onChange={e => updateElig(type, 'default_rate', +e.target.value)} />
+                  <div className="space-y-1 sm:space-y-0">
+                    <Label className="sm:hidden text-xs">Duty (৳)</Label>
+                    <Input type="number" value={slab.duty} onChange={e => updateSlab(i, 'duty', +e.target.value)} />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Max Tenure (Months)</Label>
-                    <Input type="number" value={config.max_tenure} onChange={e => updateElig(type, 'max_tenure', +e.target.value)} />
-                  </div>
+                  <Button size="icon" variant="ghost" className="text-destructive" onClick={() => removeSlab(i)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                {type !== 'home_loan' && <Separator className="mt-4" />}
+              ))}
+              <Button variant="outline" size="sm" onClick={addSlab} className="gap-1">
+                <Plus className="h-3.5 w-3.5" /> স্ল্যাব যোগ করুন
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">মেয়াদপূর্তির আগে ভাঙানো (Premature Encashment)</CardTitle>
+              <CardDescription>FDR/DPS মেয়াদপূর্তির আগে ভাঙালে সুদ হার থেকে কত % কমানো হবে</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5 max-w-xs">
+                <Label>Rate Discount (%)</Label>
+                <Input type="number" step="0.1" value={form.premature_encashment_rate_discount} onChange={e => update('premature_encashment_rate_discount', +e.target.value)} />
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ INTEREST ENGINE ============ */}
+        <TabsContent value="interest" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">সুদ গণনা ইঞ্জিন (Interest Engine)</CardTitle>
+              <CardDescription>EMI ক্যালকুলেটর এবং ঋণ সুদ গণনায় ব্যবহৃত নিয়মাবলী</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>EMI Rounding (৳)</Label>
+                <Input type="number" value={form.emi_rounding} onChange={e => update('emi_rounding', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">EMI কত টাকার গুণিতকে রাউন্ড হবে</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ceiling Rounding (৳)</Label>
+                <Input type="number" value={form.simple_interest_ceiling_rounding} onChange={e => update('simple_interest_ceiling_rounding', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">সুদ সিলিং রাউন্ডিং</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grace Period (মাস)</Label>
+                <Input type="number" value={form.simple_interest_grace_months} onChange={e => update('simple_interest_grace_months', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">কিস্তি শুরুর আগে গ্রেস পিরিয়ড</p>
+              </div>
+              <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3 p-3 rounded-md bg-muted/30">
+                <Switch
+                  checked={form.simple_interest_grace_accumulates}
+                  onCheckedChange={v => update('simple_interest_grace_accumulates', v)}
+                />
+                <div>
+                  <Label>Grace period এ সুদ জমা হবে</Label>
+                  <p className="text-xs text-muted-foreground">বন্ধ থাকলে গ্রেস পিরিয়ডে কোনো সুদ ধার্য হবে না</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ ELIGIBILITY ============ */}
+        <TabsContent value="eligibility" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">ঋণ যোগ্যতা প্যারামিটার (Loan Eligibility)</CardTitle>
+              <CardDescription>Loan Eligibility Calculator এ ব্যবহৃত DTI অনুপাত, সর্বোচ্চ পরিমাণ ও মেয়াদ</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {(['cmsme', 'personal', 'home_loan'] as const).map(type => {
+                const config = form.loan_eligibility[type];
+                const label = type === 'cmsme' ? 'CMSME' : type === 'personal' ? 'Personal' : 'Home Loan';
+                return (
+                  <div key={type}>
+                    <h4 className="font-medium text-sm text-foreground mb-2">{label}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">DTI Ratio</Label>
+                        <Input type="number" step="0.01" value={config.dti_ratio} onChange={e => updateElig(type, 'dti_ratio', +e.target.value)} />
+                        <p className="text-xs text-muted-foreground">আয়ের কত % পর্যন্ত</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Max Amount (৳)</Label>
+                        <Input type="number" value={config.max_amount} onChange={e => updateElig(type, 'max_amount', +e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Default Rate (%)</Label>
+                        <Input type="number" step="0.1" value={config.default_rate} onChange={e => updateElig(type, 'default_rate', +e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Max Tenure (মাস)</Label>
+                        <Input type="number" value={config.max_tenure} onChange={e => updateElig(type, 'max_tenure', +e.target.value)} />
+                      </div>
+                    </div>
+                    {type !== 'home_loan' && <Separator className="mt-4" />}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ CLASSIFICATION ============ */}
+        <TabsContent value="classification" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">ঋণ শ্রেণিবিভাগ (Loan Classification)</CardTitle>
+              <CardDescription>বকেয়া দিনের উপর ভিত্তি করে ঋণ শ্রেণিবিভাগ — STD, SMA, SS, DF, BL</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label>STD সর্বোচ্চ দিন</Label>
+                <Input type="number" value={form.classification_days.std_max} onChange={e => updateClassDays('std_max', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">0 – {form.classification_days.std_max} দিন = STD</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>SMA সর্বোচ্চ দিন</Label>
+                <Input type="number" value={form.classification_days.sma_max} onChange={e => updateClassDays('sma_max', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">{form.classification_days.std_max + 1} – {form.classification_days.sma_max} দিন = SMA</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>SS সর্বোচ্চ দিন</Label>
+                <Input type="number" value={form.classification_days.ss_max} onChange={e => updateClassDays('ss_max', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">{form.classification_days.sma_max + 1} – {form.classification_days.ss_max} দিন = SS</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>DF সর্বোচ্চ দিন</Label>
+                <Input type="number" value={form.classification_days.df_max} onChange={e => updateClassDays('df_max', +e.target.value)} />
+                <p className="text-xs text-muted-foreground">{form.classification_days.ss_max + 1} – {form.classification_days.df_max} দিন = DF<br />{form.classification_days.df_max}+ দিন = BL</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ CALCULATOR DEFAULTS ============ */}
+        <TabsContent value="calculator" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">DPS/FDR ডিফল্ট মান</CardTitle>
+              <CardDescription>DPS এবং FDR ক্যালকুলেটরের ডিফল্ট সুদ হার ও মেয়াদ</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label>DPS ডিফল্ট হার (%)</Label>
+                <Input type="number" step="0.1" value={form.dps_default_rate} onChange={e => update('dps_default_rate', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>DPS ডিফল্ট মেয়াদ (বছর)</Label>
+                <Input type="number" value={form.dps_default_tenure_years} onChange={e => update('dps_default_tenure_years', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>FDR ডিফল্ট হার (%)</Label>
+                <Input type="number" step="0.1" value={form.fdr_default_rate} onChange={e => update('fdr_default_rate', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>FDR ডিফল্ট মেয়াদ (মাস)</Label>
+                <Input type="number" value={form.fdr_default_tenure_months} onChange={e => update('fdr_default_tenure_months', +e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">মুদ্রা তালিকা (Currency List)</CardTitle>
+              <CardDescription>Currency Converter এ দেখানো হবে এমন মুদ্রা কোড</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {form.default_currencies.map((cur, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <Input
+                      className="w-20 h-8 text-xs text-center uppercase"
+                      value={cur}
+                      maxLength={3}
+                      onChange={e => updateCurrency(i, e.target.value)}
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeCurrency(i)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={addCurrency} className="gap-1">
+                <Plus className="h-3.5 w-3.5" /> মুদ্রা যোগ
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ LEGAL CASE CONFIG ============ */}
+        <TabsContent value="legal" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">মামলা কনফিগারেশন (Legal Case)</CardTitle>
+              <CardDescription>মামলার ধরণ এবং ডিফল্ট আদালত</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>মামলার ধরণ (Case Types)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {form.legal_case_config.case_types.map((ct, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <Input
+                        className="w-32 h-8 text-xs"
+                        value={ct}
+                        onChange={e => updateCaseType(i, e.target.value)}
+                        placeholder="e.g. NI"
+                      />
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeCaseType(i)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" onClick={addCaseType} className="gap-1">
+                  <Plus className="h-3.5 w-3.5" /> ধরণ যোগ
+                </Button>
+              </div>
+              <div className="space-y-1.5 max-w-md">
+                <Label>ডিফল্ট আদালত (Default Court)</Label>
+                <Input
+                  value={form.legal_case_config.default_court}
+                  onChange={e => update('legal_case_config', { ...form.legal_case_config, default_court: e.target.value })}
+                  placeholder="e.g. অর্থ ঋণ আদালত, ঢাকা"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ MAP ============ */}
+        <TabsContent value="map" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">ম্যাপ সেটিংস (Loan Map)</CardTitle>
+              <CardDescription>Loan Map পেজের ডিফল্ট কেন্দ্রবিন্দু ও ব্যাসার্ধ</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>ডিফল্ট ব্যাসার্ধ (কি.মি.)</Label>
+                <Input type="number" step="0.5" value={form.default_map_radius_km} onChange={e => update('default_map_radius_km', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ডিফল্ট Latitude</Label>
+                <Input type="number" step="0.0001" value={form.default_map_lat} onChange={e => update('default_map_lat', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ডিফল্ট Longitude</Label>
+                <Input type="number" step="0.0001" value={form.default_map_lng} onChange={e => update('default_map_lng', +e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ GENERAL ============ */}
+        <TabsContent value="general" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">অ্যাপের নাম ও ব্র্যান্ডিং</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>App Name (English)</Label>
+                <Input value={form.app_name} onChange={e => update('app_name', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>App Name (বাংলা)</Label>
+                <Input value={form.app_name_bn} onChange={e => update('app_name_bn', e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">SMS টেমপ্লেট</CardTitle>
+              <CardDescription>SMS Utility তে ব্যবহৃত ডিফল্ট বার্তা। প্লেসহোল্ডার: {'{{borrower}}'}, {'{{account}}'}, {'{{outstanding}}'}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                className="min-h-[80px]"
+                value={form.sms_template}
+                onChange={e => update('sms_template', e.target.value)}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">নিবন্ধন ও অনুমোদন</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                <Switch
+                  checked={form.require_admin_approval}
+                  onCheckedChange={v => update('require_admin_approval', v)}
+                />
+                <div>
+                  <Label>নতুন ব্যবহারকারী রেজিস্ট্রেশনে অ্যাডমিন অনুমোদন প্রয়োজন</Label>
+                  <p className="text-xs text-muted-foreground">বন্ধ করলে নতুন ইউজার সরাসরি লগইন করতে পারবে</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Bottom save */}
       <div className="flex justify-end pb-6">

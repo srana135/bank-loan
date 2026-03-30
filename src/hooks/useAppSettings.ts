@@ -1,6 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
+export interface LoanClassificationDays {
+  std_max: number;
+  sma_max: number;
+  ss_max: number;
+  df_max: number;
+  // BL = anything above df_max
+}
+
+export interface LegalCaseConfig {
+  case_types: string[];
+  default_court: string;
+}
+
 export interface AppSettingsMap {
   tax_rate_with_tin: number;
   tax_rate_without_tin: number;
@@ -15,6 +28,28 @@ export interface AppSettingsMap {
   simple_interest_ceiling_rounding: number;
   simple_interest_grace_months: number;
   simple_interest_grace_accumulates: boolean;
+  // Map settings
+  default_map_radius_km: number;
+  default_map_lat: number;
+  default_map_lng: number;
+  // Classification days
+  classification_days: LoanClassificationDays;
+  // Legal case config
+  legal_case_config: LegalCaseConfig;
+  // Currency converter defaults
+  default_currencies: string[];
+  // DPS/FDR defaults
+  dps_default_rate: number;
+  fdr_default_rate: number;
+  dps_default_tenure_years: number;
+  fdr_default_tenure_months: number;
+  // SMS template
+  sms_template: string;
+  // App branding
+  app_name: string;
+  app_name_bn: string;
+  // Registration
+  require_admin_approval: boolean;
 }
 
 const DEFAULTS: AppSettingsMap = {
@@ -39,6 +74,20 @@ const DEFAULTS: AppSettingsMap = {
   simple_interest_ceiling_rounding: 1,
   simple_interest_grace_months: 0,
   simple_interest_grace_accumulates: true,
+  default_map_radius_km: 5,
+  default_map_lat: 23.8103,
+  default_map_lng: 90.4125,
+  classification_days: { std_max: 90, sma_max: 180, ss_max: 270, df_max: 360 },
+  legal_case_config: { case_types: ['NI', 'Artha Rin', 'PDR'], default_court: '' },
+  default_currencies: ['USD', 'SAR', 'AED', 'EUR', 'GBP', 'KWD', 'OMR', 'QAR', 'MYR', 'SGD'],
+  dps_default_rate: 8,
+  fdr_default_rate: 9,
+  dps_default_tenure_years: 5,
+  fdr_default_tenure_months: 12,
+  sms_template: 'প্রিয় {{borrower}}, আপনার ঋণ হিসাব নং {{account}} এ বকেয়া ৳{{outstanding}}। অনুগ্রহ করে পরিশোধ করুন।',
+  app_name: 'Loan Management',
+  app_name_bn: 'ঋণ ব্যবস্থাপনা',
+  require_admin_approval: true,
 };
 
 const isPGRST205 = (err: unknown) =>
@@ -49,7 +98,6 @@ export const useAppSettings = () => {
     queryKey: ['app-settings-all'],
     queryFn: async () => {
       const { data, error } = await supabase.from('app_settings').select('setting_key, setting_value');
-      // If table doesn't exist, just return defaults
       if (error && isPGRST205(error)) return DEFAULTS;
       const settings = { ...DEFAULTS } as any;
       if (data) {
