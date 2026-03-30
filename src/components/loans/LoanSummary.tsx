@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 interface Props {
   loans: Loan[];
   selectedClassifications: string[];
+  onClassificationClick?: (cls: string) => void;
 }
 
 const CLASSIFICATIONS = ['STD', 'SMA', 'SS', 'DF', 'BL'];
@@ -22,7 +23,7 @@ const classBadgeVariants: Record<string, 'default' | 'secondary' | 'destructive'
   STD: 'default', SMA: 'secondary', SS: 'secondary', DF: 'destructive', BL: 'destructive',
 };
 
-const LoanSummary = ({ loans, selectedClassifications }: Props) => {
+const LoanSummary = ({ loans, selectedClassifications, onClassificationClick }: Props) => {
   const stats = useMemo(() => {
     const byClass: Record<string, { count: number; outstanding: number }> = {};
     CLASSIFICATIONS.forEach(c => { byClass[c] = { count: 0, outstanding: 0 }; });
@@ -69,7 +70,8 @@ const LoanSummary = ({ loans, selectedClassifications }: Props) => {
           </CardContent>
         </Card>
         {CLASSIFICATIONS.map(cls => (
-          <Card key={cls} className={`border ${classStyles[cls]}`}>
+          <Card key={cls} className={`border ${classStyles[cls]} ${onClassificationClick ? 'cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all' : ''} ${selectedClassifications.includes(cls) ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => onClassificationClick?.(cls)}>
             <CardContent className="p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-0.5">
                 <Badge variant={classBadgeVariants[cls]} className="text-[10px] h-4 px-1.5">{cls}</Badge>
