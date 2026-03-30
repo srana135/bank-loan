@@ -12,6 +12,9 @@ export interface AppSettingsMap {
     home_loan: { dti_ratio: number; max_amount: number; default_rate: number; max_tenure: number };
   };
   emi_rounding: number;
+  simple_interest_ceiling_rounding: number;
+  simple_interest_grace_months: number;
+  simple_interest_grace_accumulates: boolean;
 }
 
 const DEFAULTS: AppSettingsMap = {
@@ -33,6 +36,9 @@ const DEFAULTS: AppSettingsMap = {
     home_loan: { dti_ratio: 0.45, max_amount: 20000000, default_rate: 8.5, max_tenure: 240 },
   },
   emi_rounding: 1,
+  simple_interest_ceiling_rounding: 1,
+  simple_interest_grace_months: 0,
+  simple_interest_grace_accumulates: true,
 };
 
 const isPGRST205 = (err: unknown) =>
