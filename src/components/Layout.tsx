@@ -9,7 +9,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Landmark, Calculator, FileText, Phone, Menu, LogOut, User, ChevronDown, Shield, MapPin,
-  Building2, Users, ClipboardList, Settings, Upload,
+  Building2, Users, ClipboardList, Settings, Upload, Gavel, Type,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -78,9 +78,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Legal/Mamla */}
+            {user && (
+              <Button variant={isActive('/legal') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" onClick={() => requireAuth('/legal')}>
+                <Gavel className="h-4 w-4" /> Mamla
+              </Button>
+            )}
+
             {/* Services */}
             <Button variant={isActive('/services') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" asChild>
               <Link to="/services"><FileText className="h-4 w-4" /> Services</Link>
+            </Button>
+
+            {/* Converter */}
+            <Button variant={isActive('/converter') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" asChild>
+              <Link to="/converter"><Type className="h-4 w-4" /> Converter</Link>
             </Button>
 
             {/* Connect */}
@@ -167,9 +179,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       <Link to={sub.path}><Calculator className="h-3.5 w-3.5" /> {sub.label}</Link>
                     </Button>
                   ))}
+                  {user && (
+                    <>
+                      <Separator className="my-1" />
+                      <Button variant="ghost" className="justify-start gap-2 h-9" onClick={() => navMobile('/legal')}>
+                        <Gavel className="h-4 w-4" /> Mamla / Legal
+                      </Button>
+                    </>
+                  )}
                   <Separator className="my-1" />
                   <Button variant="ghost" className="justify-start gap-2 h-9" asChild onClick={() => setMobileOpen(false)}>
                     <Link to="/services"><FileText className="h-4 w-4" /> {canUploadService ? 'Service Upload' : 'Service List'}</Link>
+                  </Button>
+                  <Button variant="ghost" className="justify-start gap-2 h-9" asChild onClick={() => setMobileOpen(false)}>
+                    <Link to="/converter"><Type className="h-4 w-4" /> Converter</Link>
                   </Button>
                   <Button variant="ghost" className="justify-start gap-2 h-9" asChild onClick={() => setMobileOpen(false)}>
                     <Link to="/connect"><Phone className="h-4 w-4" /> Connect Us</Link>
