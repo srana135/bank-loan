@@ -450,7 +450,8 @@ const LoanManagement = () => {
                       {loan.latest_comment || '-'}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
