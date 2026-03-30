@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Pencil, Trash2, Phone } from 'lucide-react';
 import LoanComments from './LoanComments';
+import LoanRecoveries from './LoanRecoveries';
 
 interface Props {
   loan: Loan | null;
@@ -119,6 +120,22 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Guarantor 2" value={loan.guarantor_2_name} />
           <DetailRow label="G2 Mobile" value={loan.guarantor_2_mobile} isPhone />
         </div>
+
+        <Separator className="my-3" />
+
+        {/* Disbursement */}
+        {(loan.disbursement_date || loan.disbursed_loan_amount) && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Disbursement</h4>
+            <DetailRow label="Disbursement Date" value={loan.disbursement_date} />
+            <DetailRow label="Disbursed Amount" value={loan.disbursed_loan_amount ? `৳${loan.disbursed_loan_amount.toLocaleString()}` : null} />
+          </div>
+        )}
+
+        {(loan.disbursement_date || loan.disbursed_loan_amount) && <Separator className="my-3" />}
+
+        {/* Recoveries */}
+        <LoanRecoveries loanId={loan.id} />
 
         <Separator className="my-3" />
 
