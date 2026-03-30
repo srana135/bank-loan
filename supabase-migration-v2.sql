@@ -226,3 +226,19 @@ CREATE POLICY "Admin can delete profiles"
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.legal_cases;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.loan_recoveries;
+
+-- 9. Add new columns to legal_cases (claim_amount, next_date, remarks)
+-- ============================================================
+ALTER TABLE public.legal_cases ADD COLUMN IF NOT EXISTS claim_amount numeric default null;
+ALTER TABLE public.legal_cases ADD COLUMN IF NOT EXISTS next_date date default null;
+ALTER TABLE public.legal_cases ADD COLUMN IF NOT EXISTS remarks text default null;
+
+-- Employee can add orders (update order history and next date)
+CREATE POLICY "Employee can add case orders"
+  ON public.legal_case_orders FOR INSERT TO authenticated
+  USING (true) WITH CHECK (true);
+
+-- Employee can read case orders
+CREATE POLICY "Authenticated can read case orders"
+  ON public.legal_case_orders FOR SELECT TO authenticated
+  USING (true);

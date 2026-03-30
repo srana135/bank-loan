@@ -19,6 +19,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
+import { useLegalCases } from '@/hooks/useLegal';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2 } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -46,6 +47,8 @@ const LoanManagement = () => {
   const branchFilter = userRole === 'manager' ? profile?.branch_id : undefined;
   const { data: allLoans, isLoading, error: loansError } = useLoans(branchFilter);
   const { data: branches } = useBranches();
+  const branchFilterForLegal = userRole === 'manager' ? profile?.branch_id : undefined;
+  const { data: legalCases } = useLegalCases(branchFilterForLegal);
   const createLoan = useCreateLoan();
   const updateLoan = useUpdateLoan();
   const deleteLoan = useDeleteLoan();
@@ -88,6 +91,15 @@ const LoanManagement = () => {
     if (!detailLoan || !allLoans) return detailLoan;
     return allLoans.find(l => l.id === detailLoan.id) || detailLoan;
   }, [detailLoan, allLoans]);
+
+  // Map loan_id -> legal case for badge display
+  const loanCaseMap = useMemo(() => {
+    const map = new Map<string, { case_number: string; next_date: string | null }>();
+    legalCases?.forEach(c => {
+      if (c.loan_id && c.status === 'active') map.set(c.loan_id, { case_number: c.case_number, next_date: c.next_date });
+    });
+    return map;
+  }, [legalCases]);
 
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
 
@@ -337,6 +349,23 @@ const LoanManagement = () => {
                   <div><span className="text-muted-foreground">Outstanding:</span> <span className="font-semibold">৳{(loan.outstanding_amount || 0).toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
                 </div>
+                {(() => {
+                  const lc = loanCaseMap.get(loan.id);
+                  if (!lc) return null;
+                  const days = lc.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
+                  return (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Gavel className="h-3 w-3 text-primary" />
+                      <span className="font-mono font-medium">{lc.case_number}</span>
+                      {lc.next_date && (
+                        <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
+                          className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
+                          {lc.next_date}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })()}
                 {loan.latest_comment && (
                   <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-0.5">
                     <p className="truncate">💬 {loan.latest_comment}</p>
@@ -375,11 +404,15 @@ const LoanManagement = () => {
                   <TableHead>Borrower</TableHead>
                   <TableHead className="text-right">Overdue</TableHead>
                   <TableHead>Class</TableHead>
+                  <TableHead className="hidden lg:table-cell">Legal</TableHead>
                   <TableHead className="hidden md:table-cell">Latest Comment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLoans.map(loan => (
+                {filteredLoans.map(loan => {
+                  const lc = loanCaseMap.get(loan.id);
+                  const days = lc?.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
+                  return (
                   <TableRow key={loan.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openLoanDetail(loan)}>
                     {canBulk && (
                       <TableCell onClick={e => e.stopPropagation()}>
@@ -399,11 +432,26 @@ const LoanManagement = () => {
                         {loan.classification || '-'}
                       </Badge>
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {lc ? (
+                        <div className="flex items-center gap-1">
+                          <Gavel className="h-3 w-3 text-primary" />
+                          <span className="text-xs font-mono">{lc.case_number}</span>
+                          {lc.next_date && (
+                            <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
+                              className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
+                              {lc.next_date}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : '-'}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell max-w-[180px] truncate text-xs text-muted-foreground">
                       {loan.latest_comment || '-'}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

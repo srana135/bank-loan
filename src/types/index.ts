@@ -106,6 +106,9 @@ export interface LegalCase {
   lawyer_id: string | null;
   branch_id: string | null;
   description: string | null;
+  claim_amount: number | null;
+  next_date: string | null;
+  remarks: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
