@@ -254,7 +254,13 @@ const LoanManagement = () => {
         />
       )}
       {showSms && <SmsUtility loans={filteredLoans} />}
-      <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications} />
+      <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications}
+        onClassificationClick={(cls) => {
+          setFilters(prev => {
+            const has = prev.classifications.includes(cls);
+            return { ...prev, classifications: has ? prev.classifications.filter(c => c !== cls) : [...prev.classifications, cls] };
+          });
+        }} />
 
       {/* Bulk toolbar */}
       {selectedIds.size > 0 && (
