@@ -349,6 +349,23 @@ const LoanManagement = () => {
                   <div><span className="text-muted-foreground">Outstanding:</span> <span className="font-semibold">৳{(loan.outstanding_amount || 0).toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
                 </div>
+                {(() => {
+                  const lc = loanCaseMap.get(loan.id);
+                  if (!lc) return null;
+                  const days = lc.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
+                  return (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Gavel className="h-3 w-3 text-primary" />
+                      <span className="font-mono font-medium">{lc.case_number}</span>
+                      {lc.next_date && (
+                        <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
+                          className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
+                          {lc.next_date}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })()}
                 {loan.latest_comment && (
                   <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-0.5">
                     <p className="truncate">💬 {loan.latest_comment}</p>
