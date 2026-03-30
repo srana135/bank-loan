@@ -62,12 +62,13 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
 
         {/* Actions */}
         {(canEdit || canDelete) && (
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {canEdit && (
               <Button variant="outline" size="sm" className="gap-1" onClick={() => { onClose(); onEdit(loan); }}>
                 <Pencil className="h-3 w-3" /> Edit
               </Button>
             )}
+            <AccountStatusChange loanId={loan.id} currentStatus={loan.account_status} accountNo={loan.account_no} />
             {canDelete && (
               <Button variant="destructive" size="sm" className="gap-1"
                 onClick={() => { if (confirm(`Delete loan ${loan.account_no}?`)) { onClose(); onDelete(loan.id); } }}>
