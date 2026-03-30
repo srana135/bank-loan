@@ -404,11 +404,15 @@ const LoanManagement = () => {
                   <TableHead>Borrower</TableHead>
                   <TableHead className="text-right">Overdue</TableHead>
                   <TableHead>Class</TableHead>
+                  <TableHead className="hidden lg:table-cell">Legal</TableHead>
                   <TableHead className="hidden md:table-cell">Latest Comment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLoans.map(loan => (
+                {filteredLoans.map(loan => {
+                  const lc = loanCaseMap.get(loan.id);
+                  const days = lc?.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
+                  return (
                   <TableRow key={loan.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openLoanDetail(loan)}>
                     {canBulk && (
                       <TableCell onClick={e => e.stopPropagation()}>
@@ -427,6 +431,20 @@ const LoanManagement = () => {
                       <Badge variant={['DF', 'BL'].includes(loan.classification || '') ? 'destructive' : loan.classification === 'SMA' ? 'secondary' : 'default'} className="text-xs">
                         {loan.classification || '-'}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {lc ? (
+                        <div className="flex items-center gap-1">
+                          <Gavel className="h-3 w-3 text-primary" />
+                          <span className="text-xs font-mono">{lc.case_number}</span>
+                          {lc.next_date && (
+                            <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
+                              className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
+                              {lc.next_date}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : '-'}
                     </TableCell>
                     <TableCell className="hidden md:table-cell max-w-[180px] truncate text-xs text-muted-foreground">
                       {loan.latest_comment || '-'}
