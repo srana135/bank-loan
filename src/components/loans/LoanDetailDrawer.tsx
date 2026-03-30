@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Pencil, Trash2, Phone } from 'lucide-react';
+import AccountStatusChange from './AccountStatusChange';
 import LoanComments from './LoanComments';
 import LoanRecoveries from './LoanRecoveries';
 
