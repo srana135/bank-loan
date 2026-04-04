@@ -1,19 +1,7 @@
 /**
- * PRODUCTION CHECKLIST — Loan Management
- * ✅ Loan CRUD: create, update, delete wired to Supabase
- * ✅ Bulk delete: admin/manager only, with confirmation
- * ✅ Bulk comment: selected or filtered loans
- * ✅ Import: xlsx upload with validation, upsert by account_no
- * ✅ Filters: instant filter panel with classifications, typeahead
- * ✅ Summary: classification counts + outstanding totals
- * ✅ Detail drawer: full loan fields, comments, role-based actions
- * ✅ Click-to-call: tel: links on mobile numbers
- * ✅ SMS utility: integrated for filtered loans
- * ✅ Export: Excel + PDF
- * ✅ Realtime: postgres_changes subscription refreshes list
- * ✅ Role enforcement: employee=view+comment only, manager=own branch, admin=all
- * ✅ Loading, empty, no-results states
- * ✅ Mobile card-based responsive layout
+ * PRODUCTION — Loan Management
+ * ✅ Loan CRUD, Bulk ops, Import/Export, Filters, Summary, Detail drawer
+ * ✅ Sorting, Proposed repayment date feeds, Mobile responsive cards
  */
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -41,6 +29,14 @@ import LoanImportDialog from '@/components/loans/LoanImportDialog';
 import SmsUtility from '@/components/loans/SmsUtility';
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+type SortKey = 'account_name' | 'borrower_name' | 'overdue_amount' | 'outstanding_amount' | 'classification' | 'overdue_installment_number' | 'latest_proposed_date';
+type SortDir = 'asc' | 'desc';
+
+const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) => {
+  if (!active) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+  return dir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-primary" /> : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
+};
 
 const LoanManagement = () => {
   const { user, profile, userRole } = useAuth();
@@ -73,10 +69,20 @@ const LoanManagement = () => {
   const [bulkCommentTarget, setBulkCommentTarget] = useState<'selected' | 'filtered'>('selected');
   const [quickCommentLoanId, setQuickCommentLoanId] = useState<string | null>(null);
   const [quickCommentText, setQuickCommentText] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey | ''>('');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
-  const isEmployee = userRole === 'employee';
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortKey(''); setSortDir('asc'); }
+    } else {
+      setSortKey(key); setSortDir('asc');
+    }
+  };
 
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
@@ -84,15 +90,27 @@ const LoanManagement = () => {
     if (userRole === 'admin' && adminBranchFilter !== '__all__') {
       loans = loans.filter(l => l.branch_id === adminBranchFilter);
     }
+    if (sortKey) {
+      loans = [...loans].sort((a, b) => {
+        let va: any = (a as any)[sortKey];
+        let vb: any = (b as any)[sortKey];
+        if (typeof va === 'string') va = va?.toLowerCase() || '';
+        if (typeof vb === 'string') vb = vb?.toLowerCase() || '';
+        if (va == null) va = sortDir === 'asc' ? Infinity : -Infinity;
+        if (vb == null) vb = sortDir === 'asc' ? Infinity : -Infinity;
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
     return loans;
-  }, [allLoans, filters, search, adminBranchFilter, userRole]);
+  }, [allLoans, filters, search, adminBranchFilter, userRole, sortKey, sortDir]);
 
   const currentDetailLoan = useMemo(() => {
     if (!detailLoan || !allLoans) return detailLoan;
     return allLoans.find(l => l.id === detailLoan.id) || detailLoan;
   }, [detailLoan, allLoans]);
 
-  // Map loan_id -> legal case for badge display
   const loanCaseMap = useMemo(() => {
     const map = new Map<string, { case_number: string; next_date: string | null }>();
     legalCases?.forEach(c => {
@@ -123,11 +141,11 @@ const LoanManagement = () => {
       }
       setFormOpen(false);
       setEditLoan(null);
-    } catch { /* handled by mutation toast */ }
+    } catch {}
   };
 
   const handleDelete = async (id: string) => {
-    try { await deleteLoan.mutateAsync(id); } catch { /* handled */ }
+    try { await deleteLoan.mutateAsync(id); } catch {}
   };
 
   const handleBulkDelete = async () => {
@@ -166,7 +184,7 @@ const LoanManagement = () => {
       'Mobile': l.mobile, 'Account Type': l.account_type, 'Status': l.account_status, 'Address': l.address,
       'Installment': l.installment_amount, 'Overdue Inst.': l.overdue_installment_number,
       'Overdue Amt': l.overdue_amount, 'Outstanding': l.outstanding_amount,
-      'Classification': l.classification, 'Latest Comment': l.latest_comment,
+      'Classification': l.classification, 'Latest Comment': l.latest_comment, 'Proposed Date': l.latest_proposed_date,
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Loans');
@@ -199,11 +217,10 @@ const LoanManagement = () => {
   const openLoanDetail = (loan: Loan) => { setDetailLoan(loan); setDetailOpen(true); };
 
   const activeFilterCount = [filters.accountName, filters.borrowerName, filters.accountType, filters.accountStatus, filters.address]
-    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0) + (adminBranchFilter !== '__all__' ? 1 : 0);
+    .filter(Boolean).length + (filters.classifications.length > 0 ? 1 : 0) + (adminBranchFilter !== '__all__' ? 1 : 0) + (filters.proposedDateFilter ? 1 : 0);
 
   return (
     <div className="container py-6 space-y-4">
-      {/* Header with user identity */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Management</h1>
@@ -226,7 +243,6 @@ const LoanManagement = () => {
         </div>
       </div>
 
-      {/* Action bar */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[180px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -256,25 +272,25 @@ const LoanManagement = () => {
 
       {showFilters && (
         <LoanFilterPanel
-          filters={filters}
-          onChange={setFilters}
-          loans={allLoans || []}
-          branches={branches}
-          showBranchFilter={userRole === 'admin'}
-          branchFilter={adminBranchFilter}
-          onBranchFilterChange={setAdminBranchFilter}
+          filters={filters} onChange={setFilters} loans={allLoans || []}
+          branches={branches} showBranchFilter={userRole === 'admin'}
+          branchFilter={adminBranchFilter} onBranchFilterChange={setAdminBranchFilter}
         />
       )}
       {showSms && <SmsUtility loans={filteredLoans} />}
-      <LoanSummary loans={filteredLoans} selectedClassifications={filters.classifications}
+      <LoanSummary
+        loans={filteredLoans}
+        selectedClassifications={filters.classifications}
         onClassificationClick={(cls) => {
           setFilters(prev => {
             const has = prev.classifications.includes(cls);
             return { ...prev, classifications: has ? prev.classifications.filter(c => c !== cls) : [...prev.classifications, cls] };
           });
-        }} />
+        }}
+        onProposedDateFilter={(f) => setFilters(prev => ({ ...prev, proposedDateFilter: f }))}
+        activeProposedDateFilter={filters.proposedDateFilter}
+      />
 
-      {/* Bulk toolbar */}
       {selectedIds.size > 0 && (
         <Card className="border-accent/40 bg-accent/5">
           <CardContent className="py-2 px-4 flex flex-wrap items-center gap-2">
@@ -295,7 +311,6 @@ const LoanManagement = () => {
         </Card>
       )}
 
-      {/* Database setup banner or error */}
       {loansError && (
         <DatabaseSetupBanner error={(loansError as any)?.message || String(loansError)} />
       )}
@@ -309,7 +324,6 @@ const LoanManagement = () => {
         </Card>
       )}
 
-      {/* Loan list */}
       {!loansError && (isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : filteredLoans.length === 0 ? (
@@ -321,10 +335,11 @@ const LoanManagement = () => {
           </CardContent>
         </Card>
       ) : isMobile ? (
-        /* Mobile: Card-based layout */
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground">Showing {filteredLoans.length} of {allLoans?.length || 0} loans</div>
-          {filteredLoans.map(loan => (
+          {filteredLoans.map(loan => {
+            const lc = loanCaseMap.get(loan.id);
+            return (
             <Card key={loan.id} className="card-shadow cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openLoanDetail(loan)}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
@@ -337,9 +352,7 @@ const LoanManagement = () => {
                       {loan.classification || '-'}
                     </Badge>
                     {(loan.overdue_installment_number || 0) > 0 && (
-                      <Badge variant="destructive" className="text-[10px]">
-                        OD: {loan.overdue_installment_number}
-                      </Badge>
+                      <Badge variant="destructive" className="text-[10px]">OD: {loan.overdue_installment_number}</Badge>
                     )}
                   </div>
                 </div>
@@ -348,24 +361,30 @@ const LoanManagement = () => {
                   <div><span className="text-muted-foreground">Mobile:</span> <a href={`tel:${loan.mobile}`} className="text-primary font-medium" onClick={e => e.stopPropagation()}>{loan.mobile || '-'}</a></div>
                   <div><span className="text-muted-foreground">Outstanding:</span> <span className="font-semibold">৳{(loan.outstanding_amount || 0).toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
-                </div>
-                {(() => {
-                  const lc = loanCaseMap.get(loan.id);
-                  if (!lc) return null;
-                  const days = lc.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
-                  return (
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Gavel className="h-3 w-3 text-primary" />
-                      <span className="font-mono font-medium">{lc.case_number}</span>
-                      {lc.next_date && (
-                        <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
-                          className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
-                          {lc.next_date}
-                        </Badge>
-                      )}
+                  <div><span className="text-muted-foreground">Installment:</span> <span className="font-medium">৳{(loan.installment_amount || 0).toLocaleString()}</span></div>
+                  <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{loan.account_type || '-'}</span></div>
+                  {loan.disbursed_loan_amount && (
+                    <div><span className="text-muted-foreground">Sanctioned:</span> <span className="font-medium">৳{loan.disbursed_loan_amount.toLocaleString()}</span></div>
+                  )}
+                  {loan.latest_proposed_date && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-primary" />
+                      <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
+                {lc && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Gavel className="h-3 w-3 text-primary" />
+                    <span className="font-mono font-medium">{lc.case_number}</span>
+                    {lc.next_date && (
+                      <Badge variant={(() => { const d = Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000); return d <= 0 ? 'destructive' : 'outline'; })()}
+                        className={`text-[10px] ${(() => { const d = Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000); return d > 0 && d <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''; })()}`}>
+                        {lc.next_date}
+                      </Badge>
+                    )}
+                  </div>
+                )}
                 {loan.latest_comment && (
                   <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-0.5">
                     <p className="truncate">💬 {loan.latest_comment}</p>
@@ -385,10 +404,10 @@ const LoanManagement = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : (
-        /* Desktop: Table layout */
         <Card>
           <div className="overflow-x-auto">
             <Table>
@@ -399,13 +418,27 @@ const LoanManagement = () => {
                       <Checkbox checked={selectedIds.size === filteredLoans.length && filteredLoans.length > 0} onCheckedChange={toggleSelectAll} />
                     </TableHead>
                   )}
-                  <TableHead>Account Name</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('account_name')}>
+                    <span className="flex items-center">Account Name <SortIcon active={sortKey === 'account_name'} dir={sortDir} /></span>
+                  </TableHead>
                   <TableHead>Account No</TableHead>
-                  <TableHead>Borrower</TableHead>
-                  <TableHead className="text-right">Overdue</TableHead>
-                  <TableHead>Class</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('borrower_name')}>
+                    <span className="flex items-center">Borrower <SortIcon active={sortKey === 'borrower_name'} dir={sortDir} /></span>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('overdue_installment_number')}>
+                    <span className="flex items-center justify-end">Overdue <SortIcon active={sortKey === 'overdue_installment_number'} dir={sortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('outstanding_amount')}>
+                    <span className="flex items-center">Outstanding <SortIcon active={sortKey === 'outstanding_amount'} dir={sortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('classification')}>
+                    <span className="flex items-center">Class <SortIcon active={sortKey === 'classification'} dir={sortDir} /></span>
+                  </TableHead>
                   <TableHead className="hidden lg:table-cell">Legal</TableHead>
                   <TableHead className="hidden md:table-cell">Latest Comment</TableHead>
+                  <TableHead className="hidden lg:table-cell cursor-pointer select-none" onClick={() => toggleSort('latest_proposed_date')}>
+                    <span className="flex items-center">Proposed <SortIcon active={sortKey === 'latest_proposed_date'} dir={sortDir} /></span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -427,6 +460,7 @@ const LoanManagement = () => {
                         {loan.overdue_installment_number || 0}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-sm font-medium">৳{(loan.outstanding_amount || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={['DF', 'BL'].includes(loan.classification || '') ? 'destructive' : loan.classification === 'SMA' ? 'secondary' : 'default'} className="text-xs">
                         {loan.classification || '-'}
@@ -448,6 +482,14 @@ const LoanManagement = () => {
                     </TableCell>
                     <TableCell className="hidden md:table-cell max-w-[180px] truncate text-xs text-muted-foreground">
                       {loan.latest_comment || '-'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs">
+                      {loan.latest_proposed_date ? (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-primary" />
+                          <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                        </div>
+                      ) : '-'}
                     </TableCell>
                   </TableRow>
                   );
@@ -498,7 +540,6 @@ const LoanManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Quick Comment Dialog */}
       <Dialog open={!!quickCommentLoanId} onOpenChange={v => { if (!v) { setQuickCommentLoanId(null); setQuickCommentText(''); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
