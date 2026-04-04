@@ -1,8 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, Mail, MapPin, Building, User } from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Phone, Mail, MapPin, Building, User } from "lucide-react";
+import { useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const ConnectUs = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -12,22 +12,22 @@ const ConnectUs = () => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapRef.current).setView([23.7104, 90.4074], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
     }).addTo(map);
 
     // Fix default marker icon
     const defaultIcon = L.icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       iconSize: [25, 41],
       iconAnchor: [12, 41],
     });
 
     L.marker([23.7104, 90.4074], { icon: defaultIcon })
       .addTo(map)
-      .bindPopup('Bangladesh Development Bank PLC')
+      .bindPopup("Bangladesh Development Bank PLC")
       .openPopup();
 
     mapInstanceRef.current = map;
@@ -72,7 +72,10 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Mobile</p>
-                <a href="tel:+8801515637222" className="font-semibold text-foreground hover:text-primary transition-colors">
+                <a
+                  href="tel:+8801515637222"
+                  className="font-semibold text-foreground hover:text-primary transition-colors"
+                >
                   01515637222
                 </a>
               </div>
@@ -84,7 +87,10 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <a href="mailto:s.rana135@gmail.com" className="font-semibold text-foreground hover:text-primary transition-colors">
+                <a
+                  href="mailto:s.rana135@gmail.com"
+                  className="font-semibold text-foreground hover:text-primary transition-colors"
+                >
                   s.rana135@gmail.com
                 </a>
               </div>
@@ -96,7 +102,7 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Location</p>
-                <p className="font-semibold text-foreground">Dhaka, Bangladesh</p>
+                <p className="font-semibold text-foreground">Chapainawabganj, Bangladesh</p>
               </div>
             </div>
           </CardContent>
