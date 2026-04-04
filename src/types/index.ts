@@ -66,6 +66,7 @@ export interface Loan {
   disbursement_date: string | null;
   disbursed_loan_amount: number | null;
   latest_comment: string | null;
+  latest_proposed_date: string | null;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -76,6 +77,7 @@ export interface LoanComment {
   id: string;
   loan_id: string;
   comment_text: string;
+  proposed_repayment_date: string | null;
   author_id: string;
   author_name: string | null;
   author_role: string | null;
@@ -104,6 +106,7 @@ export interface LegalCase {
   plaintiff_name: string | null;
   defendant_name: string | null;
   lawyer_id: string | null;
+  officer_id: string | null;
   branch_id: string | null;
   description: string | null;
   claim_amount: number | null;
@@ -133,6 +136,24 @@ export interface Lawyer {
   specialization: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+export interface LegalNotice {
+  id: string;
+  loan_id: string | null;
+  borrower_name: string | null;
+  organization_name: string | null;
+  account_no: string | null;
+  notice_type: string;
+  sent_date: string | null;
+  receipt_status: 'received' | 'returned' | 'pending';
+  receipt_date: string | null;
+  case_filing_deadline: string | null;
+  branch_id: string | null;
+  created_by: string | null;
+  remarks: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AuditLog {

@@ -2,11 +2,14 @@ import { Loan } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMemo } from 'react';
+import { Calendar, CalendarDays } from 'lucide-react';
 
 interface Props {
   loans: Loan[];
   selectedClassifications: string[];
   onClassificationClick?: (cls: string) => void;
+  onProposedDateFilter?: (filter: '' | 'today' | '7days') => void;
+  activeProposedDateFilter?: string;
 }
 
 const CLASSIFICATIONS = ['STD', 'SMA', 'SS', 'DF', 'BL'];
@@ -23,12 +26,19 @@ const classBadgeVariants: Record<string, 'default' | 'secondary' | 'destructive'
   STD: 'default', SMA: 'secondary', SS: 'secondary', DF: 'destructive', BL: 'destructive',
 };
 
-const LoanSummary = ({ loans, selectedClassifications, onClassificationClick }: Props) => {
+const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, onProposedDateFilter, activeProposedDateFilter }: Props) => {
   const stats = useMemo(() => {
     const byClass: Record<string, { count: number; outstanding: number }> = {};
     CLASSIFICATIONS.forEach(c => { byClass[c] = { count: 0, outstanding: 0 }; });
     let totalCount = 0;
     let totalOutstanding = 0;
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const todayStr = now.toISOString().split('T')[0];
+    const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
+    let proposedToday = 0;
+    let proposed7Days = 0;
 
     loans.forEach(l => {
       const cls = l.classification || 'STD';
@@ -37,6 +47,11 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick }: 
       byClass[cls].outstanding += l.outstanding_amount || 0;
       totalCount++;
       totalOutstanding += l.outstanding_amount || 0;
+
+      if (l.latest_proposed_date) {
+        if (l.latest_proposed_date === todayStr) proposedToday++;
+        if (l.latest_proposed_date >= todayStr && l.latest_proposed_date <= in7Days) proposed7Days++;
+      }
     });
 
     let selectedCount = 0;
@@ -48,13 +63,12 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick }: 
       });
     }
 
-    return { byClass, totalCount, totalOutstanding, selectedCount, selectedOutstanding };
+    return { byClass, totalCount, totalOutstanding, selectedCount, selectedOutstanding, proposedToday, proposed7Days };
   }, [loans, selectedClassifications]);
 
   return (
     <div className="space-y-3">
-      {/* Grand totals + per-classification */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
         <Card className="border-2 border-primary/30">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Accounts</p>
@@ -81,9 +95,36 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick }: 
             </CardContent>
           </Card>
         ))}
+
+        {/* Proposed Repayment Date feeds */}
+        <Card
+          className={`border border-green-300 bg-green-50 dark:bg-green-950/20 cursor-pointer hover:ring-2 hover:ring-green-400/30 transition-all ${activeProposedDateFilter === 'today' ? 'ring-2 ring-green-500' : ''}`}
+          onClick={() => onProposedDateFilter?.(activeProposedDateFilter === 'today' ? '' : 'today')}
+        >
+          <CardContent className="p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Calendar className="h-3 w-3 text-green-600" />
+              <span className="text-[10px] text-green-700 dark:text-green-400 uppercase font-medium">Today</span>
+            </div>
+            <p className="text-lg font-bold text-green-700 dark:text-green-400">{stats.proposedToday}</p>
+            <p className="text-[10px] text-muted-foreground">repayment</p>
+          </CardContent>
+        </Card>
+        <Card
+          className={`border border-amber-300 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:ring-2 hover:ring-amber-400/30 transition-all ${activeProposedDateFilter === '7days' ? 'ring-2 ring-amber-500' : ''}`}
+          onClick={() => onProposedDateFilter?.(activeProposedDateFilter === '7days' ? '' : '7days')}
+        >
+          <CardContent className="p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <CalendarDays className="h-3 w-3 text-amber-600" />
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 uppercase font-medium">7 Days</span>
+            </div>
+            <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{stats.proposed7Days}</p>
+            <p className="text-[10px] text-muted-foreground">repayment</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Selected classification summary */}
       {selectedClassifications.length > 0 && (
         <Card className="border border-accent/40 bg-accent/5">
           <CardContent className="p-3">

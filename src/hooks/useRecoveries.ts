@@ -34,3 +34,35 @@ export const useAddRecovery = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 };
+
+export const useUpdateRecovery = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<LoanRecovery> & { id: string }) => {
+      const { error } = await supabase.from('loan_recoveries').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
+      qc.invalidateQueries({ queryKey: ['loans'] });
+      toast.success('Recovery updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useDeleteRecovery = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('loan_recoveries').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
+      qc.invalidateQueries({ queryKey: ['loans'] });
+      toast.success('Recovery deleted');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
