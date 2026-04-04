@@ -1,12 +1,12 @@
 import { Loan } from '@/types';
 import { Branch } from '@/types';
 import { type LoanFilters as LoanFiltersType, defaultFilters } from '@/hooks/useLoans';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AutocompleteInput from '@/components/ui/autocomplete-input';
 import { X, RotateCcw } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -28,6 +28,21 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
     return Array.from(types).sort();
   }, [loans]);
 
+  const accountNameSuggestions = useMemo(() => {
+    const names = new Set(loans.map(l => l.account_name).filter(Boolean) as string[]);
+    return Array.from(names).sort();
+  }, [loans]);
+
+  const borrowerNameSuggestions = useMemo(() => {
+    const names = new Set(loans.map(l => l.borrower_name).filter(Boolean) as string[]);
+    return Array.from(names).sort();
+  }, [loans]);
+
+  const addressSuggestions = useMemo(() => {
+    const addrs = new Set(loans.map(l => l.address).filter(Boolean) as string[]);
+    return Array.from(addrs).sort();
+  }, [loans]);
+
   const update = (partial: Partial<LoanFiltersType>) => onChange({ ...filters, ...partial });
 
   const toggleClassification = (cls: string) => {
@@ -38,6 +53,7 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
 
   const hasActiveFilters = filters.accountName || filters.borrowerName || filters.accountType ||
     filters.accountStatus || filters.address || filters.classifications.length > 0 ||
+    filters.proposedDateFilter ||
     (branchFilter && branchFilter !== '__all__');
 
   const activeFilterTags: { label: string; clear: () => void }[] = [];
@@ -47,6 +63,7 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
   if (filters.accountStatus) activeFilterTags.push({ label: `Status: ${filters.accountStatus}`, clear: () => update({ accountStatus: '' }) });
   if (filters.address) activeFilterTags.push({ label: `Address: ${filters.address}`, clear: () => update({ address: '' }) });
   if (filters.classifications.length > 0) activeFilterTags.push({ label: `Class: ${filters.classifications.join(', ')}`, clear: () => update({ classifications: [] }) });
+  if (filters.proposedDateFilter) activeFilterTags.push({ label: `Proposed: ${filters.proposedDateFilter}`, clear: () => update({ proposedDateFilter: '' }) });
 
   const clearAll = () => {
     onChange(defaultFilters);
@@ -72,11 +89,23 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Account Name</Label>
-          <Input placeholder="Type to filter..." value={filters.accountName} onChange={e => update({ accountName: e.target.value })} className="h-8 text-sm" />
+          <AutocompleteInput
+            value={filters.accountName}
+            onChange={v => update({ accountName: v })}
+            suggestions={accountNameSuggestions}
+            placeholder="Type to filter..."
+            className="h-8 text-sm"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Borrower Name</Label>
-          <Input placeholder="Type to filter..." value={filters.borrowerName} onChange={e => update({ borrowerName: e.target.value })} className="h-8 text-sm" />
+          <AutocompleteInput
+            value={filters.borrowerName}
+            onChange={v => update({ borrowerName: v })}
+            suggestions={borrowerNameSuggestions}
+            placeholder="Type to filter..."
+            className="h-8 text-sm"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Account Type</Label>
@@ -102,7 +131,13 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Address</Label>
-          <Input placeholder="Type to filter..." value={filters.address} onChange={e => update({ address: e.target.value })} className="h-8 text-sm" />
+          <AutocompleteInput
+            value={filters.address}
+            onChange={v => update({ address: v })}
+            suggestions={addressSuggestions}
+            placeholder="Type to filter..."
+            className="h-8 text-sm"
+          />
         </div>
         {showBranchFilter && branches && onBranchFilterChange && (
           <div className="space-y-1.5">
@@ -130,7 +165,6 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
         </div>
       </div>
 
-      {/* Active filter tags */}
       {activeFilterTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {activeFilterTags.map((tag, i) => (
