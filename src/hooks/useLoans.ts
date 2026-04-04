@@ -124,10 +124,14 @@ export const useLoanComments = (loanId: string | null) => {
 export const useAddComment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (comment: { loan_id: string; comment_text: string; author_id: string; author_name: string; author_role: string }) => {
+    mutationFn: async (comment: { loan_id: string; comment_text: string; author_id: string; author_name: string; author_role: string; proposed_repayment_date?: string | null }) => {
       const { error } = await supabase.from('loan_comments').insert(comment);
       if (error) throw error;
-      await supabase.from('loans').update({ latest_comment: comment.comment_text, updated_by: comment.author_id }).eq('id', comment.loan_id);
+      const updatePayload: Record<string, any> = { latest_comment: comment.comment_text, updated_by: comment.author_id };
+      if (comment.proposed_repayment_date) {
+        updatePayload.latest_proposed_date = comment.proposed_repayment_date;
+      }
+      await supabase.from('loans').update(updatePayload).eq('id', comment.loan_id);
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['loan-comments', v.loan_id] });
@@ -138,17 +142,52 @@ export const useAddComment = () => {
   });
 };
 
+export const useUpdateComment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, comment_text, proposed_repayment_date }: { id: string; comment_text: string; proposed_repayment_date?: string | null }) => {
+      const updates: Record<string, any> = { comment_text };
+      if (proposed_repayment_date !== undefined) updates.proposed_repayment_date = proposed_repayment_date || null;
+      const { error } = await supabase.from('loan_comments').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loan-comments'] });
+      toast.success('Comment updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useDeleteComment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('loan_comments').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loan-comments'] });
+      qc.invalidateQueries({ queryKey: ['loans'] });
+      toast.success('Comment deleted');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
 export const useBulkAddComment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ loanIds, comment_text, author_id, author_name, author_role }: {
-      loanIds: string[]; comment_text: string; author_id: string; author_name: string; author_role: string;
+    mutationFn: async ({ loanIds, comment_text, author_id, author_name, author_role, proposed_repayment_date }: {
+      loanIds: string[]; comment_text: string; author_id: string; author_name: string; author_role: string; proposed_repayment_date?: string | null;
     }) => {
-      const comments = loanIds.map(loan_id => ({ loan_id, comment_text, author_id, author_name, author_role }));
+      const comments = loanIds.map(loan_id => ({ loan_id, comment_text, author_id, author_name, author_role, proposed_repayment_date: proposed_repayment_date || null }));
       const { error } = await supabase.from('loan_comments').insert(comments);
       if (error) throw error;
+      const updatePayload: Record<string, any> = { latest_comment: comment_text, updated_by: author_id };
+      if (proposed_repayment_date) updatePayload.latest_proposed_date = proposed_repayment_date;
       for (const lid of loanIds) {
-        await supabase.from('loans').update({ latest_comment: comment_text, updated_by: author_id }).eq('id', lid);
+        await supabase.from('loans').update(updatePayload).eq('id', lid);
       }
     },
     onSuccess: (_d, v) => {
@@ -168,6 +207,7 @@ export interface LoanFilters {
   accountStatus: string;
   address: string;
   classifications: string[];
+  proposedDateFilter: '' | 'today' | '7days';
 }
 
 export const defaultFilters: LoanFilters = {
@@ -177,9 +217,15 @@ export const defaultFilters: LoanFilters = {
   accountStatus: '',
   address: '',
   classifications: [],
+  proposedDateFilter: '',
 };
 
 export function applyFilters(loans: Loan[], filters: LoanFilters, search: string): Loan[] {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const todayStr = now.toISOString().split('T')[0];
+  const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
+
   return loans.filter(l => {
     if (search) {
       const s = search.toLowerCase();
@@ -195,6 +241,14 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
     if (filters.accountStatus && l.account_status !== filters.accountStatus) return false;
     if (filters.address && !l.address?.toLowerCase().includes(filters.address.toLowerCase())) return false;
     if (filters.classifications.length > 0 && !filters.classifications.includes(l.classification || '')) return false;
+
+    // Proposed repayment date filter
+    if (filters.proposedDateFilter === 'today') {
+      if (!l.latest_proposed_date || l.latest_proposed_date !== todayStr) return false;
+    } else if (filters.proposedDateFilter === '7days') {
+      if (!l.latest_proposed_date || l.latest_proposed_date < todayStr || l.latest_proposed_date > in7Days) return false;
+    }
+
     return true;
   });
 }
