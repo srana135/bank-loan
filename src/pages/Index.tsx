@@ -3,12 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLoans } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { useRegistrationRequests, useProfiles } from '@/hooks/useUsers';
+import { useLegalCases } from '@/hooks/useLegal';
+import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Landmark, Calculator, FileText, Phone, ArrowRight, Shield, Clock, TrendingUp,
-  Users, Building2, ClipboardList, AlertTriangle,
+  Users, Building2, ClipboardList, Gavel, Calendar, CalendarDays, FileWarning,
 } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 
@@ -25,6 +27,12 @@ const features = [
   { icon: TrendingUp, title: 'Smart Analytics', desc: 'Comprehensive financial calculators' },
 ];
 
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr).getTime() - new Date().setHours(0, 0, 0, 0);
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
 const Index = () => {
   const { user, profile, userRole } = useAuth();
   const navigate = useNavigate();
@@ -33,6 +41,8 @@ const Index = () => {
   const { data: branches } = useBranches();
   const { data: requests } = useRegistrationRequests();
   const { data: profiles } = useProfiles();
+  const { data: legalCases } = useLegalCases(user ? branchFilter : null);
+  const { data: notices } = useLegalNotices(user ? branchFilter : null);
 
   const handleModuleClick = (mod: typeof modules[0]) => {
     if (mod.requiresAuth && !user) navigate('/login');
@@ -55,6 +65,28 @@ const Index = () => {
     classificationCounts[cls] = (classificationCounts[cls] || 0) + 1;
     classificationOutstanding[cls] = (classificationOutstanding[cls] || 0) + (l.outstanding_amount || 0);
   });
+
+  // Proposed repayment stats
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const todayStr = now.toISOString().split('T')[0];
+  const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
+  const proposedToday = visibleLoans.filter(l => l.latest_proposed_date === todayStr).length;
+  const proposed7Days = visibleLoans.filter(l => l.latest_proposed_date && l.latest_proposed_date >= todayStr && l.latest_proposed_date <= in7Days).length;
+
+  // Legal stats
+  const activeCases = (legalCases || []).filter(c => c.status === 'active');
+  const legalByType: Record<string, { count: number; claim: number }> = {};
+  activeCases.forEach(c => {
+    if (!legalByType[c.case_type]) legalByType[c.case_type] = { count: 0, claim: 0 };
+    legalByType[c.case_type].count++;
+    legalByType[c.case_type].claim += c.claim_amount || 0;
+  });
+  const totalClaim = activeCases.reduce((s, c) => s + (c.claim_amount || 0), 0);
+  const legalDue7 = activeCases.filter(c => { const d = daysUntil(c.next_date); return d !== null && d > 0 && d <= 7; }).length;
+  const legalToday = activeCases.filter(c => { const d = daysUntil(c.next_date); return d !== null && d <= 0; }).length;
+
+  // Notice stats
+  const noticeDue7 = (notices || []).filter(n => n.case_filing_deadline && n.case_filing_deadline >= todayStr && n.case_filing_deadline <= in7Days).length;
 
   return (
     <div>
@@ -82,7 +114,7 @@ const Index = () => {
       {/* Dashboard widgets (logged-in only) */}
       {user && (
         <section className="py-8">
-          <div className="container space-y-4">
+          <div className="container space-y-6">
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="font-heading text-xl font-bold text-foreground">Dashboard</h2>
               <Badge variant="secondary" className="capitalize">{userRole}</Badge>
@@ -92,49 +124,101 @@ const Index = () => {
             {loansLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {/* Total Loans */}
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Landmark className="h-4 w-4 text-primary" />
-                      <p className="text-xs text-muted-foreground">Total Loans</p>
-                    </div>
-                    <p className="text-2xl font-bold text-foreground">{visibleLoans.length}</p>
-                  </CardContent>
-                </Card>
+              <>
+                {/* Loan Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Landmark className="h-4 w-4 text-primary" />
+                        <p className="text-xs text-muted-foreground">Total Loans</p>
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">{visibleLoans.length}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="h-4 w-4 text-accent" />
+                        <p className="text-xs text-muted-foreground">Outstanding</p>
+                      </div>
+                      <p className="text-lg font-bold text-foreground">৳{totalOutstanding.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  {['STD', 'SMA', 'SS', 'DF', 'BL'].map(cls => {
+                    const count = classificationCounts[cls] || 0;
+                    if (count === 0 && !['STD', 'BL'].includes(cls)) return null;
+                    return (
+                      <Card key={cls} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant={['DF', 'BL'].includes(cls) ? 'destructive' : cls === 'SMA' ? 'secondary' : 'default'} className="text-[10px] h-4">{cls}</Badge>
+                            <p className="text-xs text-muted-foreground">{count} loan{count !== 1 ? 's' : ''}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-foreground">৳{(classificationOutstanding[cls] || 0).toLocaleString()}</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
 
-                {/* Total Outstanding */}
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className="h-4 w-4 text-accent" />
-                      <p className="text-xs text-muted-foreground">Outstanding</p>
-                    </div>
-                    <p className="text-lg font-bold text-foreground">৳{totalOutstanding.toLocaleString()}</p>
-                  </CardContent>
-                </Card>
-
-                {/* Classification breakdown */}
-                {['STD', 'SMA', 'SS', 'DF', 'BL'].map(cls => {
-                  const count = classificationCounts[cls] || 0;
-                  if (count === 0 && !['STD', 'BL'].includes(cls)) return null;
-                  return (
-                    <Card key={cls}>
+                {/* Proposed Repayment + Legal Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <Card className="cursor-pointer hover:shadow-md border-green-200 bg-green-50 dark:bg-green-950/20" onClick={() => navigate('/loan-management')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="h-4 w-4 text-green-600" />
+                        <p className="text-xs text-muted-foreground">Repayment Today</p>
+                      </div>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-400">{proposedToday}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="cursor-pointer hover:shadow-md border-amber-200 bg-amber-50 dark:bg-amber-950/20" onClick={() => navigate('/loan-management')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CalendarDays className="h-4 w-4 text-amber-600" />
+                        <p className="text-xs text-muted-foreground">Repayment 7d</p>
+                      </div>
+                      <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{proposed7Days}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="cursor-pointer hover:shadow-md" onClick={() => navigate('/legal')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Gavel className="h-4 w-4 text-primary" />
+                        <p className="text-xs text-muted-foreground">Active Cases</p>
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">{activeCases.length}</p>
+                      <p className="text-[10px] text-muted-foreground">৳{totalClaim.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  {Object.entries(legalByType).slice(0, 2).map(([type, { count, claim }]) => (
+                    <Card key={type} className="cursor-pointer hover:shadow-md" onClick={() => navigate('/legal')}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant={['DF', 'BL'].includes(cls) ? 'destructive' : cls === 'SMA' ? 'secondary' : 'default'} className="text-[10px] h-4">{cls}</Badge>
-                          <p className="text-xs text-muted-foreground">{count} loan{count !== 1 ? 's' : ''}</p>
+                          <Gavel className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">{type}</p>
                         </div>
-                        <p className="text-sm font-semibold text-foreground">৳{(classificationOutstanding[cls] || 0).toLocaleString()}</p>
+                        <p className="text-xl font-bold text-foreground">{count}</p>
+                        <p className="text-[10px] text-muted-foreground">৳{claim.toLocaleString()}</p>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  ))}
+                  <Card className="cursor-pointer hover:shadow-md border-destructive/20" onClick={() => navigate('/legal')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Gavel className="h-4 w-4 text-destructive" />
+                        <p className="text-xs text-muted-foreground">Court Due 7d</p>
+                      </div>
+                      <p className="text-xl font-bold text-destructive">{legalDue7}</p>
+                      <p className="text-[10px] text-muted-foreground">Today: {legalToday}</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 {/* Admin-only widgets */}
                 {userRole === 'admin' && (
-                  <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin')}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2 mb-1">
@@ -162,9 +246,18 @@ const Index = () => {
                         <p className="text-2xl font-bold text-foreground">{totalBranches}</p>
                       </CardContent>
                     </Card>
-                  </>
+                    <Card className="cursor-pointer hover:shadow-md" onClick={() => navigate('/legal')}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileWarning className="h-4 w-4 text-amber-600" />
+                          <p className="text-xs text-muted-foreground">Notice Due 7d</p>
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">{noticeDue7}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </section>
