@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLoanRecoveries, useAddRecovery } from '@/hooks/useRecoveries';
+import { useLoanRecoveries, useAddRecovery, useUpdateRecovery, useDeleteRecovery } from '@/hooks/useRecoveries';
+import { LoanRecovery } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Banknote } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Loader2, Plus, Banknote, Pencil, Trash2, X, Check } from 'lucide-react';
 
 const RECOVERY_TYPES = ['Cash', 'Bank Transfer', 'Cheque', 'Court Recovery', 'Asset Sale', 'Other'];
 
@@ -20,13 +22,24 @@ const LoanRecoveries = ({ loanId }: Props) => {
   const { user, userRole } = useAuth();
   const { data: recoveries, isLoading } = useLoanRecoveries(loanId);
   const addRecovery = useAddRecovery();
+  const updateRecovery = useUpdateRecovery();
+  const deleteRecovery = useDeleteRecovery();
   const canAdd = userRole === 'admin' || userRole === 'manager';
+  const canManage = userRole === 'admin' || userRole === 'manager';
 
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Cash');
   const [note, setNote] = useState('');
+
+  // Edit state
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editType, setEditType] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!amount || Number(amount) <= 0) return;
@@ -39,6 +52,32 @@ const LoanRecoveries = ({ loanId }: Props) => {
       created_by: user?.id,
     });
     setAmount(''); setNote(''); setShowForm(false);
+  };
+
+  const openEdit = (r: LoanRecovery) => {
+    setEditId(r.id);
+    setEditDate(r.recovery_date);
+    setEditAmount(String(r.recovered_amount));
+    setEditType(r.recovery_type);
+    setEditNote(r.note || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editId || !editAmount || Number(editAmount) <= 0) return;
+    await updateRecovery.mutateAsync({
+      id: editId,
+      recovery_date: editDate,
+      recovered_amount: Number(editAmount),
+      recovery_type: editType,
+      note: editNote.trim() || null,
+    });
+    setEditId(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    await deleteRecovery.mutateAsync(deleteId);
+    setDeleteId(null);
   };
 
   const totalRecovered = recoveries?.reduce((s, r) => s + r.recovered_amount, 0) || 0;
@@ -88,15 +127,51 @@ const LoanRecoveries = ({ loanId }: Props) => {
         <div className="space-y-1.5">
           {recoveries.map(r => (
             <Card key={r.id} className="bg-muted/30">
-              <CardContent className="p-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Banknote className="h-3.5 w-3.5 text-primary" />
-                  <div>
-                    <p className="text-xs font-medium">৳{r.recovered_amount.toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground">{r.recovery_date} · {r.recovery_type}</p>
+              <CardContent className="p-2">
+                {editId === r.id ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="h-7 text-xs" />
+                      <Input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className="h-7 text-xs" />
+                    </div>
+                    <Select value={editType} onValueChange={setEditType}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{RECOVERY_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input value={editNote} onChange={e => setEditNote(e.target.value)} className="h-7 text-xs" placeholder="Note" />
+                    <div className="flex gap-1">
+                      <Button size="sm" className="h-6 text-xs gap-0.5" onClick={handleSaveEdit} disabled={updateRecovery.isPending}>
+                        <Check className="h-3 w-3" /> Save
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 text-xs gap-0.5" onClick={() => setEditId(null)}>
+                        <X className="h-3 w-3" /> Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                {r.note && <p className="text-[10px] text-muted-foreground max-w-[40%] truncate">{r.note}</p>}
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-medium">৳{r.recovered_amount.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground">{r.recovery_date} · {r.recovery_type}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {r.note && <p className="text-[10px] text-muted-foreground max-w-[100px] truncate">{r.note}</p>}
+                      {canManage && (
+                        <div className="flex gap-0.5 ml-1">
+                          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => openEdit(r)}>
+                            <Pencil className="h-2.5 w-2.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={() => setDeleteId(r.id)}>
+                            <Trash2 className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -104,6 +179,19 @@ const LoanRecoveries = ({ loanId }: Props) => {
       ) : (
         <p className="text-xs text-muted-foreground">No recoveries recorded.</p>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={v => { if (!v) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recovery</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this recovery entry.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
