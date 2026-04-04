@@ -11,7 +11,7 @@ const ConnectUs = () => {
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([23.7104, 90.4074], 15);
+    const map = L.map(mapRef.current).setView([24.6014631, 88.2374202], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
     }).addTo(map);
@@ -25,7 +25,7 @@ const ConnectUs = () => {
       iconAnchor: [12, 41],
     });
 
-    L.marker([23.7104, 90.4074], { icon: defaultIcon })
+    L.marker([24.6014631, 88.2374202], { icon: defaultIcon })
       .addTo(map)
       .bindPopup("Bangladesh Development Bank PLC")
       .openPopup();
