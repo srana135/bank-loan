@@ -97,6 +97,14 @@ const DEFAULTS: AppSettingsMap = {
   app_name: 'Loan Management',
   app_name_bn: 'ঋণ ব্যবস্থাপনা',
   require_admin_approval: true,
+  connect_name: 'Sohel Rana',
+  connect_designation: 'Senior Officer',
+  connect_organization: 'Bangladesh Development Bank PLC',
+  connect_mobile: '01515637222',
+  connect_email: 's.rana135@gmail.com',
+  connect_location: 'Chapainawabganj, Bangladesh',
+  connect_map_lat: 24.6014631,
+  connect_map_lng: 88.2374202,
 };
 
 const isPGRST205 = (err: unknown) =>
