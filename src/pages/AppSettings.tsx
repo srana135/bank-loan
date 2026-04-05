@@ -143,6 +143,7 @@ const AppSettings = () => {
           <TabsTrigger value="calculator" className="text-xs gap-1"><Calculator className="h-3 w-3" /> ক্যালকুলেটর</TabsTrigger>
           <TabsTrigger value="legal" className="text-xs gap-1"><Gavel className="h-3 w-3" /> মামলা</TabsTrigger>
           <TabsTrigger value="map" className="text-xs gap-1"><MapPin className="h-3 w-3" /> ম্যাপ</TabsTrigger>
+          <TabsTrigger value="connect" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Connect</TabsTrigger>
           <TabsTrigger value="general" className="text-xs gap-1"><Globe className="h-3 w-3" /> সাধারণ</TabsTrigger>
         </TabsList>
 
