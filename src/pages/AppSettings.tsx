@@ -444,7 +444,50 @@ const AppSettings = () => {
           </Card>
         </TabsContent>
 
-        {/* ============ GENERAL ============ */}
+        {/* ============ CONNECT PAGE ============ */}
+        <TabsContent value="connect" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Connect Us পেজ সেটিংস</CardTitle>
+              <CardDescription>Connect Us পেজে দেখানো যোগাযোগের তথ্য পরিবর্তন করুন</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>নাম (Name)</Label>
+                <Input value={form.connect_name} onChange={e => update('connect_name', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>পদবি (Designation)</Label>
+                <Input value={form.connect_designation} onChange={e => update('connect_designation', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>প্রতিষ্ঠান (Organization)</Label>
+                <Input value={form.connect_organization} onChange={e => update('connect_organization', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>মোবাইল (Mobile)</Label>
+                <Input value={form.connect_mobile} onChange={e => update('connect_mobile', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ইমেইল (Email)</Label>
+                <Input value={form.connect_email} onChange={e => update('connect_email', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>অবস্থান (Location)</Label>
+                <Input value={form.connect_location} onChange={e => update('connect_location', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ম্যাপ Latitude</Label>
+                <Input type="number" step="0.0001" value={form.connect_map_lat} onChange={e => update('connect_map_lat', +e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ম্যাপ Longitude</Label>
+                <Input type="number" step="0.0001" value={form.connect_map_lng} onChange={e => update('connect_map_lng', +e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="general" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
