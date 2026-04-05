@@ -50,6 +50,15 @@ export interface AppSettingsMap {
   app_name_bn: string;
   // Registration
   require_admin_approval: boolean;
+  // Connect page
+  connect_name: string;
+  connect_designation: string;
+  connect_organization: string;
+  connect_mobile: string;
+  connect_email: string;
+  connect_location: string;
+  connect_map_lat: number;
+  connect_map_lng: number;
 }
 
 const DEFAULTS: AppSettingsMap = {
