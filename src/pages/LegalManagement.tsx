@@ -238,7 +238,8 @@ const LegalManagement = () => {
   const [noticeDeleteId, setNoticeDeleteId] = useState('');
   const [noticeDeleteOpen, setNoticeDeleteOpen] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState('');
-
+  const [noticeSortKey, setNoticeSortKey] = useState<string>('');
+  const [noticeSortDir, setNoticeSortDir] = useState<SortDir>('asc');
   const canManage = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin' || userRole === 'manager';
   const isEmployee = userRole === 'employee';
