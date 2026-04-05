@@ -310,9 +310,23 @@ const LegalManagement = () => {
     return result;
   }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, statsFilter, sortKey, sortDir, loanMap]);
 
+  // Stats should reflect dropdown filters (status, type, branch, lawyer) but NOT statsFilter
   const stats = useMemo(() => {
     if (!cases) return { total: 0, active: 0, ni: 0, niClaim: 0, arthaRin: 0, arthaRinClaim: 0, pdr: 0, pdrClaim: 0, due7: 0, today: 0, totalClaim: 0 };
-    const active = cases.filter(c => c.status === 'active');
+    // Apply dropdown filters first
+    let base = cases.filter(c => {
+      const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
+      const matchSearch = !search || [
+        c.case_number, c.plaintiff_name, c.defendant_name,
+        loan?.account_no, loan?.borrower_name, loan?.account_name
+      ].some(v => v?.toLowerCase().includes(search.toLowerCase()));
+      const matchStatus = statusFilter === 'all' || c.status === statusFilter;
+      const matchType = typeFilter === 'all' || c.case_type === typeFilter;
+      const matchBranch = branchFilterVal === 'all' || c.branch_id === branchFilterVal;
+      const matchLawyer = lawyerFilter === 'all' || c.lawyer_id === lawyerFilter;
+      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer;
+    });
+    const active = base.filter(c => c.status === 'active');
     const niCases = active.filter(c => c.case_type === 'NI Act');
     const arCases = active.filter(c => c.case_type === 'Artha Rin');
     const pdrCases = active.filter(c => c.case_type === 'PDR');
@@ -327,7 +341,7 @@ const LegalManagement = () => {
       today: active.filter(c => { const d = daysUntil(c.next_date); return d !== null && d <= 0; }).length,
       totalClaim: sumClaim(active),
     };
-  }, [cases]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, loanMap]);
 
   // Notice stats
   const noticeStats = useMemo(() => {
