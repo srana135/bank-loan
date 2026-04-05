@@ -935,6 +935,7 @@ const LegalManagement = () => {
                       <div><span className="text-muted-foreground">Sent:</span> {n.sent_date || '-'}</div>
                       <div><span className="text-muted-foreground">Receipt:</span> {n.receipt_date || '-'}</div>
                       <div><span className="text-muted-foreground">Deadline:</span> {n.case_filing_deadline || '-'}</div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Branch:</span> {n.branch_id ? branchMap.get(n.branch_id) || '-' : '-'}</div>
                     </div>
                     {canManage && (
                       <div className="flex gap-1 pt-1 border-t border-border/50">
