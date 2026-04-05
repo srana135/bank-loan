@@ -955,9 +955,25 @@ const LegalManagement = () => {
             <Card><div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Borrower</TableHead><TableHead>Organization</TableHead><TableHead>Account No</TableHead>
-                  <TableHead>Notice Type</TableHead><TableHead>Sent</TableHead><TableHead>Status</TableHead>
-                  <TableHead>Receipt Date</TableHead><TableHead>Filing Deadline</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('borrower_name')}>
+                    <span className="flex items-center">Borrower <SortIcon active={noticeSortKey === 'borrower_name'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Organization</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('account_no')}>
+                    <span className="flex items-center">Account No <SortIcon active={noticeSortKey === 'account_no'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('notice_type')}>
+                    <span className="flex items-center">Notice Type <SortIcon active={noticeSortKey === 'notice_type'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('sent_date')}>
+                    <span className="flex items-center">Sent <SortIcon active={noticeSortKey === 'sent_date'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Receipt Date</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('case_filing_deadline')}>
+                    <span className="flex items-center">Filing Deadline <SortIcon active={noticeSortKey === 'case_filing_deadline'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Branch</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
