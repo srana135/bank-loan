@@ -1,22 +1,32 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Mail, MapPin, Building, User } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const ConnectUs = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const { data: settings } = useAppSettings();
+
+  const name = settings?.connect_name || 'Sohel Rana';
+  const designation = settings?.connect_designation || 'Senior Officer';
+  const organization = settings?.connect_organization || 'Bangladesh Development Bank PLC';
+  const mobile = settings?.connect_mobile || '01515637222';
+  const email = settings?.connect_email || 's.rana135@gmail.com';
+  const location = settings?.connect_location || 'Chapainawabganj, Bangladesh';
+  const lat = settings?.connect_map_lat || 24.6014631;
+  const lng = settings?.connect_map_lng || 88.2374202;
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([24.6014631, 88.2374202], 15);
+    const map = L.map(mapRef.current).setView([lat, lng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
     }).addTo(map);
 
-    // Fix default marker icon
     const defaultIcon = L.icon({
       iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
       iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -25,9 +35,9 @@ const ConnectUs = () => {
       iconAnchor: [12, 41],
     });
 
-    L.marker([24.6014631, 88.2374202], { icon: defaultIcon })
+    L.marker([lat, lng], { icon: defaultIcon })
       .addTo(map)
-      .bindPopup("Bangladesh Development Bank PLC")
+      .bindPopup(organization)
       .openPopup();
 
     mapInstanceRef.current = map;
@@ -36,7 +46,7 @@ const ConnectUs = () => {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [lat, lng, organization]);
 
   return (
     <div className="container py-8">
@@ -52,8 +62,8 @@ const ConnectUs = () => {
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-foreground text-lg">Sohel Rana</p>
-                <p className="text-muted-foreground">Senior Officer</p>
+                <p className="font-semibold text-foreground text-lg">{name}</p>
+                <p className="text-muted-foreground">{designation}</p>
               </div>
             </div>
 
@@ -62,7 +72,7 @@ const ConnectUs = () => {
                 <Building className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Bangladesh Development Bank PLC</p>
+                <p className="font-semibold text-foreground">{organization}</p>
               </div>
             </div>
 
@@ -72,11 +82,8 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Mobile</p>
-                <a
-                  href="tel:+8801515637222"
-                  className="font-semibold text-foreground hover:text-primary transition-colors"
-                >
-                  01515637222
+                <a href={`tel:+88${mobile}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+                  {mobile}
                 </a>
               </div>
             </div>
@@ -87,11 +94,8 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <a
-                  href="mailto:s.rana135@gmail.com"
-                  className="font-semibold text-foreground hover:text-primary transition-colors"
-                >
-                  s.rana135@gmail.com
+                <a href={`mailto:${email}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+                  {email}
                 </a>
               </div>
             </div>
@@ -102,7 +106,7 @@ const ConnectUs = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Location</p>
-                <p className="font-semibold text-foreground">Chapainawabganj, Bangladesh</p>
+                <p className="font-semibold text-foreground">{location}</p>
               </div>
             </div>
           </CardContent>

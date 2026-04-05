@@ -50,6 +50,15 @@ export interface AppSettingsMap {
   app_name_bn: string;
   // Registration
   require_admin_approval: boolean;
+  // Connect page
+  connect_name: string;
+  connect_designation: string;
+  connect_organization: string;
+  connect_mobile: string;
+  connect_email: string;
+  connect_location: string;
+  connect_map_lat: number;
+  connect_map_lng: number;
 }
 
 const DEFAULTS: AppSettingsMap = {
@@ -88,6 +97,14 @@ const DEFAULTS: AppSettingsMap = {
   app_name: 'Loan Management',
   app_name_bn: 'ঋণ ব্যবস্থাপনা',
   require_admin_approval: true,
+  connect_name: 'Sohel Rana',
+  connect_designation: 'Senior Officer',
+  connect_organization: 'Bangladesh Development Bank PLC',
+  connect_mobile: '01515637222',
+  connect_email: 's.rana135@gmail.com',
+  connect_location: 'Chapainawabganj, Bangladesh',
+  connect_map_lat: 24.6014631,
+  connect_map_lng: 88.2374202,
 };
 
 const isPGRST205 = (err: unknown) =>

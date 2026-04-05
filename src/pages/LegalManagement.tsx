@@ -238,7 +238,8 @@ const LegalManagement = () => {
   const [noticeDeleteId, setNoticeDeleteId] = useState('');
   const [noticeDeleteOpen, setNoticeDeleteOpen] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState('');
-
+  const [noticeSortKey, setNoticeSortKey] = useState<string>('');
+  const [noticeSortDir, setNoticeSortDir] = useState<SortDir>('asc');
   const canManage = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin' || userRole === 'manager';
   const isEmployee = userRole === 'employee';
@@ -310,9 +311,23 @@ const LegalManagement = () => {
     return result;
   }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, statsFilter, sortKey, sortDir, loanMap]);
 
+  // Stats should reflect dropdown filters (status, type, branch, lawyer) but NOT statsFilter
   const stats = useMemo(() => {
     if (!cases) return { total: 0, active: 0, ni: 0, niClaim: 0, arthaRin: 0, arthaRinClaim: 0, pdr: 0, pdrClaim: 0, due7: 0, today: 0, totalClaim: 0 };
-    const active = cases.filter(c => c.status === 'active');
+    // Apply dropdown filters first
+    let base = cases.filter(c => {
+      const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
+      const matchSearch = !search || [
+        c.case_number, c.plaintiff_name, c.defendant_name,
+        loan?.account_no, loan?.borrower_name, loan?.account_name
+      ].some(v => v?.toLowerCase().includes(search.toLowerCase()));
+      const matchStatus = statusFilter === 'all' || c.status === statusFilter;
+      const matchType = typeFilter === 'all' || c.case_type === typeFilter;
+      const matchBranch = branchFilterVal === 'all' || c.branch_id === branchFilterVal;
+      const matchLawyer = lawyerFilter === 'all' || c.lawyer_id === lawyerFilter;
+      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer;
+    });
+    const active = base.filter(c => c.status === 'active');
     const niCases = active.filter(c => c.case_type === 'NI Act');
     const arCases = active.filter(c => c.case_type === 'Artha Rin');
     const pdrCases = active.filter(c => c.case_type === 'PDR');
@@ -327,7 +342,7 @@ const LegalManagement = () => {
       today: active.filter(c => { const d = daysUntil(c.next_date); return d !== null && d <= 0; }).length,
       totalClaim: sumClaim(active),
     };
-  }, [cases]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, loanMap]);
 
   // Notice stats
   const noticeStats = useMemo(() => {
@@ -344,17 +359,48 @@ const LegalManagement = () => {
     };
   }, [notices]);
 
+  const toggleNoticeSort = (key: string) => {
+    if (noticeSortKey === key) {
+      if (noticeSortDir === 'asc') setNoticeSortDir('desc');
+      else { setNoticeSortKey(''); setNoticeSortDir('asc'); }
+    } else {
+      setNoticeSortKey(key); setNoticeSortDir('asc');
+    }
+  };
+
+  const branchMap = useMemo(() => {
+    const m = new Map<string, string>();
+    branches?.forEach(b => m.set(b.id, b.branch_name));
+    return m;
+  }, [branches]);
+
   const filteredNotices = useMemo(() => {
     if (!notices) return [];
-    if (!noticeSearch) return notices;
-    const s = noticeSearch.toLowerCase();
-    return notices.filter(n =>
-      n.borrower_name?.toLowerCase().includes(s) ||
-      n.organization_name?.toLowerCase().includes(s) ||
-      n.account_no?.toLowerCase().includes(s) ||
-      n.notice_type?.toLowerCase().includes(s)
-    );
-  }, [notices, noticeSearch]);
+    let result = notices;
+    if (noticeSearch) {
+      const s = noticeSearch.toLowerCase();
+      result = result.filter(n =>
+        n.borrower_name?.toLowerCase().includes(s) ||
+        n.organization_name?.toLowerCase().includes(s) ||
+        n.account_no?.toLowerCase().includes(s) ||
+        n.notice_type?.toLowerCase().includes(s)
+      );
+    }
+    if (noticeSortKey) {
+      result = [...result].sort((a, b) => {
+        let va: any = (a as any)[noticeSortKey];
+        let vb: any = (b as any)[noticeSortKey];
+        if (typeof va === 'string') va = va?.toLowerCase() || '';
+        if (typeof vb === 'string') vb = vb?.toLowerCase() || '';
+        if (va == null) va = noticeSortDir === 'asc' ? '\uffff' : '';
+        if (vb == null) vb = noticeSortDir === 'asc' ? '\uffff' : '';
+        if (va < vb) return noticeSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return noticeSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [notices, noticeSearch, noticeSortKey, noticeSortDir]);
 
   const openCreate = () => {
     setEditCase(null);
@@ -889,6 +935,7 @@ const LegalManagement = () => {
                       <div><span className="text-muted-foreground">Sent:</span> {n.sent_date || '-'}</div>
                       <div><span className="text-muted-foreground">Receipt:</span> {n.receipt_date || '-'}</div>
                       <div><span className="text-muted-foreground">Deadline:</span> {n.case_filing_deadline || '-'}</div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Branch:</span> {n.branch_id ? branchMap.get(n.branch_id) || '-' : '-'}</div>
                     </div>
                     {canManage && (
                       <div className="flex gap-1 pt-1 border-t border-border/50">
@@ -908,9 +955,25 @@ const LegalManagement = () => {
             <Card><div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Borrower</TableHead><TableHead>Organization</TableHead><TableHead>Account No</TableHead>
-                  <TableHead>Notice Type</TableHead><TableHead>Sent</TableHead><TableHead>Status</TableHead>
-                  <TableHead>Receipt Date</TableHead><TableHead>Filing Deadline</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('borrower_name')}>
+                    <span className="flex items-center">Borrower <SortIcon active={noticeSortKey === 'borrower_name'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Organization</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('account_no')}>
+                    <span className="flex items-center">Account No <SortIcon active={noticeSortKey === 'account_no'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('notice_type')}>
+                    <span className="flex items-center">Notice Type <SortIcon active={noticeSortKey === 'notice_type'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('sent_date')}>
+                    <span className="flex items-center">Sent <SortIcon active={noticeSortKey === 'sent_date'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Receipt Date</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleNoticeSort('case_filing_deadline')}>
+                    <span className="flex items-center">Filing Deadline <SortIcon active={noticeSortKey === 'case_filing_deadline'} dir={noticeSortDir} /></span>
+                  </TableHead>
+                  <TableHead>Branch</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
@@ -926,6 +989,7 @@ const LegalManagement = () => {
                       </TableCell>
                       <TableCell className="text-xs">{n.receipt_date || '-'}</TableCell>
                       <TableCell className="text-xs">{n.case_filing_deadline ? nextDateBadge(n.case_filing_deadline) || n.case_filing_deadline : '-'}</TableCell>
+                      <TableCell className="text-xs">{n.branch_id ? branchMap.get(n.branch_id) || '-' : '-'}</TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">
