@@ -359,17 +359,48 @@ const LegalManagement = () => {
     };
   }, [notices]);
 
+  const toggleNoticeSort = (key: string) => {
+    if (noticeSortKey === key) {
+      if (noticeSortDir === 'asc') setNoticeSortDir('desc');
+      else { setNoticeSortKey(''); setNoticeSortDir('asc'); }
+    } else {
+      setNoticeSortKey(key); setNoticeSortDir('asc');
+    }
+  };
+
+  const branchMap = useMemo(() => {
+    const m = new Map<string, string>();
+    branches?.forEach(b => m.set(b.id, b.branch_name));
+    return m;
+  }, [branches]);
+
   const filteredNotices = useMemo(() => {
     if (!notices) return [];
-    if (!noticeSearch) return notices;
-    const s = noticeSearch.toLowerCase();
-    return notices.filter(n =>
-      n.borrower_name?.toLowerCase().includes(s) ||
-      n.organization_name?.toLowerCase().includes(s) ||
-      n.account_no?.toLowerCase().includes(s) ||
-      n.notice_type?.toLowerCase().includes(s)
-    );
-  }, [notices, noticeSearch]);
+    let result = notices;
+    if (noticeSearch) {
+      const s = noticeSearch.toLowerCase();
+      result = result.filter(n =>
+        n.borrower_name?.toLowerCase().includes(s) ||
+        n.organization_name?.toLowerCase().includes(s) ||
+        n.account_no?.toLowerCase().includes(s) ||
+        n.notice_type?.toLowerCase().includes(s)
+      );
+    }
+    if (noticeSortKey) {
+      result = [...result].sort((a, b) => {
+        let va: any = (a as any)[noticeSortKey];
+        let vb: any = (b as any)[noticeSortKey];
+        if (typeof va === 'string') va = va?.toLowerCase() || '';
+        if (typeof vb === 'string') vb = vb?.toLowerCase() || '';
+        if (va == null) va = noticeSortDir === 'asc' ? '\uffff' : '';
+        if (vb == null) vb = noticeSortDir === 'asc' ? '\uffff' : '';
+        if (va < vb) return noticeSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return noticeSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [notices, noticeSearch, noticeSortKey, noticeSortDir]);
 
   const openCreate = () => {
     setEditCase(null);
