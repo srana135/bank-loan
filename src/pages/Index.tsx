@@ -6,7 +6,7 @@ import { useRegistrationRequests, useProfiles } from '@/hooks/useUsers';
 import { useLegalCases } from '@/hooks/useLegal';
 import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Landmark, Calculator, FileText, Phone, ArrowRight, Shield, Clock, TrendingUp,
@@ -88,6 +88,10 @@ const Index = () => {
   // Notice stats
   const noticeDue7 = (notices || []).filter(n => n.case_filing_deadline && n.case_filing_deadline >= todayStr && n.case_filing_deadline <= in7Days).length;
 
+  // Classification cards - always show all 5 in consistent order
+  const CLS_ORDER = ['STD', 'SMA', 'SS', 'DF', 'BL'];
+  const clsBadgeVariant = (cls: string) => ['DF', 'BL'].includes(cls) ? 'destructive' as const : cls === 'SMA' ? 'secondary' as const : 'default' as const;
+
   return (
     <div>
       {/* Hero */}
@@ -125,8 +129,8 @@ const Index = () => {
               <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : (
               <>
-                {/* Loan Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {/* Row 1: Total Loans + Outstanding + 5 Classifications = 7 cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                   <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-1">
@@ -145,24 +149,20 @@ const Index = () => {
                       <p className="text-lg font-bold text-foreground">৳{totalOutstanding.toLocaleString()}</p>
                     </CardContent>
                   </Card>
-                  {['STD', 'SMA', 'SS', 'DF', 'BL'].map(cls => {
-                    const count = classificationCounts[cls] || 0;
-                    if (count === 0 && !['STD', 'BL'].includes(cls)) return null;
-                    return (
-                      <Card key={cls} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant={['DF', 'BL'].includes(cls) ? 'destructive' : cls === 'SMA' ? 'secondary' : 'default'} className="text-[10px] h-4">{cls}</Badge>
-                            <p className="text-xs text-muted-foreground">{count} loan{count !== 1 ? 's' : ''}</p>
-                          </div>
-                          <p className="text-sm font-semibold text-foreground">৳{(classificationOutstanding[cls] || 0).toLocaleString()}</p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {CLS_ORDER.map(cls => (
+                    <Card key={cls} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/loan-management')}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant={clsBadgeVariant(cls)} className="text-[10px] h-4">{cls}</Badge>
+                          <p className="text-xs text-muted-foreground">{classificationCounts[cls] || 0} loans</p>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground">৳{(classificationOutstanding[cls] || 0).toLocaleString()}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
 
-                {/* Proposed Repayment + Legal Stats */}
+                {/* Row 2: Repayment + Legal Stats = consistent 6-col grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   <Card className="cursor-pointer hover:shadow-md border-green-200 bg-green-50 dark:bg-green-950/20" onClick={() => navigate('/loan-management')}>
                     <CardContent className="p-4">
@@ -216,7 +216,7 @@ const Index = () => {
                   </Card>
                 </div>
 
-                {/* Admin-only widgets */}
+                {/* Row 3: Admin-only widgets = consistent 4-col grid */}
                 {userRole === 'admin' && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin')}>
