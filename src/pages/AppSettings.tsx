@@ -135,7 +135,7 @@ const AppSettings = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 h-auto">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 h-auto">
           <TabsTrigger value="tax" className="text-xs gap-1"><Calculator className="h-3 w-3" /> কর/শুল্ক</TabsTrigger>
           <TabsTrigger value="interest" className="text-xs gap-1"><Scale className="h-3 w-3" /> সুদ</TabsTrigger>
           <TabsTrigger value="eligibility" className="text-xs gap-1"><Shield className="h-3 w-3" /> যোগ্যতা</TabsTrigger>
