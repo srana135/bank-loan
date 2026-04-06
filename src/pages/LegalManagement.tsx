@@ -1002,6 +1002,7 @@ const LegalManagement = () => {
                       <TableCell className="text-xs">{n.receipt_date || '-'}</TableCell>
                       <TableCell className="text-xs">{n.case_filing_deadline ? nextDateBadge(n.case_filing_deadline) || n.case_filing_deadline : '-'}</TableCell>
                       <TableCell className="text-xs">{n.branch_id ? branchMap.get(n.branch_id) || '-' : '-'}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate" title={n.remarks || ''}>{n.remarks || '-'}</TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">
