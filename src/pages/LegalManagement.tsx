@@ -36,9 +36,18 @@ const NOTICE_TYPES = ['Legal Notice', 'Demand Notice', 'Final Notice', 'Recall N
 type SortKey = 'case_number' | 'case_type' | 'claim_amount' | 'next_date' | 'status';
 type SortDir = 'asc' | 'desc';
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const diff = new Date(dateStr).getTime() - new Date().setHours(0, 0, 0, 0);
+  // Parse dateStr as local date to avoid UTC offset issues
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = target.getTime() - today.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
