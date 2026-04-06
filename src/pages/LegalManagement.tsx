@@ -498,7 +498,7 @@ const LegalManagement = () => {
     setNLoanId(n.loan_id || ''); setNBorrowerName(n.borrower_name || ''); setNOrgName(n.organization_name || '');
     setNAccountNo(n.account_no || ''); setNNoticeType(n.notice_type); setNSentDate(n.sent_date || '');
     setNReceiptStatus(n.receipt_status); setNReceiptDate(n.receipt_date || '');
-    setNDeadline(n.case_filing_deadline || ''); setNRemarks(n.remarks || '');
+    setNDeadline(n.case_filing_deadline || ''); setNRemarks(n.remarks || ''); setNBranchId(n.branch_id || '');
     setNoticeFormOpen(true);
   };
   const handleSaveNotice = async () => {
