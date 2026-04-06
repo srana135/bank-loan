@@ -136,7 +136,7 @@ const AppSettings = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 h-auto">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-11 h-auto">
           <TabsTrigger value="tax" className="text-xs gap-1"><Calculator className="h-3 w-3" /> কর/শুল্ক</TabsTrigger>
           <TabsTrigger value="interest" className="text-xs gap-1"><Scale className="h-3 w-3" /> সুদ</TabsTrigger>
           <TabsTrigger value="eligibility" className="text-xs gap-1"><Shield className="h-3 w-3" /> যোগ্যতা</TabsTrigger>
@@ -145,6 +145,8 @@ const AppSettings = () => {
           <TabsTrigger value="legal" className="text-xs gap-1"><Gavel className="h-3 w-3" /> মামলা</TabsTrigger>
           <TabsTrigger value="map" className="text-xs gap-1"><MapPin className="h-3 w-3" /> ম্যাপ</TabsTrigger>
           <TabsTrigger value="connect" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Connect</TabsTrigger>
+          <TabsTrigger value="timezone" className="text-xs gap-1"><Clock className="h-3 w-3" /> সময়</TabsTrigger>
+          <TabsTrigger value="pdf" className="text-xs gap-1"><FileText className="h-3 w-3" /> PDF</TabsTrigger>
           <TabsTrigger value="general" className="text-xs gap-1"><Globe className="h-3 w-3" /> সাধারণ</TabsTrigger>
         </TabsList>
 
