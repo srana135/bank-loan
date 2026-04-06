@@ -1161,6 +1161,17 @@ const LegalManagement = () => {
               <div className="space-y-1.5"><Label className="text-xs">Case Filing Deadline</Label>
                 <Input type="date" value={nDeadline} onChange={e => setNDeadline(e.target.value)} className="h-9" /></div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label className="text-xs">Branch</Label>
+                <Select value={nBranchId} onValueChange={setNBranchId}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
+                  </SelectContent>
+                </Select></div>
+              <div />
+            </div>
             <div className="space-y-1.5"><Label className="text-xs">Remarks</Label>
               <Textarea value={nRemarks} onChange={e => setNRemarks(e.target.value)} className="min-h-[50px]" /></div>
             <div className="flex justify-end gap-2">
