@@ -244,6 +244,7 @@ const LegalManagement = () => {
   const [nReceiptDate, setNReceiptDate] = useState('');
   const [nDeadline, setNDeadline] = useState('');
   const [nRemarks, setNRemarks] = useState('');
+  const [nBranchId, setNBranchId] = useState('');
   const [noticeDeleteId, setNoticeDeleteId] = useState('');
   const [noticeDeleteOpen, setNoticeDeleteOpen] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState('');
