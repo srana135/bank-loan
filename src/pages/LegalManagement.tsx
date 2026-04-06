@@ -490,7 +490,7 @@ const LegalManagement = () => {
     setEditNotice(null);
     setNLoanId(''); setNBorrowerName(''); setNOrgName(''); setNAccountNo('');
     setNNoticeType('Legal Notice'); setNSentDate(''); setNReceiptStatus('pending');
-    setNReceiptDate(''); setNDeadline(''); setNRemarks('');
+    setNReceiptDate(''); setNDeadline(''); setNRemarks(''); setNBranchId(profile?.branch_id || '');
     setNoticeFormOpen(true);
   };
   const openEditNotice = (n: LegalNotice) => {
