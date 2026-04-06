@@ -11,7 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 const upsertSetting = async (key: string, value: unknown) => {
