@@ -985,6 +985,7 @@ const LegalManagement = () => {
                     <span className="flex items-center">Filing Deadline <SortIcon active={noticeSortKey === 'case_filing_deadline'} dir={noticeSortDir} /></span>
                   </TableHead>
                   <TableHead>Branch</TableHead>
+                  <TableHead>Remarks</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
