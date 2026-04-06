@@ -59,6 +59,13 @@ export interface AppSettingsMap {
   connect_location: string;
   connect_map_lat: number;
   connect_map_lng: number;
+  // Timezone
+  app_timezone: string;
+  app_time_format: string; // '12h' | '24h'
+  // PDF export column selections
+  pdf_loan_columns: string[];
+  pdf_legal_columns: string[];
+  pdf_notice_columns: string[];
 }
 
 const DEFAULTS: AppSettingsMap = {
