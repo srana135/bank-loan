@@ -11,7 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 const upsertSetting = async (key: string, value: unknown) => {
@@ -135,7 +136,7 @@ const AppSettings = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 h-auto">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-11 h-auto">
           <TabsTrigger value="tax" className="text-xs gap-1"><Calculator className="h-3 w-3" /> কর/শুল্ক</TabsTrigger>
           <TabsTrigger value="interest" className="text-xs gap-1"><Scale className="h-3 w-3" /> সুদ</TabsTrigger>
           <TabsTrigger value="eligibility" className="text-xs gap-1"><Shield className="h-3 w-3" /> যোগ্যতা</TabsTrigger>
@@ -144,6 +145,8 @@ const AppSettings = () => {
           <TabsTrigger value="legal" className="text-xs gap-1"><Gavel className="h-3 w-3" /> মামলা</TabsTrigger>
           <TabsTrigger value="map" className="text-xs gap-1"><MapPin className="h-3 w-3" /> ম্যাপ</TabsTrigger>
           <TabsTrigger value="connect" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Connect</TabsTrigger>
+          <TabsTrigger value="timezone" className="text-xs gap-1"><Clock className="h-3 w-3" /> সময়</TabsTrigger>
+          <TabsTrigger value="pdf" className="text-xs gap-1"><FileText className="h-3 w-3" /> PDF</TabsTrigger>
           <TabsTrigger value="general" className="text-xs gap-1"><Globe className="h-3 w-3" /> সাধারণ</TabsTrigger>
         </TabsList>
 
@@ -483,6 +486,158 @@ const AppSettings = () => {
               <div className="space-y-1.5">
                 <Label>ম্যাপ Longitude</Label>
                 <Input type="number" step="0.0001" value={form.connect_map_lng} onChange={e => update('connect_map_lng', +e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ TIMEZONE ============ */}
+        <TabsContent value="timezone" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">সময় অঞ্চল ও ফরম্যাট (Timezone & Time Format)</CardTitle>
+              <CardDescription>অ্যাপে দেখানো সময় ও তারিখের সেটিংস</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>টাইমজোন (Timezone)</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={form.app_timezone}
+                  onChange={e => update('app_timezone', e.target.value)}
+                >
+                  {[
+                    'Asia/Dhaka', 'Asia/Kolkata', 'Asia/Dubai', 'Asia/Riyadh', 'Asia/Kuwait',
+                    'Asia/Singapore', 'Asia/Kuala_Lumpur', 'Asia/Tokyo', 'Asia/Hong_Kong',
+                    'Europe/London', 'Europe/Berlin', 'Europe/Paris',
+                    'America/New_York', 'America/Chicago', 'America/Los_Angeles',
+                    'Australia/Sydney', 'Pacific/Auckland', 'UTC'
+                  ].map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>সময় ফরম্যাট (Time Format)</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={form.app_time_format}
+                  onChange={e => update('app_time_format', e.target.value)}
+                >
+                  <option value="12h">12 ঘণ্টা (AM/PM)</option>
+                  <option value="24h">24 ঘণ্টা</option>
+                </select>
+              </div>
+              <div className="col-span-full">
+                <p className="text-xs text-muted-foreground">
+                  বর্তমান সময় ({form.app_timezone}): {new Date().toLocaleString('bn-BD', { timeZone: form.app_timezone, hour12: form.app_time_format === '12h' })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ PDF COLUMNS ============ */}
+        <TabsContent value="pdf" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">PDF এক্সপোর্ট কলাম সিলেকশন</CardTitle>
+              <CardDescription>PDF ডাউনলোডে কোন কলাম দেখানো হবে তা নির্বাচন করুন</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Loan PDF columns */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">ঋণ (Loan) PDF কলাম</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {[
+                    { key: 'account_no', label: 'হিসাব নং' },
+                    { key: 'borrower_name', label: 'ঋণগ্রহীতা' },
+                    { key: 'account_name', label: 'প্রতিষ্ঠান' },
+                    { key: 'mobile', label: 'মোবাইল' },
+                    { key: 'outstanding_amount', label: 'বকেয়া' },
+                    { key: 'overdue_amount', label: 'মেয়াদোত্তীর্ণ' },
+                    { key: 'classification', label: 'শ্রেণিবিভাগ' },
+                    { key: 'installment_amount', label: 'কিস্তি' },
+                    { key: 'overdue_installment_number', label: 'বকেয়া কিস্তি সংখ্যা' },
+                    { key: 'disbursed_loan_amount', label: 'বিতরণকৃত' },
+                    { key: 'disbursement_date', label: 'বিতরণ তারিখ' },
+                    { key: 'address', label: 'ঠিকানা' },
+                    { key: 'latest_comment', label: 'সর্বশেষ মন্তব্য' },
+                    { key: 'latest_proposed_date', label: 'প্রস্তাবিত তারিখ' },
+                  ].map(col => (
+                    <label key={col.key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={form.pdf_loan_columns.includes(col.key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) update('pdf_loan_columns', [...form.pdf_loan_columns, col.key]);
+                          else update('pdf_loan_columns', form.pdf_loan_columns.filter(c => c !== col.key));
+                        }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Legal PDF columns */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">মামলা (Legal Case) PDF কলাম</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {[
+                    { key: 'case_number', label: 'মামলা নং' },
+                    { key: 'case_type', label: 'ধরণ' },
+                    { key: 'defendant_name', label: 'বিবাদী' },
+                    { key: 'plaintiff_name', label: 'বাদী' },
+                    { key: 'claim_amount', label: 'দাবি' },
+                    { key: 'next_date', label: 'পরবর্তী তারিখ' },
+                    { key: 'status', label: 'অবস্থা' },
+                    { key: 'court_name', label: 'আদালত' },
+                    { key: 'filing_date', label: 'দায়ের তারিখ' },
+                    { key: 'remarks', label: 'মন্তব্য' },
+                  ].map(col => (
+                    <label key={col.key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={form.pdf_legal_columns.includes(col.key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) update('pdf_legal_columns', [...form.pdf_legal_columns, col.key]);
+                          else update('pdf_legal_columns', form.pdf_legal_columns.filter(c => c !== col.key));
+                        }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Notice PDF columns */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">নোটিশ (Notice) PDF কলাম</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {[
+                    { key: 'borrower_name', label: 'ঋণগ্রহীতা' },
+                    { key: 'organization_name', label: 'প্রতিষ্ঠান' },
+                    { key: 'account_no', label: 'হিসাব নং' },
+                    { key: 'notice_type', label: 'নোটিশের ধরণ' },
+                    { key: 'sent_date', label: 'প্রেরণ তারিখ' },
+                    { key: 'receipt_status', label: 'প্রাপ্তি অবস্থা' },
+                    { key: 'receipt_date', label: 'প্রাপ্তি তারিখ' },
+                    { key: 'case_filing_deadline', label: 'মামলা ফাইলের শেষ তারিখ' },
+                    { key: 'remarks', label: 'মন্তব্য' },
+                  ].map(col => (
+                    <label key={col.key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={form.pdf_notice_columns.includes(col.key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) update('pdf_notice_columns', [...form.pdf_notice_columns, col.key]);
+                          else update('pdf_notice_columns', form.pdf_notice_columns.filter(c => c !== col.key));
+                        }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

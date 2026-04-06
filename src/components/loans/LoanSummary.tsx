@@ -35,8 +35,10 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
 
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const todayStr = now.toISOString().split('T')[0];
-    const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const end7 = new Date(now.getTime() + 7 * 86400000);
+    const in7Days = `${end7.getFullYear()}-${pad(end7.getMonth() + 1)}-${pad(end7.getDate())}`;
     let proposedToday = 0;
     let proposed7Days = 0;
 

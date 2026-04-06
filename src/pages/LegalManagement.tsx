@@ -36,9 +36,18 @@ const NOTICE_TYPES = ['Legal Notice', 'Demand Notice', 'Final Notice', 'Recall N
 type SortKey = 'case_number' | 'case_type' | 'claim_amount' | 'next_date' | 'status';
 type SortDir = 'asc' | 'desc';
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const diff = new Date(dateStr).getTime() - new Date().setHours(0, 0, 0, 0);
+  // Parse dateStr as local date to avoid UTC offset issues
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = target.getTime() - today.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
@@ -235,6 +244,7 @@ const LegalManagement = () => {
   const [nReceiptDate, setNReceiptDate] = useState('');
   const [nDeadline, setNDeadline] = useState('');
   const [nRemarks, setNRemarks] = useState('');
+  const [nBranchId, setNBranchId] = useState('');
   const [noticeDeleteId, setNoticeDeleteId] = useState('');
   const [noticeDeleteOpen, setNoticeDeleteOpen] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState('');
@@ -348,8 +358,9 @@ const LegalManagement = () => {
   const noticeStats = useMemo(() => {
     if (!notices) return { total: 0, pending: 0, received: 0, returned: 0, due7: 0 };
     const now = new Date(); now.setHours(0, 0, 0, 0);
-    const in7 = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = localDateStr(now);
+    const end7 = new Date(now.getTime() + 7 * 86400000);
+    const in7 = localDateStr(end7);
     return {
       total: notices.length,
       pending: notices.filter(n => n.receipt_status === 'pending').length,
@@ -479,7 +490,7 @@ const LegalManagement = () => {
     setEditNotice(null);
     setNLoanId(''); setNBorrowerName(''); setNOrgName(''); setNAccountNo('');
     setNNoticeType('Legal Notice'); setNSentDate(''); setNReceiptStatus('pending');
-    setNReceiptDate(''); setNDeadline(''); setNRemarks('');
+    setNReceiptDate(''); setNDeadline(''); setNRemarks(''); setNBranchId(profile?.branch_id || '');
     setNoticeFormOpen(true);
   };
   const openEditNotice = (n: LegalNotice) => {
@@ -487,7 +498,7 @@ const LegalManagement = () => {
     setNLoanId(n.loan_id || ''); setNBorrowerName(n.borrower_name || ''); setNOrgName(n.organization_name || '');
     setNAccountNo(n.account_no || ''); setNNoticeType(n.notice_type); setNSentDate(n.sent_date || '');
     setNReceiptStatus(n.receipt_status); setNReceiptDate(n.receipt_date || '');
-    setNDeadline(n.case_filing_deadline || ''); setNRemarks(n.remarks || '');
+    setNDeadline(n.case_filing_deadline || ''); setNRemarks(n.remarks || ''); setNBranchId(n.branch_id || '');
     setNoticeFormOpen(true);
   };
   const handleSaveNotice = async () => {
@@ -498,7 +509,7 @@ const LegalManagement = () => {
       account_no: nAccountNo.trim() || null, notice_type: nNoticeType,
       sent_date: nSentDate || null, receipt_status: nReceiptStatus,
       receipt_date: nReceiptDate || null, case_filing_deadline: nDeadline || null,
-      branch_id: profile?.branch_id || null, remarks: nRemarks.trim() || null,
+      branch_id: nBranchId && nBranchId !== 'none' ? nBranchId : (profile?.branch_id || null), remarks: nRemarks.trim() || null,
     };
     if (editNotice) await updateNotice.mutateAsync({ id: editNotice.id, ...payload });
     else await createNotice.mutateAsync({ ...payload, created_by: user?.id });
@@ -974,6 +985,7 @@ const LegalManagement = () => {
                     <span className="flex items-center">Filing Deadline <SortIcon active={noticeSortKey === 'case_filing_deadline'} dir={noticeSortDir} /></span>
                   </TableHead>
                   <TableHead>Branch</TableHead>
+                  <TableHead>Remarks</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
@@ -990,6 +1002,7 @@ const LegalManagement = () => {
                       <TableCell className="text-xs">{n.receipt_date || '-'}</TableCell>
                       <TableCell className="text-xs">{n.case_filing_deadline ? nextDateBadge(n.case_filing_deadline) || n.case_filing_deadline : '-'}</TableCell>
                       <TableCell className="text-xs">{n.branch_id ? branchMap.get(n.branch_id) || '-' : '-'}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate" title={n.remarks || ''}>{n.remarks || '-'}</TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">
@@ -1149,6 +1162,17 @@ const LegalManagement = () => {
                 <Input type="date" value={nReceiptDate} onChange={e => setNReceiptDate(e.target.value)} className="h-9" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Case Filing Deadline</Label>
                 <Input type="date" value={nDeadline} onChange={e => setNDeadline(e.target.value)} className="h-9" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label className="text-xs">Branch</Label>
+                <Select value={nBranchId} onValueChange={setNBranchId}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
+                  </SelectContent>
+                </Select></div>
+              <div />
             </div>
             <div className="space-y-1.5"><Label className="text-xs">Remarks</Label>
               <Textarea value={nRemarks} onChange={e => setNRemarks(e.target.value)} className="min-h-[50px]" /></div>

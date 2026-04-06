@@ -59,6 +59,13 @@ export interface AppSettingsMap {
   connect_location: string;
   connect_map_lat: number;
   connect_map_lng: number;
+  // Timezone
+  app_timezone: string;
+  app_time_format: string; // '12h' | '24h'
+  // PDF export column selections
+  pdf_loan_columns: string[];
+  pdf_legal_columns: string[];
+  pdf_notice_columns: string[];
 }
 
 const DEFAULTS: AppSettingsMap = {
@@ -105,6 +112,11 @@ const DEFAULTS: AppSettingsMap = {
   connect_location: 'Chapainawabganj, Bangladesh',
   connect_map_lat: 24.6014631,
   connect_map_lng: 88.2374202,
+  app_timezone: 'Asia/Dhaka',
+  app_time_format: '12h',
+  pdf_loan_columns: ['account_no', 'borrower_name', 'account_name', 'outstanding_amount', 'overdue_amount', 'classification', 'mobile'],
+  pdf_legal_columns: ['case_number', 'case_type', 'defendant_name', 'claim_amount', 'next_date', 'status', 'court_name'],
+  pdf_notice_columns: ['borrower_name', 'account_no', 'notice_type', 'sent_date', 'receipt_status', 'case_filing_deadline'],
 };
 
 const isPGRST205 = (err: unknown) =>
