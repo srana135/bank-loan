@@ -357,8 +357,9 @@ const LegalManagement = () => {
   const noticeStats = useMemo(() => {
     if (!notices) return { total: 0, pending: 0, received: 0, returned: 0, due7: 0 };
     const now = new Date(); now.setHours(0, 0, 0, 0);
-    const in7 = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = localDateStr(now);
+    const end7 = new Date(now.getTime() + 7 * 86400000);
+    const in7 = localDateStr(end7);
     return {
       total: notices.length,
       pending: notices.filter(n => n.receipt_status === 'pending').length,
