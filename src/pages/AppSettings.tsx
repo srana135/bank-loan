@@ -644,6 +644,7 @@ const AppSettings = () => {
         </TabsContent>
 
         <TabsContent value="general" className="space-y-4 mt-4">
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">অ্যাপের নাম ও ব্র্যান্ডিং</CardTitle>
             </CardHeader>
