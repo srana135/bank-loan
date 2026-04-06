@@ -508,7 +508,7 @@ const LegalManagement = () => {
       account_no: nAccountNo.trim() || null, notice_type: nNoticeType,
       sent_date: nSentDate || null, receipt_status: nReceiptStatus,
       receipt_date: nReceiptDate || null, case_filing_deadline: nDeadline || null,
-      branch_id: profile?.branch_id || null, remarks: nRemarks.trim() || null,
+      branch_id: nBranchId && nBranchId !== 'none' ? nBranchId : (profile?.branch_id || null), remarks: nRemarks.trim() || null,
     };
     if (editNotice) await updateNotice.mutateAsync({ id: editNotice.id, ...payload });
     else await createNotice.mutateAsync({ ...payload, created_by: user?.id });
