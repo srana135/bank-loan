@@ -77,7 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Update last_login_at
+    if (!error && data.user) {
+      supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', data.user.id).then(() => {});
+      // Log activity
+      supabase.from('activity_logs').insert({ user_id: data.user.id, user_name: email, action: 'login', entity_type: 'auth', details: {} }).then(() => {});
+    }
     return { error: error as Error | null };
   };
 
