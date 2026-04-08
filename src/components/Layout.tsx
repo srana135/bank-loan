@@ -9,7 +9,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Landmark, Calculator, FileText, Phone, Menu, LogOut, User, ChevronDown, Shield, MapPin,
-  Building2, Users, ClipboardList, Settings, Upload, Gavel, Type,
+  Building2, Users, ClipboardList, Settings, Upload, Gavel, Type, BarChart3,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -94,6 +94,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <Button variant={isActive('/converter') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" asChild>
               <Link to="/converter"><Type className="h-4 w-4" /> Converter</Link>
             </Button>
+
+            {/* Reports */}
+            {user && (
+              <Button variant={isActive('/reports') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" onClick={() => requireAuth('/reports')}>
+                <BarChart3 className="h-4 w-4" /> Reports
+              </Button>
+            )}
 
             {/* Connect */}
             <Button variant={isActive('/connect') ? 'secondary' : 'ghost'} className="gap-1.5 text-sm h-9" asChild>
@@ -193,6 +200,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <Button variant="ghost" className="justify-start gap-2 h-8 text-xs" asChild onClick={() => setMobileOpen(false)}>
                     <Link to="/converter"><Type className="h-3.5 w-3.5" /> Converter</Link>
                   </Button>
+                  {user && (
+                    <Button variant="ghost" className="justify-start gap-2 h-8 text-xs" onClick={() => navMobile('/reports')}>
+                      <BarChart3 className="h-3.5 w-3.5" /> Reports
+                    </Button>
+                  )}
                   <Button variant="ghost" className="justify-start gap-2 h-8 text-xs" asChild onClick={() => setMobileOpen(false)}>
                     <Link to="/connect"><Phone className="h-3.5 w-3.5" /> Connect Us</Link>
                   </Button>

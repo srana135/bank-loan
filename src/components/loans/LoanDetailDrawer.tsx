@@ -4,10 +4,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Pencil, Trash2, Phone } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock } from 'lucide-react';
 import AccountStatusChange from './AccountStatusChange';
 import LoanComments from './LoanComments';
 import LoanRecoveries from './LoanRecoveries';
+import LoanTimeline from './LoanTimeline';
+import ClassificationSuggestion from './ClassificationSuggestion';
 
 interface Props {
   loan: Loan | null;
@@ -58,6 +61,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
             </div>
             <Badge variant={classColors[loan.classification || ''] as any || 'secondary'}>{loan.classification}</Badge>
           </div>
+          <ClassificationSuggestion loan={loan} />
         </SheetHeader>
 
         {/* Actions */}
@@ -100,6 +104,8 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Overdue Amount" value={`৳${(loan.overdue_amount || 0).toLocaleString()}`} />
           <DetailRow label="Outstanding" value={`৳${(loan.outstanding_amount || 0).toLocaleString()}`} />
           <DetailRow label="Classification" value={loan.classification} />
+          <DetailRow label="Disbursed Amount" value={loan.disbursed_loan_amount ? `৳${loan.disbursed_loan_amount.toLocaleString()}` : null} />
+          <DetailRow label="Disbursement Date" value={loan.disbursement_date} />
         </div>
 
         {(loan.latitude || loan.longitude) && (
@@ -125,24 +131,17 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
 
         <Separator className="my-3" />
 
-        {/* Disbursement */}
-        {(loan.disbursement_date || loan.disbursed_loan_amount) && (
-          <div className="space-y-1">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Disbursement</h4>
-            <DetailRow label="Disbursement Date" value={loan.disbursement_date} />
-            <DetailRow label="Disbursed Amount" value={loan.disbursed_loan_amount ? `৳${loan.disbursed_loan_amount.toLocaleString()}` : null} />
-          </div>
-        )}
-
-        {(loan.disbursement_date || loan.disbursed_loan_amount) && <Separator className="my-3" />}
-
-        {/* Recoveries */}
-        <LoanRecoveries loanId={loan.id} />
-
-        <Separator className="my-3" />
-
-        {/* Comments */}
-        <LoanComments loanId={loan.id} />
+        {/* Tabbed: Comments / Recoveries / Timeline */}
+        <Tabs defaultValue="comments" className="mt-2">
+          <TabsList className="grid grid-cols-3 h-8">
+            <TabsTrigger value="comments" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Comments</TabsTrigger>
+            <TabsTrigger value="recoveries" className="text-xs gap-1"><Banknote className="h-3 w-3" /> Recovery</TabsTrigger>
+            <TabsTrigger value="timeline" className="text-xs gap-1"><Clock className="h-3 w-3" /> Timeline</TabsTrigger>
+          </TabsList>
+          <TabsContent value="comments"><LoanComments loanId={loan.id} /></TabsContent>
+          <TabsContent value="recoveries"><LoanRecoveries loanId={loan.id} /></TabsContent>
+          <TabsContent value="timeline"><LoanTimeline loanId={loan.id} createdAt={loan.created_at} /></TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

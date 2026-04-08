@@ -329,6 +329,7 @@ const UserManagement = () => {
                   <TableHead>Mobile</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Branch</TableHead>
+                  <TableHead>Last Login</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead>Actions</TableHead>}
                 </TableRow>
@@ -342,6 +343,9 @@ const UserManagement = () => {
                     <TableCell>{p.mobile || '-'}</TableCell>
                     <TableCell><Badge variant="secondary" className="capitalize">{p.role}</Badge></TableCell>
                     <TableCell>{branches?.find(b => b.id === p.branch_id)?.branch_name || '-'}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">
+                      {p.last_login_at ? new Date(p.last_login_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={p.is_active ? 'default' : 'destructive'}>{p.is_active ? 'Active' : 'Inactive'}</Badge>
                     </TableCell>

@@ -11,6 +11,7 @@ export interface Profile {
   is_active: boolean;
   can_access_all_branches: boolean;
   language_preference: string | null;
+  last_login_at: string | null;
   created_at: string;
   updated_at: string;
 }
