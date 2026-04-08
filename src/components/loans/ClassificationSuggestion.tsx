@@ -23,8 +23,9 @@ const ClassificationSuggestion = ({ loan, compact = false }: Props) => {
   
   if (!settings) return null;
 
-  const classificationDays = settings.loan_classification_days || {
-    STD: 0, SMA: 90, SS: 180, DF: 270, BL: 360,
+  const cd = settings.classification_days || { std_max: 0, sma_max: 90, ss_max: 180, df_max: 270 };
+  const classificationDays = {
+    STD: 0, SMA: cd.sma_max || 90, SS: cd.ss_max || 180, DF: cd.df_max || 270, BL: (cd.df_max || 270) + 90,
   };
 
   const overdueDays = (loan.overdue_installment_number || 0) * 30;
