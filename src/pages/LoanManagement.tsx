@@ -298,6 +298,7 @@ const LoanManagement = () => {
         <LoanAgingAnalysis loans={filteredLoans} />
       )}
 
+      {selectedIds.size > 0 && (
         <Card className="border-accent/40 bg-accent/5">
           <CardContent className="py-2 px-4 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
