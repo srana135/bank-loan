@@ -293,7 +293,11 @@ const LoanManagement = () => {
         activeProposedDateFilter={filters.proposedDateFilter}
       />
 
-      {selectedIds.size > 0 && (
+      {/* Aging Analysis - collapsible */}
+      {filteredLoans.length > 0 && showFilters && (
+        <LoanAgingAnalysis loans={filteredLoans} />
+      )}
+
         <Card className="border-accent/40 bg-accent/5">
           <CardContent className="py-2 px-4 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
@@ -349,10 +353,11 @@ const LoanManagement = () => {
                     <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
                     <p className="text-xs text-muted-foreground font-mono">{loan.account_no}</p>
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0 ml-2">
+                   <div className="flex gap-1.5 flex-shrink-0 ml-2">
                     <Badge variant={['DF', 'BL'].includes(loan.classification || '') ? 'destructive' : loan.classification === 'SMA' ? 'secondary' : 'default'} className="text-[10px]">
                       {loan.classification || '-'}
                     </Badge>
+                    <ClassificationSuggestion loan={loan} compact />
                     {(loan.overdue_installment_number || 0) > 0 && (
                       <Badge variant="destructive" className="text-[10px]">OD: {loan.overdue_installment_number}</Badge>
                     )}
