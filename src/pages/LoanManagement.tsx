@@ -27,6 +27,8 @@ import LoanForm, { type LoanFormData } from '@/components/loans/LoanForm';
 import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import LoanImportDialog from '@/components/loans/LoanImportDialog';
 import SmsUtility from '@/components/loans/SmsUtility';
+import LoanAgingAnalysis from '@/components/loans/LoanAgingAnalysis';
+import ClassificationSuggestion from '@/components/loans/ClassificationSuggestion';
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
 import { useIsMobile } from '@/hooks/use-mobile';
 
