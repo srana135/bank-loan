@@ -18,6 +18,8 @@ const loanSchema = z.object({
   address: z.string().optional().default(''),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
+  disbursed_loan_amount: z.coerce.number().min(0, 'Must be >= 0').optional(),
+  disbursement_date: z.string().optional().default(''),
   installment_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
   overdue_installment_number: z.coerce.number().int().min(0, 'Must be >= 0').default(0),
   overdue_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
@@ -57,6 +59,8 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
       address: loan?.address || '',
       latitude: loan?.latitude ?? undefined,
       longitude: loan?.longitude ?? undefined,
+      disbursed_loan_amount: loan?.disbursed_loan_amount ?? undefined,
+      disbursement_date: loan?.disbursement_date || '',
       installment_amount: loan?.installment_amount || 0,
       overdue_installment_number: loan?.overdue_installment_number || 0,
       overdue_amount: loan?.overdue_amount || 0,
@@ -104,6 +108,8 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
         <div className="sm:col-span-2"><Field name="address" label="Address" /></div>
         <Field name="latitude" label="Latitude" type="number" />
         <Field name="longitude" label="Longitude" type="number" />
+        <Field name="disbursed_loan_amount" label="Disbursed Amount" type="number" />
+        <Field name="disbursement_date" label="Disbursement Date" type="date" />
         <Field name="installment_amount" label="Installment Amount" type="number" required />
         <Field name="overdue_installment_number" label="Overdue Installment No." type="number" />
         <Field name="overdue_amount" label="Overdue Amount" type="number" />
