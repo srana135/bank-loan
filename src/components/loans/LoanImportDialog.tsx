@@ -16,9 +16,9 @@ import * as XLSX from 'xlsx';
 
 const TEMPLATE_COLUMNS = [
   'Account No', 'Account Name', 'Borrower Name', 'Mobile', 'Account Type',
-  'Account Status', 'Address', 'Latitude', 'Longitude', 'Installment Amount',
-  'Overdue Installment Number', 'Overdue Amount', 'Outstanding Amount', 'Classification',
-  'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch Code',
+  'Account Status', 'Address', 'Disbursed Loan Amount', 'Disbursement Date',
+  'Installment Amount', 'Overdue Installment Number', 'Overdue Amount', 'Outstanding Amount',
+  'Classification', 'Guarantor 1 Name', 'Guarantor 1 Mobile', 'Guarantor 2 Name', 'Guarantor 2 Mobile', 'Branch Code',
 ];
 
 const COL_MAP: Record<string, string> = {
@@ -29,8 +29,8 @@ const COL_MAP: Record<string, string> = {
   'Account Type': 'account_type',
   'Account Status': 'account_status',
   'Address': 'address',
-  'Latitude': 'latitude',
-  'Longitude': 'longitude',
+  'Disbursed Loan Amount': 'disbursed_loan_amount',
+  'Disbursement Date': 'disbursement_date',
   'Installment Amount': 'installment_amount',
   'Overdue Installment Number': 'overdue_installment_number',
   'Overdue Amount': 'overdue_amount',
@@ -71,7 +71,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const downloadTemplate = useCallback(() => {
-    const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_COLUMNS, ['ACC001', 'Sample Account', 'John Doe', '01700000000', 'Term Loan', 'active', '123 Main St', '23.8103', '90.4125', '5000', '0', '0', '50000', 'STD', 'Jane Doe', '01800000000', 'Bob Smith', '01900000000', '']]);
+    const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_COLUMNS, ['ACC001', 'Sample Account', 'John Doe', '01700000000', 'Term Loan', 'active', '123 Main St', '500000', '2024-01-15', '5000', '0', '0', '50000', 'STD', 'Jane Doe', '01800000000', 'Bob Smith', '01900000000', '']]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Loans Template');
     // Set column widths
@@ -157,9 +157,9 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
             for (const [excelCol, dbCol] of Object.entries(COL_MAP)) {
               let val = row[excelCol];
               if (val === undefined || val === null || val === '') {
-                val = ['latitude', 'longitude', 'installment_amount', 'overdue_installment_number', 'overdue_amount', 'outstanding_amount'].includes(dbCol) ? 0 : '';
+                val = ['disbursed_loan_amount', 'installment_amount', 'overdue_installment_number', 'overdue_amount', 'outstanding_amount'].includes(dbCol) ? 0 : '';
               }
-              if (['latitude', 'longitude', 'installment_amount', 'overdue_amount', 'outstanding_amount'].includes(dbCol)) {
+              if (['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount'].includes(dbCol)) {
                 val = Number(val) || 0;
               }
               if (dbCol === 'overdue_installment_number') {
