@@ -123,6 +123,29 @@ const LoanManagement = () => {
     return map;
   }, [legalCases]);
 
+  // Map: loanId → latest recovery date
+  const loanRecoveryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allRecoveries?.forEach(r => {
+      const existing = map.get(r.loan_id);
+      if (!existing || r.recovery_date > existing) map.set(r.loan_id, r.recovery_date);
+    });
+    return map;
+  }, [allRecoveries]);
+
+  const getProposedStatus = (loan: Loan): { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; className: string } | null => {
+    if (!loan.latest_proposed_date) return null;
+    const latestRecovery = loanRecoveryMap.get(loan.id);
+    const today = new Date().toISOString().slice(0, 10);
+    if (latestRecovery && latestRecovery >= loan.latest_proposed_date) {
+      return { label: '✅ Recovered', variant: 'outline', className: 'bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400' };
+    }
+    if (loan.latest_proposed_date > today) {
+      return { label: '⏳ Pending', variant: 'outline', className: 'bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-400' };
+    }
+    return { label: '🔴 Overdue', variant: 'outline', className: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400' };
+  };
+
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
 
   const toggleSelect = (id: string) => {
