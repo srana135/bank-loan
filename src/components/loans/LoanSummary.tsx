@@ -78,10 +78,10 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
             <p className="text-[10px] text-muted-foreground">filtered</p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-primary/30">
+        <Card className="border-2 border-primary/30 col-span-2 sm:col-span-1 min-w-fit">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Outstanding</p>
-            <p className="text-base font-bold text-foreground">৳{stats.totalOutstanding.toLocaleString()}</p>
+            <p className="text-base font-bold text-foreground whitespace-nowrap">৳{stats.totalOutstanding.toLocaleString()}</p>
             <p className="text-[10px] text-muted-foreground">filtered</p>
           </CardContent>
         </Card>
