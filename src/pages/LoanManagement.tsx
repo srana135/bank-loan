@@ -518,9 +518,15 @@ const LoanManagement = () => {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-xs">
                       {loan.latest_proposed_date ? (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3 text-primary" />
-                          <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-primary" />
+                            <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                          </div>
+                          {(() => {
+                            const status = getProposedStatus(loan);
+                            return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                          })()}
                         </div>
                       ) : '-'}
                     </TableCell>
