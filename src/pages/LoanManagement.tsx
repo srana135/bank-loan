@@ -48,6 +48,7 @@ const LoanManagement = () => {
   const { data: branches } = useBranches();
   const branchFilterForLegal = userRole === 'manager' ? profile?.branch_id : undefined;
   const { data: legalCases } = useLegalCases(branchFilterForLegal);
+  const { data: allRecoveries } = useAllRecoveries(branchFilter);
   const createLoan = useCreateLoan();
   const updateLoan = useUpdateLoan();
   const deleteLoan = useDeleteLoan();
