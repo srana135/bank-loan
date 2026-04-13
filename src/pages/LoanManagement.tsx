@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { useLegalCases } from '@/hooks/useLegal';
+import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ const LoanManagement = () => {
   const { data: branches } = useBranches();
   const branchFilterForLegal = userRole === 'manager' ? profile?.branch_id : undefined;
   const { data: legalCases } = useLegalCases(branchFilterForLegal);
+  const { data: allRecoveries } = useAllRecoveries(branchFilter);
   const createLoan = useCreateLoan();
   const updateLoan = useUpdateLoan();
   const deleteLoan = useDeleteLoan();
@@ -120,6 +122,29 @@ const LoanManagement = () => {
     });
     return map;
   }, [legalCases]);
+
+  // Map: loanId → latest recovery date
+  const loanRecoveryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allRecoveries?.forEach(r => {
+      const existing = map.get(r.loan_id);
+      if (!existing || r.recovery_date > existing) map.set(r.loan_id, r.recovery_date);
+    });
+    return map;
+  }, [allRecoveries]);
+
+  const getProposedStatus = (loan: Loan): { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; className: string } | null => {
+    if (!loan.latest_proposed_date) return null;
+    const latestRecovery = loanRecoveryMap.get(loan.id);
+    const today = new Date().toISOString().slice(0, 10);
+    if (latestRecovery && latestRecovery >= loan.latest_proposed_date) {
+      return { label: '✅ Recovered', variant: 'outline', className: 'bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400' };
+    }
+    if (loan.latest_proposed_date > today) {
+      return { label: '⏳ Pending', variant: 'outline', className: 'bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-400' };
+    }
+    return { label: '🔴 Overdue', variant: 'outline', className: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400' };
+  };
 
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
 
@@ -374,10 +399,14 @@ const LoanManagement = () => {
                   {loan.disbursed_loan_amount && (
                     <div><span className="text-muted-foreground">Sanctioned:</span> <span className="font-medium">৳{loan.disbursed_loan_amount.toLocaleString()}</span></div>
                   )}
-                  {loan.latest_proposed_date && (
-                    <div className="flex items-center gap-1">
+                   {loan.latest_proposed_date && (
+                    <div className="col-span-2 flex items-center gap-2">
                       <Calendar className="h-3 w-3 text-primary" />
                       <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                      {(() => {
+                        const status = getProposedStatus(loan);
+                        return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                      })()}
                     </div>
                   )}
                 </div>
@@ -493,9 +522,15 @@ const LoanManagement = () => {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-xs">
                       {loan.latest_proposed_date ? (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3 text-primary" />
-                          <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-primary" />
+                            <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                          </div>
+                          {(() => {
+                            const status = getProposedStatus(loan);
+                            return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                          })()}
                         </div>
                       ) : '-'}
                     </TableCell>
