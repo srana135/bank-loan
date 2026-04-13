@@ -409,14 +409,36 @@ const LoanManagement = () => {
                   {loan.disbursed_loan_amount && (
                     <div><span className="text-muted-foreground">Sanctioned:</span> <span className="font-medium">৳{loan.disbursed_loan_amount.toLocaleString()}</span></div>
                   )}
-                   {loan.latest_proposed_date && (
-                    <div className="col-span-2 flex items-center gap-2">
-                      <Calendar className="h-3 w-3 text-primary" />
-                      <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
-                      {(() => {
-                        const status = getProposedStatus(loan);
-                        return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
-                      })()}
+                   <div className="col-span-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      {editProposedLoanId === loan.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input type="date" value={editProposedDate} onChange={e => setEditProposedDate(e.target.value)} className="h-7 text-xs w-[130px]" />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleSaveProposedDate(loan.id)}>
+                            <Check className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditProposedLoanId(null); setEditProposedDate(''); }}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : loan.latest_proposed_date ? (
+                        <>
+                          <Calendar className="h-3 w-3 text-primary" />
+                          <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                          {(() => {
+                            const status = getProposedStatus(loan);
+                            return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                          })()}
+                          {canBulk && (
+                            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(loan.latest_proposed_date || ''); }}>
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </>
+                      ) : canBulk ? (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(''); }}>
+                          <Pencil className="h-3 w-3" /> Add Proposed Date
+                        </Button>
+                      ) : null}
                     </div>
                   )}
                 </div>
