@@ -70,15 +70,15 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
-        <Card className="border-2 border-primary/30">
+      <div className="flex flex-wrap gap-2">
+        <Card className="border-2 border-primary/30 flex-1 min-w-[100px]">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Accounts</p>
             <p className="text-2xl font-bold text-foreground">{stats.totalCount}</p>
             <p className="text-[10px] text-muted-foreground">filtered</p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-primary/30 col-span-2 sm:col-span-1 min-w-fit">
+        <Card className="border-2 border-primary/30 min-w-fit">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Outstanding</p>
             <p className="text-base font-bold text-foreground whitespace-nowrap">৳{stats.totalOutstanding.toLocaleString()}</p>
@@ -86,7 +86,7 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
           </CardContent>
         </Card>
         {CLASSIFICATIONS.map(cls => (
-          <Card key={cls} className={`border ${classStyles[cls]} ${onClassificationClick ? 'cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all' : ''} ${selectedClassifications.includes(cls) ? 'ring-2 ring-primary' : ''}`}
+          <Card key={cls} className={`border flex-1 min-w-[80px] ${classStyles[cls]} ${onClassificationClick ? 'cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all' : ''} ${selectedClassifications.includes(cls) ? 'ring-2 ring-primary' : ''}`}
             onClick={() => onClassificationClick?.(cls)}>
             <CardContent className="p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-0.5">
@@ -100,7 +100,7 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
 
         {/* Proposed Repayment Date feeds */}
         <Card
-          className={`border border-green-300 bg-green-50 dark:bg-green-950/20 cursor-pointer hover:ring-2 hover:ring-green-400/30 transition-all ${activeProposedDateFilter === 'today' ? 'ring-2 ring-green-500' : ''}`}
+          className={`border border-green-300 bg-green-50 dark:bg-green-950/20 cursor-pointer hover:ring-2 hover:ring-green-400/30 transition-all min-w-[70px] ${activeProposedDateFilter === 'today' ? 'ring-2 ring-green-500' : ''}`}
           onClick={() => onProposedDateFilter?.(activeProposedDateFilter === 'today' ? '' : 'today')}
         >
           <CardContent className="p-3 text-center">
@@ -113,7 +113,7 @@ const LoanSummary = ({ loans, selectedClassifications, onClassificationClick, on
           </CardContent>
         </Card>
         <Card
-          className={`border border-amber-300 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:ring-2 hover:ring-amber-400/30 transition-all ${activeProposedDateFilter === '7days' ? 'ring-2 ring-amber-500' : ''}`}
+          className={`border border-amber-300 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:ring-2 hover:ring-amber-400/30 transition-all min-w-[70px] ${activeProposedDateFilter === '7days' ? 'ring-2 ring-amber-500' : ''}`}
           onClick={() => onProposedDateFilter?.(activeProposedDateFilter === '7days' ? '' : '7days')}
         >
           <CardContent className="p-3 text-center">
