@@ -18,7 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -73,6 +73,8 @@ const LoanManagement = () => {
   const [bulkCommentTarget, setBulkCommentTarget] = useState<'selected' | 'filtered'>('selected');
   const [quickCommentLoanId, setQuickCommentLoanId] = useState<string | null>(null);
   const [quickCommentText, setQuickCommentText] = useState('');
+  const [editProposedLoanId, setEditProposedLoanId] = useState<string | null>(null);
+  const [editProposedDate, setEditProposedDate] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | ''>('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -144,6 +146,14 @@ const LoanManagement = () => {
       return { label: '⏳ Pending', variant: 'outline', className: 'bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-400' };
     }
     return { label: '🔴 Overdue', variant: 'outline', className: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400' };
+  };
+
+  const handleSaveProposedDate = async (loanId: string) => {
+    try {
+      await updateLoan.mutateAsync({ id: loanId, latest_proposed_date: editProposedDate || null });
+      setEditProposedLoanId(null);
+      setEditProposedDate('');
+    } catch {}
   };
 
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
@@ -399,16 +409,37 @@ const LoanManagement = () => {
                   {loan.disbursed_loan_amount && (
                     <div><span className="text-muted-foreground">Sanctioned:</span> <span className="font-medium">৳{loan.disbursed_loan_amount.toLocaleString()}</span></div>
                   )}
-                   {loan.latest_proposed_date && (
-                    <div className="col-span-2 flex items-center gap-2">
-                      <Calendar className="h-3 w-3 text-primary" />
-                      <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
-                      {(() => {
-                        const status = getProposedStatus(loan);
-                        return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
-                      })()}
+                   <div className="col-span-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      {editProposedLoanId === loan.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input type="date" value={editProposedDate} onChange={e => setEditProposedDate(e.target.value)} className="h-7 text-xs w-[130px]" />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleSaveProposedDate(loan.id)}>
+                            <Check className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditProposedLoanId(null); setEditProposedDate(''); }}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : loan.latest_proposed_date ? (
+                        <>
+                          <Calendar className="h-3 w-3 text-primary" />
+                          <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                          {(() => {
+                            const status = getProposedStatus(loan);
+                            return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                          })()}
+                          {canBulk && (
+                            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(loan.latest_proposed_date || ''); }}>
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </>
+                      ) : canBulk ? (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(''); }}>
+                          <Pencil className="h-3 w-3" /> Add Proposed Date
+                        </Button>
+                      ) : null}
                     </div>
-                  )}
                 </div>
                 {lc && (
                   <div className="flex items-center gap-1.5 text-xs">
@@ -520,19 +551,40 @@ const LoanManagement = () => {
                     <TableCell className="hidden md:table-cell max-w-[180px] truncate text-xs text-muted-foreground">
                       {loan.latest_comment || '-'}
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell text-xs">
-                      {loan.latest_proposed_date ? (
+                    <TableCell className="hidden lg:table-cell text-xs" onClick={e => e.stopPropagation()}>
+                      {editProposedLoanId === loan.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input type="date" value={editProposedDate} onChange={e => setEditProposedDate(e.target.value)} className="h-7 text-xs w-[130px]" />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleSaveProposedDate(loan.id)}>
+                            <Check className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditProposedLoanId(null); setEditProposedDate(''); }}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : loan.latest_proposed_date ? (
                         <div className="space-y-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-primary" />
                             <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                            {canBulk && (
+                              <Button size="icon" variant="ghost" className="h-5 w-5 ml-0.5" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(loan.latest_proposed_date || ''); }}>
+                                <Pencil className="h-3 w-3 text-muted-foreground" />
+                              </Button>
+                            )}
                           </div>
                           {(() => {
                             const status = getProposedStatus(loan);
                             return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
                           })()}
                         </div>
-                      ) : '-'}
+                      ) : (
+                        canBulk ? (
+                          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={() => { setEditProposedLoanId(loan.id); setEditProposedDate(''); }}>
+                            <Pencil className="h-3 w-3" /> Add Date
+                          </Button>
+                        ) : '-'
+                      )}
                     </TableCell>
                   </TableRow>
                   );
