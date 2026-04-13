@@ -1,29 +1,32 @@
 
 
-# Disbursed Amount ও Disbursement Date এড করার পদ্ধতি
+# Proposed Date কলামে Recovery Status দেখানো
 
 ## বর্তমান অবস্থা
+- **Proposed** কলামে শুধু `latest_proposed_date` তারিখ দেখায়
+- কোনো Recovery হয়েছে কিনা সেটার কোনো ইন্ডিকেশন নেই
 
-- **Database**: `loans` টেবিলে `disbursement_date` ও `disbursed_loan_amount` কলাম আগেই আছে (migration-v2 এ যোগ করা হয়েছে)।
-- **Types**: `Loan` টাইপে এই দুটি ফিল্ড আগেই আছে।
-- **Detail Drawer**: ইতিমধ্যে এই দুটি ফিল্ড দেখাচ্ছে (line 107-108), কিন্তু ড্যাশ (`-`) দেখাচ্ছে কারণ ডাটা নেই।
-- **LoanForm**: ফর্মে এই দুটি ফিল্ড **নেই** — তাই Edit করার সময় এগুলো ইনপুট দেওয়া যাচ্ছে না।
+## কী করবো
+Proposed কলামে তারিখের পাশে Recovery status দেখাবো:
+- **✅ Recovered** — যদি proposed date এর পরে recovery রেকর্ড থাকে (সবুজ ব্যাজ)
+- **⏳ Pending** — যদি proposed date আছে কিন্তু recovery হয়নি (হলুদ ব্যাজ)  
+- **🔴 Overdue** — যদি proposed date পার হয়ে গেছে এবং recovery হয়নি (লাল ব্যাজ)
 
-## সমাধান
+## পরিবর্তন
 
-`LoanForm.tsx` এ দুটি নতুন ফিল্ড যোগ করতে হবে:
+### 1. `LoanManagement.tsx`
+- `useAllRecoveries` হুক ইম্পোর্ট করে সব recovery ডাটা আনবো
+- প্রতিটি loan এর জন্য recovery status ক্যালকুলেট করবো (proposed date vs recovery date তুলনা)
+- Proposed কলামে তারিখের নিচে ছোট Badge দিয়ে status দেখাবো
+- Mobile card ভিউতেও একই status দেখাবো
 
-1. **Zod Schema তে যোগ করা**:
-   - `disbursed_loan_amount: z.coerce.number().min(0).optional()`
-   - `disbursement_date: z.string().optional().default('')`
+### 2. Status Logic
+```text
+if (no proposed_date) → show "-"
+if (has recovery after proposed_date) → "Recovered" (green)
+if (proposed_date > today) → "Pending" (yellow)  
+if (proposed_date <= today & no recovery) → "Overdue" (red)
+```
 
-2. **Default Values এ যোগ করা**:
-   - `disbursed_loan_amount: loan?.disbursed_loan_amount ?? undefined`
-   - `disbursement_date: loan?.disbursement_date || ''`
-
-3. **Form UI তে ফিল্ড রেন্ডার করা** (Financial সেকশনে):
-   - Disbursed Amount — number input
-   - Disbursement Date — date input
-
-এটাই যথেষ্ট। Database, types, এবং detail drawer সব আগে থেকেই রেডি — শুধু ফর্মে ইনপুট ফিল্ড যোগ করলেই কাজ হবে।
+এতে Loan Management টেবিলে এক নজরে বোঝা যাবে কোন লোনের proposed date এর বিপরীতে recovery হয়েছে, কোনটা pending, কোনটা overdue।
 
