@@ -148,6 +148,14 @@ const LoanManagement = () => {
     return { label: '🔴 Overdue', variant: 'outline', className: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400' };
   };
 
+  const handleSaveProposedDate = async (loanId: string) => {
+    try {
+      await updateLoan.mutateAsync({ id: loanId, latest_proposed_date: editProposedDate || null });
+      setEditProposedLoanId(null);
+      setEditProposedDate('');
+    } catch {}
+  };
+
   const branchName = branches?.find(b => b.id === profile?.branch_id)?.branch_name;
 
   const toggleSelect = (id: string) => {
