@@ -50,13 +50,13 @@ const LoanComments = ({ loanId }: Props) => {
 
   const handleSaveEdit = async () => {
     if (!editId || !editText.trim()) return;
-    await updateComment.mutateAsync({ id: editId, comment_text: editText.trim(), proposed_repayment_date: editDate || null });
+    await updateComment.mutateAsync({ id: editId, loan_id: loanId, comment_text: editText.trim(), proposed_repayment_date: editDate || null });
     setEditId(null);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await deleteComment.mutateAsync(deleteId);
+    await deleteComment.mutateAsync({ id: deleteId, loan_id: loanId });
     setDeleteId(null);
   };
 
