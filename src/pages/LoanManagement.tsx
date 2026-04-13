@@ -18,7 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -73,6 +73,8 @@ const LoanManagement = () => {
   const [bulkCommentTarget, setBulkCommentTarget] = useState<'selected' | 'filtered'>('selected');
   const [quickCommentLoanId, setQuickCommentLoanId] = useState<string | null>(null);
   const [quickCommentText, setQuickCommentText] = useState('');
+  const [editProposedLoanId, setEditProposedLoanId] = useState<string | null>(null);
+  const [editProposedDate, setEditProposedDate] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | ''>('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
