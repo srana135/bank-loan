@@ -1,32 +1,30 @@
 
 
-# Proposed Date কলামে Recovery Status দেখানো
+# Proposed Date — Comment Sync Fix + Inline Quick Edit
 
-## বর্তমান অবস্থা
-- **Proposed** কলামে শুধু `latest_proposed_date` তারিখ দেখায়
-- কোনো Recovery হয়েছে কিনা সেটার কোনো ইন্ডিকেশন নেই
+## পরিবর্তন ১: Comment Edit Sync Fix (`useLoans.ts`)
 
-## কী করবো
-Proposed কলামে তারিখের পাশে Recovery status দেখাবো:
-- **✅ Recovered** — যদি proposed date এর পরে recovery রেকর্ড থাকে (সবুজ ব্যাজ)
-- **⏳ Pending** — যদি proposed date আছে কিন্তু recovery হয়নি (হলুদ ব্যাজ)  
-- **🔴 Overdue** — যদি proposed date পার হয়ে গেছে এবং recovery হয়নি (লাল ব্যাজ)
+`useUpdateComment` হুকে comment এর `proposed_repayment_date` এডিট করলে `loans` টেবিলের `latest_proposed_date` ও আপডেট হবে। এর জন্য mutation এ `loan_id` প্যারামিটার যোগ করতে হবে এবং সর্বশেষ proposed date খুঁজে loans টেবিল আপডেট করতে হবে।
 
-## পরিবর্তন
+`useDeleteComment` এও একই লজিক — কমেন্ট ডিলিট হলে বাকি কমেন্টগুলো থেকে সর্বশেষ proposed date বের করে loans টেবিল আপডেট করবে।
 
-### 1. `LoanManagement.tsx`
-- `useAllRecoveries` হুক ইম্পোর্ট করে সব recovery ডাটা আনবো
-- প্রতিটি loan এর জন্য recovery status ক্যালকুলেট করবো (proposed date vs recovery date তুলনা)
-- Proposed কলামে তারিখের নিচে ছোট Badge দিয়ে status দেখাবো
-- Mobile card ভিউতেও একই status দেখাবো
+## পরিবর্তন ২: Inline Quick Edit (`LoanManagement.tsx`)
 
-### 2. Status Logic
-```text
-if (no proposed_date) → show "-"
-if (has recovery after proposed_date) → "Recovered" (green)
-if (proposed_date > today) → "Pending" (yellow)  
-if (proposed_date <= today & no recovery) → "Overdue" (red)
-```
+Proposed কলামে তারিখের পাশে ছোট Edit আইকন বাটন থাকবে। ক্লিক করলে inline date input দেখাবে — সেভ করলে সরাসরি `loans.latest_proposed_date` আপডেট হবে।
 
-এতে Loan Management টেবিলে এক নজরে বোঝা যাবে কোন লোনের proposed date এর বিপরীতে recovery হয়েছে, কোনটা pending, কোনটা overdue।
+## ফাইল পরিবর্তন
+
+### `src/hooks/useLoans.ts`
+- **useUpdateComment**: `loan_id` প্যারামিটার যোগ। আপডেটের পর ঐ loan এর সব কমেন্ট থেকে সর্বশেষ `proposed_repayment_date` বের করে `loans.latest_proposed_date` আপডেট।
+- **useDeleteComment**: `loan_id` প্যারামিটার যোগ। ডিলিটের পর একই sync লজিক।
+- `loans` query ও invalidate করবে।
+
+### `src/components/loans/LoanComments.tsx`
+- `handleSaveEdit` এ `loan_id` পাস করবে `updateComment.mutateAsync` তে।
+- `handleDelete` এ `loan_id` পাস করবে `deleteComment.mutateAsync` তে।
+
+### `src/pages/LoanManagement.tsx`
+- Proposed কলামে (desktop ও mobile) inline edit state যোগ।
+- Edit icon → date input → Save/Cancel বাটন।
+- সেভ করলে `useUpdateLoan` দিয়ে `latest_proposed_date` সরাসরি আপডেট।
 
