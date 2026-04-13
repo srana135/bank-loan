@@ -399,10 +399,14 @@ const LoanManagement = () => {
                   {loan.disbursed_loan_amount && (
                     <div><span className="text-muted-foreground">Sanctioned:</span> <span className="font-medium">৳{loan.disbursed_loan_amount.toLocaleString()}</span></div>
                   )}
-                  {loan.latest_proposed_date && (
-                    <div className="flex items-center gap-1">
+                   {loan.latest_proposed_date && (
+                    <div className="col-span-2 flex items-center gap-2">
                       <Calendar className="h-3 w-3 text-primary" />
                       <span className="text-primary font-medium">{loan.latest_proposed_date}</span>
+                      {(() => {
+                        const status = getProposedStatus(loan);
+                        return status ? <Badge variant={status.variant} className={`text-[10px] ${status.className}`}>{status.label}</Badge> : null;
+                      })()}
                     </div>
                   )}
                 </div>
