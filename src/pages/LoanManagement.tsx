@@ -440,7 +440,6 @@ const LoanManagement = () => {
                         </Button>
                       ) : null}
                     </div>
-                  )}
                 </div>
                 {lc && (
                   <div className="flex items-center gap-1.5 text-xs">
