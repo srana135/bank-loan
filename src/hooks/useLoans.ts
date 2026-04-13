@@ -142,17 +142,32 @@ export const useAddComment = () => {
   });
 };
 
+// Helper: recalculate latest_proposed_date from all comments of a loan
+async function syncLatestProposedDate(loanId: string) {
+  const { data: comments } = await supabase
+    .from('loan_comments').select('proposed_repayment_date')
+    .eq('loan_id', loanId)
+    .not('proposed_repayment_date', 'is', null)
+    .order('proposed_repayment_date', { ascending: false })
+    .limit(1);
+  const latestDate = comments?.[0]?.proposed_repayment_date || null;
+  await supabase.from('loans').update({ latest_proposed_date: latestDate }).eq('id', loanId);
+}
+
 export const useUpdateComment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, comment_text, proposed_repayment_date }: { id: string; comment_text: string; proposed_repayment_date?: string | null }) => {
+    mutationFn: async ({ id, loan_id, comment_text, proposed_repayment_date }: { id: string; loan_id: string; comment_text: string; proposed_repayment_date?: string | null }) => {
       const updates: Record<string, any> = { comment_text };
       if (proposed_repayment_date !== undefined) updates.proposed_repayment_date = proposed_repayment_date || null;
       const { error } = await supabase.from('loan_comments').update(updates).eq('id', id);
       if (error) throw error;
+      // Sync latest_proposed_date in loans table
+      await syncLatestProposedDate(loan_id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['loan-comments'] });
+      qc.invalidateQueries({ queryKey: ['loans'] });
       toast.success('Comment updated');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -162,9 +177,11 @@ export const useUpdateComment = () => {
 export const useDeleteComment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, loan_id }: { id: string; loan_id: string }) => {
       const { error } = await supabase.from('loan_comments').delete().eq('id', id);
       if (error) throw error;
+      // Sync latest_proposed_date in loans table
+      await syncLatestProposedDate(loan_id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['loan-comments'] });
