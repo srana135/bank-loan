@@ -289,7 +289,7 @@ const LegalNoticesPreview = ({ notices }: { notices: LegalNotice[] }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       <StatCard label="Total Notices" value={notices.length} />
       <StatCard label="Types" value={new Set(notices.map(n => n.notice_type)).size} />
-      <StatCard label="Statuses" value={new Set(notices.map(n => n.status)).size} />
+      <StatCard label="Statuses" value={new Set(notices.map(n => n.receipt_status)).size} />
     </div>
     <Table>
       <TableHeader>
@@ -303,9 +303,9 @@ const LegalNoticesPreview = ({ notices }: { notices: LegalNotice[] }) => (
       <TableBody>
         {notices.slice(0, 20).map(n => (
           <TableRow key={n.id}>
-            <TableCell className="text-xs">{n.recipient_name}</TableCell>
+            <TableCell className="text-xs">{n.borrower_name || n.organization_name || '-'}</TableCell>
             <TableCell className="text-xs">{n.notice_type}</TableCell>
-            <TableCell className="text-xs"><Badge variant="secondary" className="text-[10px]">{n.status}</Badge></TableCell>
+            <TableCell className="text-xs"><Badge variant="secondary" className="text-[10px]">{n.receipt_status}</Badge></TableCell>
             <TableCell className="text-xs">{n.sent_date || '-'}</TableCell>
           </TableRow>
         ))}
