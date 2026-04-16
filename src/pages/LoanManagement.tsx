@@ -78,6 +78,10 @@ const LoanManagement = () => {
   const [editProposedDate, setEditProposedDate] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | ''>('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [bulkRecoveryOpen, setBulkRecoveryOpen] = useState(false);
+  const [bulkRecoveryTarget, setBulkRecoveryTarget] = useState<'selected' | 'filtered'>('selected');
+  const [bulkExpiryOpen, setBulkExpiryOpen] = useState(false);
+  const [bulkExpiryDate, setBulkExpiryDate] = useState('');
 
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
