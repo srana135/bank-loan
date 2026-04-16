@@ -68,6 +68,7 @@ export interface Loan {
   disbursed_loan_amount: number | null;
   latest_comment: string | null;
   latest_proposed_date: string | null;
+  expiry_date: string | null;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -113,6 +114,8 @@ export interface LegalCase {
   claim_amount: number | null;
   next_date: string | null;
   remarks: string | null;
+  latest_order_summary: string | null;
+  latest_order_date: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
