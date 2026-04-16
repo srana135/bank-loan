@@ -84,12 +84,14 @@ const UserManagement = () => {
       mobile: editMobile || null,
       role: editRole as any,
       branch_id: editBranch && editBranch !== 'none' ? editBranch : null,
+      _userId: user?.id,
+      _userName: profile?.full_name,
     });
     setEditDialogOpen(false);
   };
 
   const handleToggleActive = async (p: Profile) => {
-    await updateProfile.mutateAsync({ id: p.id, is_active: !p.is_active });
+    await updateProfile.mutateAsync({ id: p.id, is_active: !p.is_active, _userId: user?.id, _userName: profile?.full_name });
   };
 
   const handleDelete = async () => {

@@ -48,6 +48,7 @@ const RegistrationRequests = () => {
       reviewerId: user.id,
       role: assignRole,
       branchId: assignBranch && assignBranch !== 'none' ? assignBranch : null,
+      _userName: profile?.full_name,
     });
     setApproveDialogOpen(false);
   };
@@ -58,6 +59,7 @@ const RegistrationRequests = () => {
       requestId: selectedReq.id,
       reviewerId: user.id,
       reason: rejectReason.trim(),
+      _userName: profile?.full_name,
     });
     setRejectDialogOpen(false);
   };
