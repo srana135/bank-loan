@@ -26,41 +26,64 @@ const ACTION_COLORS: Record<string, string> = {
   recovery: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400',
 };
 
-const ActivityLogTab = () => {
-  const { data: logs, isLoading } = useActivityLogs(200);
+const ChangeLogTab = () => {
+  const { data: logs, isLoading } = useActivityLogs(500);
   const [search, setSearch] = useState('');
-  const [entityFilter, setEntityFilter] = useState('all');
+  const [fieldFilter, setFieldFilter] = useState('all');
+  const [changedByFilter, setChangedByFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const allFields = useMemo(() => {
+    if (!logs) return [];
+    return [...new Set(logs.map(l => l.details?.field || l.entity_type).filter(Boolean))];
+  }, [logs]);
+
+  const allUsers = useMemo(() => {
+    if (!logs) return [];
+    return [...new Set(logs.map(l => l.user_name).filter(Boolean))] as string[];
+  }, [logs]);
 
   const filtered = useMemo(() => {
     if (!logs) return [];
     return logs.filter(l => {
-      const matchSearch = !search || 
+      const matchSearch = !search ||
         l.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-        l.action.toLowerCase().includes(search.toLowerCase()) ||
-        l.entity_type.toLowerCase().includes(search.toLowerCase());
-      const matchEntity = entityFilter === 'all' || l.entity_type === entityFilter;
-      return matchSearch && matchEntity;
+        (l.details?.field || '').toLowerCase().includes(search.toLowerCase()) ||
+        (l.details?.old_value || '').toString().toLowerCase().includes(search.toLowerCase()) ||
+        (l.details?.new_value || '').toString().toLowerCase().includes(search.toLowerCase()) ||
+        (l.details?.note || '').toLowerCase().includes(search.toLowerCase());
+      const matchField = fieldFilter === 'all' || (l.details?.field || l.entity_type) === fieldFilter;
+      const matchUser = changedByFilter === 'all' || l.user_name === changedByFilter;
+      const logDate = new Date(l.created_at);
+      const matchFrom = !dateFrom || logDate >= new Date(dateFrom);
+      const matchTo = !dateTo || logDate <= new Date(dateTo + 'T23:59:59');
+      return matchSearch && matchField && matchUser && matchFrom && matchTo;
     });
-  }, [logs, search, entityFilter]);
-
-  const entityTypes = useMemo(() => {
-    if (!logs) return [];
-    return [...new Set(logs.map(l => l.entity_type))];
-  }, [logs]);
+  }, [logs, search, fieldFilter, changedByFilter, dateFrom, dateTo]);
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Input placeholder="Search logs..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 text-xs w-48" />
-        <Select value={entityFilter} onValueChange={setEntityFilter}>
-          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+      <div className="flex flex-wrap gap-2 items-end">
+        <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 text-xs w-40" />
+        <Select value={changedByFilter} onValueChange={setChangedByFilter}>
+          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Changed By" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {entityTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            <SelectItem value="all">All Users</SelectItem>
+            {allUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={fieldFilter} onValueChange={setFieldFilter}>
+          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Field" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Fields</SelectItem>
+            {allFields.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs w-32" placeholder="From" />
+        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs w-32" placeholder="To" />
         <Badge variant="secondary" className="text-[10px] h-6">{filtered.length} logs</Badge>
       </div>
 
@@ -68,30 +91,31 @@ const ActivityLogTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs">Time</TableHead>
-              <TableHead className="text-xs">User</TableHead>
-              <TableHead className="text-xs">Action</TableHead>
-              <TableHead className="text-xs">Entity</TableHead>
-              <TableHead className="text-xs">Details</TableHead>
+              <TableHead className="text-xs w-10">SL</TableHead>
+              <TableHead className="text-xs">Date & Time</TableHead>
+              <TableHead className="text-xs">Changed By</TableHead>
+              <TableHead className="text-xs">Field</TableHead>
+              <TableHead className="text-xs">Old Value</TableHead>
+              <TableHead className="text-xs">New Value</TableHead>
+              <TableHead className="text-xs">Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-6">No activity logs found. Logs will appear after actions are performed.</TableCell></TableRow>
-            ) : filtered.map(log => (
+              <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">No change logs found.</TableCell></TableRow>
+            ) : filtered.map((log, idx) => (
               <TableRow key={log.id}>
-                <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
+                  {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </TableCell>
                 <TableCell className="text-xs font-medium">{log.user_name || 'System'}</TableCell>
-                <TableCell>
-                  <Badge className={`text-[9px] border-0 ${ACTION_COLORS[log.action] || 'bg-muted text-muted-foreground'}`}>{log.action}</Badge>
+                <TableCell className="text-xs">
+                  <Badge variant="outline" className="text-[10px]">{log.details?.field || log.action + ' ' + log.entity_type}</Badge>
                 </TableCell>
-                <TableCell className="text-xs">{log.entity_type}</TableCell>
-                <TableCell className="text-[10px] text-muted-foreground max-w-[200px] truncate">
-                  {log.entity_id ? `ID: ${log.entity_id.slice(0, 8)}...` : ''}
-                  {log.details && Object.keys(log.details).length > 0 ? ` ${JSON.stringify(log.details).slice(0, 60)}` : ''}
-                </TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{log.details?.old_value ?? '—'}</TableCell>
+                <TableCell className="text-xs max-w-[150px] truncate">{log.details?.new_value ?? '—'}</TableCell>
+                <TableCell className="text-[11px] text-muted-foreground max-w-[180px] truncate">{log.details?.note || log.details?.reason || '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -191,8 +215,8 @@ const AdminDashboard = () => {
           <TabsTrigger value="branches" className="gap-1.5 text-xs sm:text-sm">
             <Building2 className="h-3.5 w-3.5 hidden sm:inline" /> Branches
           </TabsTrigger>
-          <TabsTrigger value="activity" className="gap-1.5 text-xs sm:text-sm">
-            <Activity className="h-3.5 w-3.5 hidden sm:inline" /> Activity
+          <TabsTrigger value="changelog" className="gap-1.5 text-xs sm:text-sm">
+            <Activity className="h-3.5 w-3.5 hidden sm:inline" /> Change Log
           </TabsTrigger>
           <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
             <Settings className="h-3.5 w-3.5 hidden sm:inline" /> Settings
@@ -201,7 +225,7 @@ const AdminDashboard = () => {
         <TabsContent value="requests"><RegistrationRequests /></TabsContent>
         <TabsContent value="users"><UserManagement /></TabsContent>
         <TabsContent value="branches"><BranchManagement /></TabsContent>
-        <TabsContent value="activity"><ActivityLogTab /></TabsContent>
+        <TabsContent value="changelog"><ChangeLogTab /></TabsContent>
         <TabsContent value="settings"><AppSettings /></TabsContent>
       </Tabs>
     </div>
