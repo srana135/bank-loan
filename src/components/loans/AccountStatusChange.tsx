@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { logActivity } from '@/hooks/useActivityLogs';
 
 const STATUSES = ['Regular', 'Irregular', 'Frozen', 'Closed', 'Written Off', 'Rescheduled', 'Settled'];
 
@@ -19,7 +20,7 @@ interface Props {
 }
 
 const AccountStatusChange = ({ loanId, currentStatus, accountNo }: Props) => {
-  const { user, userRole } = useAuth();
+  const { user, profile, userRole } = useAuth();
   const qc = useQueryClient();
   const canChange = userRole === 'admin' || userRole === 'manager';
   const [open, setOpen] = useState(false);
@@ -50,6 +51,12 @@ const AccountStatusChange = ({ loanId, currentStatus, accountNo }: Props) => {
       });
       if (auditErr) console.warn('Audit log failed:', auditErr.message);
 
+      logActivity(user?.id || null, profile?.full_name || null, 'update', 'loan', loanId, {
+        field: 'Account Status',
+        old_value: currentStatus || '—',
+        new_value: newStatus,
+        note: reason || undefined,
+      });
       qc.invalidateQueries({ queryKey: ['loans'] });
       toast.success(`Status changed: ${currentStatus || '-'} → ${newStatus}`);
       setOpen(false);

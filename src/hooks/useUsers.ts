@@ -2,9 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Profile, RegistrationRequest } from '@/types';
 import { toast } from 'sonner';
+import { logActivity, logFieldChanges } from './useActivityLogs';
 
 const isPGRST205 = (err: unknown) =>
   typeof (err as any)?.message === 'string' && ((err as any).message.includes('PGRST205') || (err as any).message.includes('Could not find the table'));
+
+interface LogMeta { _userId?: string | null; _userName?: string | null }
 
 export const useProfiles = () => {
   return useQuery({
@@ -21,9 +24,21 @@ export const useProfiles = () => {
 export const useUpdateProfile = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Profile> & { id: string }) => {
+    mutationFn: async ({ id, _userId, _userName, ...updates }: Partial<Profile> & { id: string } & LogMeta) => {
+      // Fetch old profile for comparison
+      const { data: oldProfile } = await supabase.from('profiles').select('*').eq('id', id).single();
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
+      if (oldProfile) {
+        logFieldChanges(_userId || null, _userName || null, 'update', 'user', id, oldProfile, updates, `User: ${oldProfile.full_name || id}`, {
+          full_name: 'Full Name',
+          role: 'Role',
+          branch_id: 'Branch',
+          is_active: 'Active Status',
+          mobile: 'Mobile',
+          email: 'Email',
+        });
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profiles'] }); toast.success('Profile updated'); },
     onError: (e: Error) => toast.error(e.message),
@@ -59,7 +74,7 @@ export const useCreateRegistrationRequest = () => {
 export const useApproveRequest = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ requestId, reviewerId, role, branchId }: { requestId: string; reviewerId: string; role: string; branchId: string | null }) => {
+    mutationFn: async ({ requestId, reviewerId, role, branchId, _userName }: { requestId: string; reviewerId: string; role: string; branchId: string | null; _userName?: string }) => {
       const { data: req, error: fetchErr } = await supabase
         .from('registration_requests')
         .select('*')
@@ -85,6 +100,13 @@ export const useApproveRequest = () => {
         reviewed_at: new Date().toISOString(),
       }).eq('id', requestId);
       if (error) throw error;
+
+      logActivity(reviewerId, _userName || null, 'update', 'registration', requestId, {
+        field: 'Registration Status',
+        old_value: 'pending',
+        new_value: 'approved',
+        note: `User: ${req.full_name}, Role: ${role}`,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registration-requests'] });
@@ -98,7 +120,8 @@ export const useApproveRequest = () => {
 export const useRejectRequest = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ requestId, reviewerId, reason }: { requestId: string; reviewerId: string; reason: string }) => {
+    mutationFn: async ({ requestId, reviewerId, reason, _userName }: { requestId: string; reviewerId: string; reason: string; _userName?: string }) => {
+      const { data: req } = await supabase.from('registration_requests').select('full_name').eq('id', requestId).single();
       const { error } = await supabase.from('registration_requests').update({
         status: 'rejected',
         reviewed_by: reviewerId,
@@ -106,6 +129,13 @@ export const useRejectRequest = () => {
         rejection_reason: reason,
       }).eq('id', requestId);
       if (error) throw error;
+
+      logActivity(reviewerId, _userName || null, 'update', 'registration', requestId, {
+        field: 'Registration Status',
+        old_value: 'pending',
+        new_value: 'rejected',
+        note: `User: ${req?.full_name || '-'}, Reason: ${reason}`,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registration-requests'] });

@@ -156,7 +156,7 @@ const LoanManagement = () => {
 
   const handleSaveProposedDate = async (loanId: string) => {
     try {
-      await updateLoan.mutateAsync({ id: loanId, latest_proposed_date: editProposedDate || null });
+      await updateLoan.mutateAsync({ id: loanId, latest_proposed_date: editProposedDate || null, _userId: user?.id, _userName: profile?.full_name });
       setEditProposedLoanId(null);
       setEditProposedDate('');
     } catch {}
@@ -178,9 +178,9 @@ const LoanManagement = () => {
   const handleFormSubmit = async (data: LoanFormData) => {
     try {
       if (editLoan) {
-        await updateLoan.mutateAsync({ id: editLoan.id, ...data, updated_by: user?.id });
+        await updateLoan.mutateAsync({ id: editLoan.id, ...data, updated_by: user?.id, _userId: user?.id, _userName: profile?.full_name });
       } else {
-        await createLoan.mutateAsync({ ...data, created_by: user?.id });
+        await createLoan.mutateAsync({ ...data, created_by: user?.id, _userId: user?.id, _userName: profile?.full_name });
       }
       setFormOpen(false);
       setEditLoan(null);
@@ -188,13 +188,13 @@ const LoanManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
-    try { await deleteLoan.mutateAsync(id); } catch {}
+    try { await deleteLoan.mutateAsync({ id, _userId: user?.id, _userName: profile?.full_name }); } catch {}
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} selected loan(s)? This cannot be undone.`)) return;
-    await bulkDelete.mutateAsync(Array.from(selectedIds));
+    await bulkDelete.mutateAsync({ ids: Array.from(selectedIds), _userId: user?.id, _userName: profile?.full_name });
     clearSelection();
   };
 

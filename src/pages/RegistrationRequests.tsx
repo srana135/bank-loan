@@ -14,7 +14,7 @@ import { Loader2, Check, X } from 'lucide-react';
 import { RegistrationRequest } from '@/types';
 
 const RegistrationRequests = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: requests, isLoading } = useRegistrationRequests();
   const { data: branches } = useBranches();
   const approveRequest = useApproveRequest();
@@ -48,6 +48,7 @@ const RegistrationRequests = () => {
       reviewerId: user.id,
       role: assignRole,
       branchId: assignBranch && assignBranch !== 'none' ? assignBranch : null,
+      _userName: profile?.full_name,
     });
     setApproveDialogOpen(false);
   };
@@ -58,6 +59,7 @@ const RegistrationRequests = () => {
       requestId: selectedReq.id,
       reviewerId: user.id,
       reason: rejectReason.trim(),
+      _userName: profile?.full_name,
     });
     setRejectDialogOpen(false);
   };

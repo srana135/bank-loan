@@ -19,7 +19,7 @@ interface Props {
 }
 
 const LoanRecoveries = ({ loanId }: Props) => {
-  const { user, userRole } = useAuth();
+  const { user, profile, userRole } = useAuth();
   const { data: recoveries, isLoading } = useLoanRecoveries(loanId);
   const addRecovery = useAddRecovery();
   const updateRecovery = useUpdateRecovery();
@@ -50,6 +50,8 @@ const LoanRecoveries = ({ loanId }: Props) => {
       recovery_type: type,
       note: note.trim() || null,
       created_by: user?.id,
+      _userId: user?.id,
+      _userName: profile?.full_name,
     });
     setAmount(''); setNote(''); setShowForm(false);
   };
@@ -73,6 +75,8 @@ const LoanRecoveries = ({ loanId }: Props) => {
       recovered_amount: Number(editAmount),
       recovery_type: editType,
       note: editNote.trim() || null,
+      _userId: user?.id,
+      _userName: profile?.full_name,
     });
     setEditId(null);
   };
@@ -80,7 +84,7 @@ const LoanRecoveries = ({ loanId }: Props) => {
   const handleDelete = async () => {
     if (!deleteId) return;
     const rec = recoveries?.find(r => r.id === deleteId);
-    await deleteRecovery.mutateAsync({ id: deleteId, loanId: loanId, amount: rec?.recovered_amount || 0 });
+    await deleteRecovery.mutateAsync({ id: deleteId, loanId: loanId, amount: rec?.recovered_amount || 0, _userId: user?.id, _userName: profile?.full_name });
     setDeleteId(null);
   };
 
