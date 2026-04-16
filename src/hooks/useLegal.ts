@@ -77,9 +77,15 @@ export const useAddCaseOrder = () => {
       const { _case_id, ...orderData } = order;
       const { error } = await supabase.from('legal_case_orders').insert(orderData);
       if (error) throw error;
-      // Also update case next_date
-      if (orderData.next_date && orderData.case_id) {
-        await supabase.from('legal_cases').update({ next_date: orderData.next_date }).eq('id', orderData.case_id);
+      // Update case next_date + latest_order
+      if (orderData.case_id) {
+        const updatePayload: Record<string, any> = {};
+        if (orderData.next_date) updatePayload.next_date = orderData.next_date;
+        if (orderData.order_summary) updatePayload.latest_order_summary = orderData.order_summary;
+        if (orderData.order_date) updatePayload.latest_order_date = orderData.order_date;
+        if (Object.keys(updatePayload).length > 0) {
+          await supabase.from('legal_cases').update(updatePayload).eq('id', orderData.case_id);
+        }
       }
     },
     onSuccess: () => {
