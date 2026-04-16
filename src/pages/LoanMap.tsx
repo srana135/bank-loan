@@ -142,7 +142,7 @@ const LoanMap = () => {
   }, [navigate]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await deleteLoan.mutateAsync(id);
+    await deleteLoan.mutateAsync({ id });
     setDrawerOpen(false);
     setDetailLoan(null);
   }, [deleteLoan]);

@@ -459,7 +459,7 @@ const LegalManagement = () => {
   };
 
   const handleDelete = async () => {
-    await deleteCase.mutateAsync(deleteId);
+    await deleteCase.mutateAsync({ id: deleteId, _userId: user?.id, _userName: profile?.full_name });
     setDeleteDialogOpen(false);
   };
 
@@ -483,7 +483,7 @@ const LegalManagement = () => {
     else await createLawyer.mutateAsync(data);
     setLawyerFormOpen(false);
   };
-  const handleDeleteLawyer = async () => { await deleteLawyer.mutateAsync(lwDeleteId); setLwDeleteOpen(false); };
+  const handleDeleteLawyer = async () => { await deleteLawyer.mutateAsync({ id: lwDeleteId, _userId: user?.id, _userName: profile?.full_name }); setLwDeleteOpen(false); };
 
   // Notice management
   const openCreateNotice = () => {
@@ -555,7 +555,7 @@ const LegalManagement = () => {
           created_by: user?.id,
         })).filter((c: any) => c.case_number);
         if (!caseData.length) { toast.error('No valid rows found'); return; }
-        await bulkImport.mutateAsync(caseData);
+        await bulkImport.mutateAsync({ cases: caseData, _userId: user?.id, _userName: profile?.full_name });
         setImportOpen(false);
       } catch (err: any) { toast.error(err.message || 'Import failed'); }
     };
