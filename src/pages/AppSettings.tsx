@@ -535,14 +535,58 @@ const AppSettings = () => {
           </Card>
         </TabsContent>
 
-        {/* ============ PDF COLUMNS ============ */}
+        {/* ============ PDF & IMPORT COLUMNS ============ */}
         <TabsContent value="pdf" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">PDF এক্সপোর্ট কলাম সিলেকশন</CardTitle>
-              <CardDescription>PDF ডাউনলোডে কোন কলাম দেখানো হবে তা নির্বাচন করুন</CardDescription>
+              <CardTitle className="text-lg">PDF এক্সপোর্ট ও ইমপোর্ট কলাম সিলেকশন</CardTitle>
+              <CardDescription>PDF ডাউনলোড ও ইমপোর্ট টেমপ্লেটে কোন কলাম থাকবে তা নির্বাচন করুন</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Import columns config */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">ঋণ ইমপোর্ট কলাম (Import Template)</Label>
+                <p className="text-xs text-muted-foreground">ইমপোর্ট টেমপ্লেট ও ইমপোর্ট প্রক্রিয়ায় কোন কলাম ব্যবহার হবে তা নির্বাচন করুন</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {[
+                    { key: 'account_no', label: 'হিসাব নং', required: true },
+                    { key: 'account_name', label: 'প্রতিষ্ঠান' },
+                    { key: 'borrower_name', label: 'ঋণগ্রহীতা', required: true },
+                    { key: 'mobile', label: 'মোবাইল' },
+                    { key: 'account_type', label: 'হিসাবের ধরণ' },
+                    { key: 'account_status', label: 'অবস্থা' },
+                    { key: 'address', label: 'ঠিকানা' },
+                    { key: 'disbursed_loan_amount', label: 'বিতরণকৃত' },
+                    { key: 'disbursement_date', label: 'বিতরণ তারিখ' },
+                    { key: 'expiry_date', label: 'মেয়াদ শেষের তারিখ' },
+                    { key: 'installment_amount', label: 'কিস্তি' },
+                    { key: 'overdue_installment_number', label: 'বকেয়া কিস্তি সংখ্যা' },
+                    { key: 'overdue_amount', label: 'মেয়াদোত্তীর্ণ' },
+                    { key: 'outstanding_amount', label: 'বকেয়া স্থিতি' },
+                    { key: 'classification', label: 'শ্রেণিবিভাগ', required: true },
+                    { key: 'guarantor_1_name', label: 'জামিনদার ১ নাম' },
+                    { key: 'guarantor_1_mobile', label: 'জামিনদার ১ মোবাইল' },
+                    { key: 'guarantor_2_name', label: 'জামিনদার ২ নাম' },
+                    { key: 'guarantor_2_mobile', label: 'জামিনদার ২ মোবাইল' },
+                    { key: 'branch_code', label: 'শাখা কোড' },
+                  ].map(col => (
+                    <label key={col.key} className={`flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 ${col.required ? 'font-medium' : ''}`}>
+                      <Checkbox
+                        checked={form.import_loan_columns.includes(col.key)}
+                        disabled={col.required}
+                        onCheckedChange={(checked) => {
+                          if (col.required) return;
+                          if (checked) update('import_loan_columns', [...form.import_loan_columns, col.key]);
+                          else update('import_loan_columns', form.import_loan_columns.filter(c => c !== col.key));
+                        }}
+                      />
+                      {col.label}{col.required ? ' *' : ''}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
               {/* Loan PDF columns */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">ঋণ (Loan) PDF কলাম</Label>
