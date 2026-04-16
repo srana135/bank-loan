@@ -667,6 +667,46 @@ const LoanManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BulkRecoveryDialog
+        open={bulkRecoveryOpen}
+        onClose={() => setBulkRecoveryOpen(false)}
+        loans={filteredLoans}
+        target={bulkRecoveryTarget}
+        selectedIds={selectedIds}
+      />
+
+      <Dialog open={bulkExpiryOpen} onOpenChange={setBulkExpiryOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Bulk Expiry Date — {selectedIds.size} Loan(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">মেয়াদ শেষের তারিখ</Label>
+              <Input type="date" value={bulkExpiryDate} onChange={e => setBulkExpiryDate(e.target.value)} className="h-9" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBulkExpiryOpen(false)}>Cancel</Button>
+              <Button
+                disabled={!bulkExpiryDate || updateLoan.isPending}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds);
+                  for (const id of ids) {
+                    await updateLoan.mutateAsync({ id, expiry_date: bulkExpiryDate });
+                  }
+                  toast.success(`${ids.length} loan(s) expiry date updated`);
+                  setBulkExpiryOpen(false);
+                  setBulkExpiryDate('');
+                }}
+              >
+                {updateLoan.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Update
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
