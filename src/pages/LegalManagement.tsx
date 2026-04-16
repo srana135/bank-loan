@@ -515,7 +515,7 @@ const LegalManagement = () => {
     else await createNotice.mutateAsync({ ...payload, created_by: user?.id });
     setNoticeFormOpen(false);
   };
-  const handleDeleteNotice = async () => { await deleteNotice.mutateAsync(noticeDeleteId); setNoticeDeleteOpen(false); };
+  const handleDeleteNotice = async () => { await deleteNotice.mutateAsync({ id: noticeDeleteId, _userId: user?.id, _userName: profile?.full_name }); setNoticeDeleteOpen(false); };
 
   // When loan is selected in notice form, auto-fill
   const handleNoticeLoanSelect = (id: string) => {
