@@ -21,7 +21,7 @@ interface Props {
 }
 
 const BulkRecoveryDialog = ({ open, onClose, loans, target, selectedIds }: Props) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const bulkAdd = useBulkAddRecovery();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState('');

@@ -32,8 +32,8 @@ export const useCreateLegalCase = () => {
       if (error) throw error;
       logActivity(_userId || null, _userName || null, 'create', 'legal_case', null, {
         field: 'Legal Case Created',
-        new_value: data.case_number || data.account_no || 'New Case',
-        note: `Account: ${data.account_no || '-'}`,
+        new_value: data.case_number || 'New Case',
+        note: `Case: ${data.case_number || '-'}`,
       });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['legal-cases'] }); toast.success('Case created'); },
