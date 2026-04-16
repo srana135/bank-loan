@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!error && data.user) {
       supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', data.user.id).then(() => {});
       // Log activity
-      supabase.from('activity_logs').insert({ user_id: data.user.id, user_name: email, action: 'login', entity_type: 'auth', details: {} }).then(() => {});
+      supabase.from('activity_logs').insert({ user_id: data.user.id, user_name: email, action: 'login', entity_type: 'auth', details: { field: 'Login', new_value: email } }).then(() => {});
     }
     return { error: error as Error | null };
   };
