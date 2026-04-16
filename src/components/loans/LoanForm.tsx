@@ -20,6 +20,7 @@ const loanSchema = z.object({
   longitude: z.coerce.number().optional(),
   disbursed_loan_amount: z.coerce.number().min(0, 'Must be >= 0').optional(),
   disbursement_date: z.string().optional().default(''),
+  expiry_date: z.string().optional().default(''),
   installment_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
   overdue_installment_number: z.coerce.number().int().min(0, 'Must be >= 0').default(0),
   overdue_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
@@ -61,6 +62,7 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
       longitude: loan?.longitude ?? undefined,
       disbursed_loan_amount: loan?.disbursed_loan_amount ?? undefined,
       disbursement_date: loan?.disbursement_date || '',
+      expiry_date: loan?.expiry_date || '',
       installment_amount: loan?.installment_amount || 0,
       overdue_installment_number: loan?.overdue_installment_number || 0,
       overdue_amount: loan?.overdue_amount || 0,
@@ -110,6 +112,7 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
         <Field name="longitude" label="Longitude" type="number" />
         <Field name="disbursed_loan_amount" label="Disbursed Amount" type="number" />
         <Field name="disbursement_date" label="Disbursement Date" type="date" />
+        <Field name="expiry_date" label="Expiry Date" type="date" />
         <Field name="installment_amount" label="Installment Amount" type="number" required />
         <Field name="overdue_installment_number" label="Overdue Installment No." type="number" />
         <Field name="overdue_amount" label="Overdue Amount" type="number" />

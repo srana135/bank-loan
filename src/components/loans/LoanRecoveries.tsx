@@ -64,8 +64,11 @@ const LoanRecoveries = ({ loanId }: Props) => {
 
   const handleSaveEdit = async () => {
     if (!editId || !editAmount || Number(editAmount) <= 0) return;
+    const oldRecovery = recoveries?.find(r => r.id === editId);
     await updateRecovery.mutateAsync({
       id: editId,
+      loanId: loanId,
+      oldAmount: oldRecovery?.recovered_amount || 0,
       recovery_date: editDate,
       recovered_amount: Number(editAmount),
       recovery_type: editType,
@@ -76,7 +79,8 @@ const LoanRecoveries = ({ loanId }: Props) => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await deleteRecovery.mutateAsync(deleteId);
+    const rec = recoveries?.find(r => r.id === deleteId);
+    await deleteRecovery.mutateAsync({ id: deleteId, loanId: loanId, amount: rec?.recovered_amount || 0 });
     setDeleteId(null);
   };
 

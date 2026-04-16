@@ -12,13 +12,14 @@ import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { Loan } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Pencil, Check } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, Download, Upload, Trash2, MessageSquare, X, FileText, MessageCircle, AlertTriangle, Building2, Gavel, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Pencil, Check, Banknote, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -27,6 +28,7 @@ import LoanSummary from '@/components/loans/LoanSummary';
 import LoanForm, { type LoanFormData } from '@/components/loans/LoanForm';
 import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import LoanImportDialog from '@/components/loans/LoanImportDialog';
+import BulkRecoveryDialog from '@/components/loans/BulkRecoveryDialog';
 import SmsUtility from '@/components/loans/SmsUtility';
 import LoanAgingAnalysis from '@/components/loans/LoanAgingAnalysis';
 import ClassificationSuggestion from '@/components/loans/ClassificationSuggestion';
@@ -77,6 +79,10 @@ const LoanManagement = () => {
   const [editProposedDate, setEditProposedDate] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | ''>('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [bulkRecoveryOpen, setBulkRecoveryOpen] = useState(false);
+  const [bulkRecoveryTarget, setBulkRecoveryTarget] = useState<'selected' | 'filtered'>('selected');
+  const [bulkExpiryOpen, setBulkExpiryOpen] = useState(false);
+  const [bulkExpiryDate, setBulkExpiryDate] = useState('');
 
   const canCreate = userRole === 'admin' || userRole === 'manager';
   const canBulk = userRole === 'admin' || userRole === 'manager';
@@ -348,6 +354,16 @@ const LoanManagement = () => {
             <Button size="sm" variant="outline" onClick={() => { setBulkCommentTarget('filtered'); setBulkCommentOpen(true); }} className="gap-1 h-7">
               <MessageSquare className="h-3 w-3" /> Comment All ({filteredLoans.length})
             </Button>
+            {canBulk && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => { setBulkRecoveryTarget('selected'); setBulkRecoveryOpen(true); }} className="gap-1 h-7">
+                  <Banknote className="h-3 w-3" /> Recovery ({selectedIds.size})
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setBulkExpiryOpen(true)} className="gap-1 h-7">
+                  <CalendarDays className="h-3 w-3" /> Expiry Date
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="ghost" onClick={clearSelection} className="gap-1 h-7"><X className="h-3 w-3" /> Clear</Button>
           </CardContent>
         </Card>
@@ -647,6 +663,46 @@ const LoanManagement = () => {
               <Button size="sm" onClick={() => quickCommentLoanId && handleQuickComment(quickCommentLoanId)} disabled={addComment.isPending || !quickCommentText.trim()}>
                 {addComment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Submit
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <BulkRecoveryDialog
+        open={bulkRecoveryOpen}
+        onClose={() => setBulkRecoveryOpen(false)}
+        loans={filteredLoans}
+        target={bulkRecoveryTarget}
+        selectedIds={selectedIds}
+      />
+
+      <Dialog open={bulkExpiryOpen} onOpenChange={setBulkExpiryOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Bulk Expiry Date — {selectedIds.size} Loan(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">মেয়াদ শেষের তারিখ</Label>
+              <Input type="date" value={bulkExpiryDate} onChange={e => setBulkExpiryDate(e.target.value)} className="h-9" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBulkExpiryOpen(false)}>Cancel</Button>
+              <Button
+                disabled={!bulkExpiryDate || updateLoan.isPending}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds);
+                  for (const id of ids) {
+                    await updateLoan.mutateAsync({ id, expiry_date: bulkExpiryDate });
+                  }
+                  toast.success(`${ids.length} loan(s) expiry date updated`);
+                  setBulkExpiryOpen(false);
+                  setBulkExpiryDate('');
+                }}
+              >
+                {updateLoan.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Update
               </Button>
             </div>
           </div>

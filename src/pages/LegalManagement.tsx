@@ -800,17 +800,23 @@ const LegalManagement = () => {
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         {loan && (
                           <>
-                            <div><span className="text-muted-foreground">A/C:</span> <span className="font-mono">{loan.account_no}</span></div>
+                            <div>
+                              <span className="text-muted-foreground">A/C:</span> <span className="font-mono">{loan.account_no}</span>
+                              {loan.account_name && <p className="text-[10px] text-muted-foreground">{loan.account_name}</p>}
+                            </div>
                             <div><span className="text-muted-foreground">Borrower:</span> {loan.borrower_name}</div>
-                            <div className="col-span-2"><span className="text-muted-foreground">Org:</span> {loan.account_name || '-'}</div>
                           </>
                         )}
                         <div><span className="text-muted-foreground">Claim:</span> {c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</div>
-                        <div><span className="text-muted-foreground">Lawyer:</span> {lawyer?.name || '-'}</div>
-                        {officer && <div className="col-span-2"><span className="text-muted-foreground">Officer:</span> {officer.full_name} {officer.mobile ? `(${officer.mobile})` : ''}</div>}
                         <div className="col-span-2 flex items-center gap-1">
                           <span className="text-muted-foreground">Next:</span> {nextDateBadge(c.next_date) || '-'}
                         </div>
+                        {c.latest_order_summary && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Last Order:</span> <span className="truncate">{c.latest_order_summary}</span>
+                            {c.latest_order_date && <span className="text-muted-foreground ml-1">({c.latest_order_date})</span>}
+                          </div>
+                        )}
                       </div>
                       {canManage && (
                         <div className="flex gap-1 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
@@ -837,7 +843,7 @@ const LegalManagement = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('case_type')}>
                     <span className="flex items-center">Type <SortIcon active={sortKey === 'case_type'} dir={sortDir} /></span>
                   </TableHead>
-                  <TableHead>Account No</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Borrower</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('status')}>
                     <span className="flex items-center">Status <SortIcon active={sortKey === 'status'} dir={sortDir} /></span>
@@ -848,26 +854,34 @@ const LegalManagement = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('next_date')}>
                     <span className="flex items-center">Next Date <SortIcon active={sortKey === 'next_date'} dir={sortDir} /></span>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">Officer</TableHead>
-                  <TableHead className="hidden lg:table-cell">Lawyer</TableHead>
+                  <TableHead className="hidden lg:table-cell">Latest Order</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
                   {filtered.map(c => {
-                    const lawyer = lawyers?.find(l => l.id === c.lawyer_id);
                     const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
-                    const officer = c.officer_id ? officerMap.get(c.officer_id) : null;
                     return (
                       <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailCase(c); setDetailOpen(true); }}>
                         <TableCell className="font-mono text-sm font-medium">{c.case_number}</TableCell>
                         <TableCell className="text-sm">{c.case_type}</TableCell>
-                        <TableCell className="font-mono text-xs">{loan?.account_no || '-'}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="font-mono text-xs">{loan?.account_no || '-'}</span>
+                            {loan?.account_name && <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{loan.account_name}</p>}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-sm">{loan?.borrower_name || c.defendant_name || '-'}</TableCell>
                         <TableCell><Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{c.status}</Badge></TableCell>
                         <TableCell className="text-sm">{c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</TableCell>
                         <TableCell>{nextDateBadge(c.next_date) || '-'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs">{officer?.full_name || '-'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm">{lawyer?.name || '-'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs max-w-[200px]">
+                          {c.latest_order_summary ? (
+                            <div>
+                              <p className="truncate">{c.latest_order_summary}</p>
+                              {c.latest_order_date && <p className="text-[10px] text-muted-foreground">{c.latest_order_date}</p>}
+                            </div>
+                          ) : '-'}
+                        </TableCell>
                         {canManage && (
                           <TableCell onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1">

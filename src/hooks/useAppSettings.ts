@@ -66,6 +66,8 @@ export interface AppSettingsMap {
   pdf_loan_columns: string[];
   pdf_legal_columns: string[];
   pdf_notice_columns: string[];
+  // Import column config
+  import_loan_columns: string[];
 }
 
 const DEFAULTS: AppSettingsMap = {
@@ -117,6 +119,12 @@ const DEFAULTS: AppSettingsMap = {
   pdf_loan_columns: ['account_no', 'borrower_name', 'account_name', 'outstanding_amount', 'overdue_amount', 'classification', 'mobile'],
   pdf_legal_columns: ['case_number', 'case_type', 'defendant_name', 'claim_amount', 'next_date', 'status', 'court_name'],
   pdf_notice_columns: ['borrower_name', 'account_no', 'notice_type', 'sent_date', 'receipt_status', 'case_filing_deadline'],
+  import_loan_columns: [
+    'account_no', 'account_name', 'borrower_name', 'mobile', 'account_type', 'account_status',
+    'address', 'disbursed_loan_amount', 'disbursement_date', 'expiry_date', 'installment_amount',
+    'overdue_installment_number', 'overdue_amount', 'outstanding_amount', 'classification',
+    'guarantor_1_name', 'guarantor_1_mobile', 'guarantor_2_name', 'guarantor_2_mobile', 'branch_code',
+  ],
 };
 
 const isPGRST205 = (err: unknown) =>
