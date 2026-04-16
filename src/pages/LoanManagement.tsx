@@ -353,6 +353,16 @@ const LoanManagement = () => {
             <Button size="sm" variant="outline" onClick={() => { setBulkCommentTarget('filtered'); setBulkCommentOpen(true); }} className="gap-1 h-7">
               <MessageSquare className="h-3 w-3" /> Comment All ({filteredLoans.length})
             </Button>
+            {canBulk && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => { setBulkRecoveryTarget('selected'); setBulkRecoveryOpen(true); }} className="gap-1 h-7">
+                  <Banknote className="h-3 w-3" /> Recovery ({selectedIds.size})
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setBulkExpiryOpen(true)} className="gap-1 h-7">
+                  <CalendarDays className="h-3 w-3" /> Expiry Date
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="ghost" onClick={clearSelection} className="gap-1 h-7"><X className="h-3 w-3" /> Clear</Button>
           </CardContent>
         </Card>
