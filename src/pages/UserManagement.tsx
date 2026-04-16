@@ -20,7 +20,7 @@ import * as XLSX from 'xlsx';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const UserManagement = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, profile } = useAuth();
   const { data: profiles, isLoading } = useProfiles();
   const { data: branches } = useBranches();
   const updateProfile = useUpdateProfile();

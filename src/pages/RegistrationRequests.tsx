@@ -14,7 +14,7 @@ import { Loader2, Check, X } from 'lucide-react';
 import { RegistrationRequest } from '@/types';
 
 const RegistrationRequests = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: requests, isLoading } = useRegistrationRequests();
   const { data: branches } = useBranches();
   const approveRequest = useApproveRequest();
