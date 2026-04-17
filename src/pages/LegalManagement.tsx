@@ -298,6 +298,43 @@ const LegalManagement = () => {
     return m;
   }, [profiles]);
 
+  // Live "latest court order" per case — derived from legal_case_orders
+  // so existing/imported cases (where the cached snapshot on legal_cases is NULL)
+  // also display correctly.
+  const caseIds = useMemo(() => (cases || []).map(c => c.id), [cases]);
+  const { data: allOrders } = useQuery({
+    queryKey: ['legal-case-orders-latest', caseIds],
+    queryFn: async () => {
+      if (!caseIds.length) return [];
+      const { data, error } = await supabase
+        .from('legal_case_orders')
+        .select('case_id, order_date, order_summary, next_date')
+        .in('case_id', caseIds)
+        .order('order_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: caseIds.length > 0,
+  });
+
+  const latestOrderMap = useMemo(() => {
+    const m = new Map<string, { order_date: string | null; order_summary: string | null; next_date: string | null }>();
+    (allOrders || []).forEach((o: any) => {
+      if (!m.has(o.case_id)) m.set(o.case_id, { order_date: o.order_date, order_summary: o.order_summary, next_date: o.next_date });
+    });
+    return m;
+  }, [allOrders]);
+
+  // Helper: resolve latest order with cached snapshot fallback
+  const getLatestOrder = (c: LegalCase) => {
+    const live = latestOrderMap.get(c.id);
+    return {
+      order_summary: live?.order_summary ?? c.latest_order_summary ?? null,
+      order_date: live?.order_date ?? c.latest_order_date ?? null,
+    };
+  };
+
+
   const filtered = useMemo(() => {
     if (!cases) return [];
     let result = cases.filter(c => {
