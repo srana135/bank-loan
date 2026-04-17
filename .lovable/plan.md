@@ -1,41 +1,68 @@
 
 
-## Audit findings
+## Goal
+Settings এ "মামলা (Legal Case) PDF কলাম" section যোগ করা, ছবিতে দেখানো ১২-কলাম Bengali serial layout অনুযায়ী Report Generator থেকে PDF + Excel generate করা। User checkbox এ যেভাবেই select করুক — output সর্বদা canonical order এ থাকবে।
 
-**Why "Court Orders" shows "-" for every case:**
+## Image-based canonical column order
 
-1. The table/cards read `c.latest_order_summary` and `c.latest_order_date` directly from the `legal_cases` row.
-2. These two columns are only written by `recomputeCaseLatestOrder()` in `useLegal.ts` — which only fires when an order is **added/updated/deleted** through the new UI.
-3. All cases that already had orders **before** this logic existed (or cases whose orders were created via bulk import/migration) still have `latest_order_summary = NULL` and `latest_order_date = NULL` in the DB.
-4. Result: the column is permanently "-" until someone manually re-saves an order on each case.
+| # | Bengali header | Source field |
+|---|---|---|
+| ১ | ক্রমিক নং | auto serial |
+| ২ক | মামলার ধরন | `case_type` |
+| ২খ | মামলার নম্বর | `case_number` |
+| ৩ | মামলা দায়েরের তারিখ | `filing_date` |
+| ৪ | বাদী এবং বিবাদী | `plaintiff_name` + `defendant_name` (one cell, two lines) |
+| ৫ | আমলী আদালত | `court_name` |
+| ৬ | নিয়োজিত আইনজীবীর নাম ও মোবাইল | lawyer.name + lawyer.mobile (lookup via `lawyer_id`) |
+| ৭ | মামলার সর্বশেষ অবস্থা | latest entries from `legal_case_orders` (date + summary) |
+| ৮ | ব্যাংক কর্তৃক গৃহীত সর্বশেষ পদক্ষেপ | `description` (or remarks if empty) |
+| ৯ | জড়িত অন্যান্য ব্যাংক | new optional field — fallback "-" |
+| ১০ | ঋণ হিসাবের শ্রেণীকৃতমান (SMA/SS/DF/BL) | linked loan via `loan_id` → `classification` |
+| ১১ | মামলায় বিজড়িত অর্থের পরিমান | `claim_amount` (lakh format) |
+| ১২ | মন্তব্য | `remarks` |
 
-The display code at lines 855–858 (mobile card) and 918–924 (table) is correct; the data is just stale.
+Missing/null fields → blank cell (column order preserved)।
 
-## Fix: derive Court Orders live from `legal_case_orders`
+## Implementation
 
-Make `legal_case_orders` the single source of truth for the column instead of the cached snapshot.
+### 1. New file `src/lib/legalCaseColumns.ts`
+- `ALL_LEGAL_CASE_COLUMNS` map (key → Bengali label) in canonical order।
+- `CANONICAL_LEGAL_CASE_COLUMN_ORDER = Object.keys(...)`।
+- `getLegalCaseFieldValue(caseRow, key, ctx)` resolves loan classification, lawyer info, latest order, parties combination।
 
-### Changes (single file: `src/pages/LegalManagement.tsx`)
+### 2. `src/hooks/useAppSettings.ts`
+- Add `pdf_legal_case_columns: string[]` to `AppSettingsMap` + DEFAULTS (all 12 selected by default)।
 
-1. **Fetch all orders once at page level**
-   - Add a new query that selects `case_id, order_date, order_summary, next_date` from `legal_case_orders` for cases in the current branch scope, ordered by `order_date desc`.
-   - Build a `Map<caseId, { order_date, order_summary, next_date }>` keeping only the **latest** entry per case.
+### 3. `src/pages/AppSettings.tsx` → "PDF" tab
+- Loan PDF column section এর নিচে নতুন "মামলা (Legal Case) PDF কলাম" section।
+- Checkbox list iterating `ALL_LEGAL_CASE_COLUMNS` in canonical order।
+- "Select All / Clear All" buttons।
+- Save → upsert `pdf_legal_case_columns`।
 
-2. **Replace the snapshot reads with the map lookup**
-   - In the desktop table cell (line ~918): use `latestOrderMap.get(c.id)?.order_summary` and `?.order_date` with fallback to `c.latest_order_summary` / `c.latest_order_date` (so cached values still work as backup).
-   - Same fallback in the mobile card (line ~855).
-   - Same fallback in PDF export (line ~661, ~665).
-   - Same fallback in `CaseDetailDrawer`'s "Latest Order Date" row.
+### 4. `src/pages/ReportGenerator.tsx` — "Legal Cases" report
+- Add queries: `useLawyers()`, `useLoans()` (for classification), bulk `legal_case_orders` (latest-per-case map — same pattern as LegalManagement)।
+- Compute `legalCaseExportColumns = CANONICAL_LEGAL_CASE_COLUMN_ORDER.filter(k => settings.pdf_legal_case_columns.includes(k))` → **always canonical order**, selection only filters in/out।
+- **PDF (jsPDF + autoTable)**:
+  - Landscape A4
+  - Title row (merged): "ব্যাংক/আর্থিক প্রতিষ্ঠানের মামলা সংক্রান্ত বিবরণী"
+  - Subtitle: "{dateTo} তারিখ ভিত্তিক"
+  - Table: header row (Bengali labels) + numbered serial row (১,২,৩...) + data rows
+  - Header repeats per page; title only on page 1
+- **Excel (xlsx)**:
+  - Single sheet, merged title row at top, merged subtitle row, header row, data rows, optional totals
+  - Cell-by-cell mapping using `getLegalCaseFieldValue`
 
-3. **Backfill on read (optional safety net)**
-   - When the live map yields a value that differs from the cached snapshot, fire a one-time silent update to write it back to `legal_cases`. Keeps future reads cheap and self-heals legacy rows.
+### 5. Bengali numerals helper
+Reuse existing or add small `toBengaliNumber(n)` utility for serial column।
 
-### Why this approach
-- No migration / SQL needed.
-- Works immediately for every existing case (including bulk-imported ones).
-- Keeps the existing `recomputeCaseLatestOrder()` for write-time updates — they remain in sync.
-- All security/RLS unchanged (same tables, same select rights as `useCaseOrders`).
+## Files
+- `src/lib/legalCaseColumns.ts` — new
+- `src/hooks/useAppSettings.ts` — add setting key + default
+- `src/pages/AppSettings.tsx` — add checkbox section in PDF tab
+- `src/pages/ReportGenerator.tsx` — rewrite legal-cases PDF + Excel using new column system
 
-### Files to edit
-- `src/pages/LegalManagement.tsx` — add the bulk orders query + latest-per-case map, swap the four read sites to use it with fallback.
+## Notes
+- "জড়িত অন্যান্য ব্যাংক" column — DB তে field নেই, blank দেখাবে। পরে চাইলে schema এ add করা যাবে।
+- Selection order উপেক্ষা করা হবে — output সর্বদা canonical (image) order।
+- Security/RLS unchanged।
 
