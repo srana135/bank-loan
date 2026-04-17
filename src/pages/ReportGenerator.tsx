@@ -61,6 +61,35 @@ const ReportGenerator = () => {
 
   const branchName = (id: string | null) => branches?.find(b => b.id === id)?.branch_name || 'Unknown';
 
+  // Recovery aggregates per loan (for loan PDF/Excel columns: recovered_amount, recovery_date)
+  const recoveryAgg = useMemo(() => {
+    const map = new Map<string, { total: number; lastAmt: number; lastDate: string }>();
+    (allRecoveries || []).forEach(r => {
+      const cur = map.get(r.loan_id) || { total: 0, lastAmt: 0, lastDate: '' };
+      cur.total += Number(r.recovered_amount) || 0;
+      if (!cur.lastDate || r.recovery_date > cur.lastDate) {
+        cur.lastDate = r.recovery_date;
+        cur.lastAmt = Number(r.recovered_amount) || 0;
+      }
+      map.set(r.loan_id, cur);
+    });
+    return map;
+  }, [allRecoveries]);
+
+  const branchCodeMap = useMemo(() => {
+    const m = new Map<string, string>();
+    branches?.forEach(b => m.set(b.id, b.branch_code));
+    return m;
+  }, [branches]);
+
+  // Loan columns from settings (canonical order)
+  const loanExportColumns = useMemo(() => {
+    const selected = appSettings?.pdf_loan_columns?.length
+      ? new Set(appSettings.pdf_loan_columns)
+      : new Set(CANONICAL_LOAN_COLUMN_ORDER);
+    return CANONICAL_LOAN_COLUMN_ORDER.filter(k => selected.has(k));
+  }, [appSettings]);
+
   const handleGenerate = () => {
     setGenerating(true);
     setTimeout(() => {
