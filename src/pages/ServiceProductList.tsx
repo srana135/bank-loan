@@ -114,15 +114,26 @@ const ServiceProductList = () => {
     setUploading(false);
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from('documents').getPublicUrl(path);
-    return data.publicUrl;
+  const getSignedUrl = async (path: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast.error('Could not generate file link');
+      return null;
+    }
+    return data.signedUrl;
   };
 
-  const openPreview = (sf: ServiceFile) => {
+  const openPreview = async (sf: ServiceFile) => {
     if (!sf.file_path) return;
-    setPreviewUrl(getPublicUrl(sf.file_path));
+    const url = await getSignedUrl(sf.file_path);
+    if (!url) return;
+    setPreviewUrl(url);
     setPreviewType(sf.file_type || '');
+  };
+
+  const openInNewTab = async (path: string) => {
+    const url = await getSignedUrl(path);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -198,10 +209,8 @@ const ServiceProductList = () => {
                     </Button>
                   )}
                   {f.file_path && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={getPublicUrl(f.file_path)} target="_blank" rel="noopener noreferrer" className="gap-1">
-                        <Download className="h-3 w-3" /> Open
-                      </a>
+                    <Button size="sm" variant="outline" onClick={() => openInNewTab(f.file_path!)} className="gap-1">
+                      <Download className="h-3 w-3" /> Open
                     </Button>
                   )}
                   {canUpload && (
