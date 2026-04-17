@@ -29,6 +29,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 
 const CASE_TYPES = ['NI Act', 'Artha Rin', 'PDR', 'Civil', 'Criminal', 'Execution', 'Other'];
 const CASE_STATUSES = ['active', 'disposed', 'settled', 'stayed', 'withdrawn'];
@@ -295,6 +297,43 @@ const LegalManagement = () => {
     profiles?.forEach(p => m.set(p.id, p));
     return m;
   }, [profiles]);
+
+  // Live "latest court order" per case — derived from legal_case_orders
+  // so existing/imported cases (where the cached snapshot on legal_cases is NULL)
+  // also display correctly.
+  const caseIds = useMemo(() => (cases || []).map(c => c.id), [cases]);
+  const { data: allOrders } = useQuery({
+    queryKey: ['legal-case-orders-latest', caseIds],
+    queryFn: async () => {
+      if (!caseIds.length) return [];
+      const { data, error } = await supabase
+        .from('legal_case_orders')
+        .select('case_id, order_date, order_summary, next_date')
+        .in('case_id', caseIds)
+        .order('order_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: caseIds.length > 0,
+  });
+
+  const latestOrderMap = useMemo(() => {
+    const m = new Map<string, { order_date: string | null; order_summary: string | null; next_date: string | null }>();
+    (allOrders || []).forEach((o: any) => {
+      if (!m.has(o.case_id)) m.set(o.case_id, { order_date: o.order_date, order_summary: o.order_summary, next_date: o.next_date });
+    });
+    return m;
+  }, [allOrders]);
+
+  // Helper: resolve latest order with cached snapshot fallback
+  const getLatestOrder = (c: LegalCase) => {
+    const live = latestOrderMap.get(c.id);
+    return {
+      order_summary: live?.order_summary ?? c.latest_order_summary ?? null,
+      order_date: live?.order_date ?? c.latest_order_date ?? null,
+    };
+  };
+
 
   const filtered = useMemo(() => {
     if (!cases) return [];
@@ -658,11 +697,12 @@ const LegalManagement = () => {
     filtered.forEach(c => {
       if (y > 195) { doc.addPage(); y = 15; }
       const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
-      const orderSummary = c.latest_order_summary ? String(c.latest_order_summary).substring(0, 50) : '-';
+      const lo = getLatestOrder(c);
+      const orderSummary = lo.order_summary ? String(lo.order_summary).substring(0, 50) : '-';
       const vals = [
         c.case_number, c.case_type, loan?.account_no || '-', loan?.borrower_name || '-',
         c.claim_amount ? `Tk ${c.claim_amount.toLocaleString()}` : '-',
-        c.next_date || '-', c.status, orderSummary, c.latest_order_date || '-',
+        c.next_date || '-', c.status, orderSummary, lo.order_date || '-',
       ];
       vals.forEach((v, i) => {
         const maxLen = i === 7 ? 50 : 18;
@@ -852,12 +892,16 @@ const LegalManagement = () => {
                         <div className="col-span-2 flex items-center gap-1">
                           <span className="text-muted-foreground">Next:</span> {nextDateBadge(c.next_date) || '-'}
                         </div>
-                        {c.latest_order_summary && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{c.latest_order_summary}</span>
-                            {c.latest_order_date && <div className="text-[10px] text-muted-foreground">{c.latest_order_date}</div>}
-                          </div>
-                        )}
+                        {(() => {
+                          const lo = getLatestOrder(c);
+                          if (!lo.order_summary) return null;
+                          return (
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{lo.order_summary}</span>
+                              {lo.order_date && <div className="text-[10px] text-muted-foreground">{lo.order_date}</div>}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {canManage && (
                         <div className="flex gap-1 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
@@ -916,12 +960,15 @@ const LegalManagement = () => {
                         <TableCell className="text-sm">{c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</TableCell>
                         <TableCell>{nextDateBadge(c.next_date) || '-'}</TableCell>
                         <TableCell className="hidden lg:table-cell text-xs max-w-[200px]">
-                          {c.latest_order_summary ? (
-                            <div>
-                              <p className="truncate">{c.latest_order_summary}</p>
-                              {c.latest_order_date && <p className="text-[10px] text-muted-foreground">{c.latest_order_date}</p>}
-                            </div>
-                          ) : '-'}
+                          {(() => {
+                            const lo = getLatestOrder(c);
+                            return lo.order_summary ? (
+                              <div>
+                                <p className="truncate">{lo.order_summary}</p>
+                                {lo.order_date && <p className="text-[10px] text-muted-foreground">{lo.order_date}</p>}
+                              </div>
+                            ) : '-';
+                          })()}
                         </TableCell>
                         {canManage && (
                           <TableCell onClick={e => e.stopPropagation()}>
@@ -1475,9 +1522,10 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
             <span className="text-muted-foreground">Next Date</span>
             <span>{nextDateBadge(legalCase.next_date) || '-'}</span>
           </div>
-          {legalCase.latest_order_date && (
-            <Row label="Latest Order Date" value={legalCase.latest_order_date} />
-          )}
+          {(() => {
+            const latestDate = orders?.[0]?.order_date || legalCase.latest_order_date;
+            return latestDate ? <Row label="Latest Order Date" value={latestDate} /> : null;
+          })()}
           {legalCase.remarks && <Row label="Remarks" value={legalCase.remarks} />}
           {loan && (
             <>
