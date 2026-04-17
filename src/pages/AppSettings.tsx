@@ -569,6 +569,8 @@ const AppSettings = () => {
                     { key: 'guarantor_2_name', label: 'জামিনদার ২ নাম' },
                     { key: 'guarantor_2_mobile', label: 'জামিনদার ২ মোবাইল' },
                     { key: 'branch_code', label: 'শাখা কোড' },
+                    { key: 'recovered_amount', label: 'আদায়ের পরিমাণ' },
+                    { key: 'recovery_date', label: 'আদায়ের তারিখ' },
                   ].map(col => (
                     <label key={col.key} className={`flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 ${col.required ? 'font-medium' : ''}`}>
                       <Checkbox
