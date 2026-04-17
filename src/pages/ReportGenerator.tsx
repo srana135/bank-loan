@@ -93,6 +93,55 @@ const ReportGenerator = () => {
     return CANONICAL_LOAN_COLUMN_ORDER.filter(k => selected.has(k));
   }, [appSettings]);
 
+  // === Legal case report support ===
+  const { data: lawyers } = useLawyers();
+  const lawyersMap = useMemo(() => {
+    const m = new Map<string, any>();
+    (lawyers || []).forEach(l => m.set(l.id, l));
+    return m;
+  }, [lawyers]);
+  const loansMap = useMemo(() => {
+    const m = new Map<string, any>();
+    (loans || []).forEach(l => m.set(l.id, l));
+    return m;
+  }, [loans]);
+
+  // Bulk-fetch latest order per case in current scope
+  const caseIds = useMemo(() => filteredCases.map(c => c.id), [filteredCases]);
+  const { data: caseOrders } = useQuery({
+    queryKey: ['report-case-orders', caseIds],
+    queryFn: async () => {
+      if (!caseIds.length) return [];
+      const { data, error } = await supabase
+        .from('legal_case_orders')
+        .select('case_id, order_date, order_summary, next_date')
+        .in('case_id', caseIds)
+        .order('order_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: caseIds.length > 0,
+    staleTime: 60_000,
+  });
+  const latestOrderMap = useMemo(() => {
+    const m = new Map<string, { order_date: string; order_summary: string; next_date?: string | null }>();
+    (caseOrders || []).forEach((o: any) => {
+      if (!m.has(o.case_id)) {
+        m.set(o.case_id, { order_date: o.order_date, order_summary: o.order_summary, next_date: o.next_date });
+      }
+    });
+    return m;
+  }, [caseOrders]);
+
+  // Legal case columns from settings — always canonical order, selection only filters in/out
+  const legalCaseExportColumns = useMemo(() => {
+    const sel = appSettings?.pdf_legal_case_columns?.length
+      ? new Set(appSettings.pdf_legal_case_columns)
+      : new Set(CANONICAL_LEGAL_CASE_COLUMN_ORDER);
+    return CANONICAL_LEGAL_CASE_COLUMN_ORDER.filter(k => sel.has(k));
+  }, [appSettings]);
+
+
   const handleGenerate = () => {
     setGenerating(true);
     setTimeout(() => {
