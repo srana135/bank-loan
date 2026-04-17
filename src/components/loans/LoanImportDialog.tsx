@@ -37,10 +37,14 @@ const ALL_IMPORT_COLUMNS: Record<string, string> = {
   guarantor_2_name: 'Guarantor 2 Name',
   guarantor_2_mobile: 'Guarantor 2 Mobile',
   branch_code: 'Branch Code',
+  recovered_amount: 'Recovery Amount',
+  recovery_date: 'Recovery Date',
 };
 
-const NUMERIC_COLS = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount'];
+const NUMERIC_COLS = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount'];
 const INT_COLS = ['overdue_installment_number'];
+// Recovery-specific columns are written to loan_recoveries instead of loans
+const RECOVERY_COLS = ['recovered_amount', 'recovery_date'];
 
 interface RowError { row: number; accountNo: string; error: string; }
 interface ImportResult { total: number; success: number; failed: number; errors: RowError[]; }
