@@ -892,12 +892,16 @@ const LegalManagement = () => {
                         <div className="col-span-2 flex items-center gap-1">
                           <span className="text-muted-foreground">Next:</span> {nextDateBadge(c.next_date) || '-'}
                         </div>
-                        {c.latest_order_summary && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{c.latest_order_summary}</span>
-                            {c.latest_order_date && <div className="text-[10px] text-muted-foreground">{c.latest_order_date}</div>}
-                          </div>
-                        )}
+                        {(() => {
+                          const lo = getLatestOrder(c);
+                          if (!lo.order_summary) return null;
+                          return (
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{lo.order_summary}</span>
+                              {lo.order_date && <div className="text-[10px] text-muted-foreground">{lo.order_date}</div>}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {canManage && (
                         <div className="flex gap-1 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
