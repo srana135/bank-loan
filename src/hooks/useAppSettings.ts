@@ -65,6 +65,7 @@ export interface AppSettingsMap {
   // PDF export column selections
   pdf_loan_columns: string[];
   pdf_legal_columns: string[];
+  pdf_legal_case_columns: string[];
   pdf_notice_columns: string[];
   // Import column config
   import_loan_columns: string[];
@@ -124,6 +125,7 @@ const DEFAULTS: AppSettingsMap = {
     'recovered_amount', 'recovery_date',
   ],
   pdf_legal_columns: ['case_number', 'case_type', 'defendant_name', 'claim_amount', 'next_date', 'status', 'court_name'],
+  pdf_legal_case_columns: ['serial', 'case_type', 'case_number', 'filing_date', 'parties', 'claim_amount', 'latest_status'],
   pdf_notice_columns: ['borrower_name', 'account_no', 'notice_type', 'sent_date', 'receipt_status', 'case_filing_deadline'],
   import_loan_columns: [
     'account_no', 'account_name', 'borrower_name', 'mobile', 'account_type', 'account_status',
