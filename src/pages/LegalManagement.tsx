@@ -697,11 +697,12 @@ const LegalManagement = () => {
     filtered.forEach(c => {
       if (y > 195) { doc.addPage(); y = 15; }
       const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
-      const orderSummary = c.latest_order_summary ? String(c.latest_order_summary).substring(0, 50) : '-';
+      const lo = getLatestOrder(c);
+      const orderSummary = lo.order_summary ? String(lo.order_summary).substring(0, 50) : '-';
       const vals = [
         c.case_number, c.case_type, loan?.account_no || '-', loan?.borrower_name || '-',
         c.claim_amount ? `Tk ${c.claim_amount.toLocaleString()}` : '-',
-        c.next_date || '-', c.status, orderSummary, c.latest_order_date || '-',
+        c.next_date || '-', c.status, orderSummary, lo.order_date || '-',
       ];
       vals.forEach((v, i) => {
         const maxLen = i === 7 ? 50 : 18;
