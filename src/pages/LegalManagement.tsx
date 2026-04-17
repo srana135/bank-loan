@@ -854,8 +854,8 @@ const LegalManagement = () => {
                         </div>
                         {c.latest_order_summary && (
                           <div className="col-span-2">
-                            <span className="text-muted-foreground">Last Order:</span> <span className="truncate">{c.latest_order_summary}</span>
-                            {c.latest_order_date && <span className="text-muted-foreground ml-1">({c.latest_order_date})</span>}
+                            <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{c.latest_order_summary}</span>
+                            {c.latest_order_date && <div className="text-[10px] text-muted-foreground">{c.latest_order_date}</div>}
                           </div>
                         )}
                       </div>
