@@ -590,35 +590,25 @@ const AppSettings = () => {
               </div>
 
               <Separator />
-              {/* Loan PDF columns */}
+              {/* Loan PDF columns — same column set as Import Template (single source of truth) */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">ঋণ (Loan) PDF কলাম</Label>
+                <p className="text-xs text-muted-foreground">এই কলামগুলো ঋণ Import Template এর সাথে synced। PDF + Excel export এ একই কলাম ও order ব্যবহৃত হবে।</p>
+                <div className="flex gap-2 mb-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => update('pdf_loan_columns', [...CANONICAL_LOAN_COLUMN_ORDER])}>সব নির্বাচন</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => update('pdf_loan_columns', [])}>সব বাদ</Button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {[
-                    { key: 'account_no', label: 'হিসাব নং' },
-                    { key: 'borrower_name', label: 'ঋণগ্রহীতা' },
-                    { key: 'account_name', label: 'প্রতিষ্ঠান' },
-                    { key: 'mobile', label: 'মোবাইল' },
-                    { key: 'outstanding_amount', label: 'বকেয়া' },
-                    { key: 'overdue_amount', label: 'মেয়াদোত্তীর্ণ' },
-                    { key: 'classification', label: 'শ্রেণিবিভাগ' },
-                    { key: 'installment_amount', label: 'কিস্তি' },
-                    { key: 'overdue_installment_number', label: 'বকেয়া কিস্তি সংখ্যা' },
-                    { key: 'disbursed_loan_amount', label: 'বিতরণকৃত' },
-                    { key: 'disbursement_date', label: 'বিতরণ তারিখ' },
-                    { key: 'address', label: 'ঠিকানা' },
-                    { key: 'latest_comment', label: 'সর্বশেষ মন্তব্য' },
-                    { key: 'latest_proposed_date', label: 'প্রস্তাবিত তারিখ' },
-                  ].map(col => (
-                    <label key={col.key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                  {CANONICAL_LOAN_COLUMN_ORDER.map(key => (
+                    <label key={key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
                       <Checkbox
-                        checked={form.pdf_loan_columns.includes(col.key)}
+                        checked={form.pdf_loan_columns.includes(key)}
                         onCheckedChange={(checked) => {
-                          if (checked) update('pdf_loan_columns', [...form.pdf_loan_columns, col.key]);
-                          else update('pdf_loan_columns', form.pdf_loan_columns.filter(c => c !== col.key));
+                          if (checked) update('pdf_loan_columns', [...form.pdf_loan_columns, key]);
+                          else update('pdf_loan_columns', form.pdf_loan_columns.filter(c => c !== key));
                         }}
                       />
-                      {col.label}
+                      {ALL_LOAN_COLUMNS[key]}
                     </label>
                   ))}
                 </div>
