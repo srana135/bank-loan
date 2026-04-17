@@ -1,12 +1,15 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
-import { useLegalCases } from '@/hooks/useLegal';
+import { useLegalCases, useLawyers } from '@/hooks/useLegal';
 import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, getLoanFieldValue } from '@/lib/loanColumns';
+import { ALL_LEGAL_CASE_COLUMNS, CANONICAL_LEGAL_CASE_COLUMN_ORDER, getLegalCaseFieldValue, toBengaliNumber } from '@/lib/legalCaseColumns';
 import { BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
