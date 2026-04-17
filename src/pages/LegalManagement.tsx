@@ -1522,9 +1522,10 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
             <span className="text-muted-foreground">Next Date</span>
             <span>{nextDateBadge(legalCase.next_date) || '-'}</span>
           </div>
-          {legalCase.latest_order_date && (
-            <Row label="Latest Order Date" value={legalCase.latest_order_date} />
-          )}
+          {(() => {
+            const latestDate = orders?.[0]?.order_date || legalCase.latest_order_date;
+            return latestDate ? <Row label="Latest Order Date" value={latestDate} /> : null;
+          })()}
           {legalCase.remarks && <Row label="Remarks" value={legalCase.remarks} />}
           {loan && (
             <>
