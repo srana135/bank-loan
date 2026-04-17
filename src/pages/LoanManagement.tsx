@@ -223,58 +223,128 @@ const LoanManagement = () => {
     setQuickCommentLoanId(null);
   };
 
-  const handleExportExcel = () => {
-    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
-    const ws = XLSX.utils.json_to_sheet(filteredLoans.map(l => ({
-      'Account No': l.account_no, 'Account Name': l.account_name, 'Borrower Name': l.borrower_name,
-      'Mobile': l.mobile, 'Account Type': l.account_type, 'Status': l.account_status, 'Address': l.address,
-      'Installment': l.installment_amount, 'Overdue Inst.': l.overdue_installment_number,
-      'Overdue Amt': l.overdue_amount, 'Outstanding': l.outstanding_amount,
-      'Classification': l.classification, 'Latest Comment': l.latest_comment, 'Proposed Date': l.latest_proposed_date,
-    })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Loans');
-    XLSX.writeFile(wb, `loans_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
-
-  const handleExportPDF = () => {
-    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
-    // Build per-loan recovery aggregates: total, last amount, last date
-    const recoveryAgg = new Map<string, { total: number; lastAmt: number; lastDate: string }>();
+  // Build per-loan recovery aggregates: total, last amount, last date — used by both PDF & Excel
+  const recoveryAgg = useMemo(() => {
+    const map = new Map<string, { total: number; lastAmt: number; lastDate: string }>();
     (allRecoveries || []).forEach(r => {
-      const cur = recoveryAgg.get(r.loan_id) || { total: 0, lastAmt: 0, lastDate: '' };
+      const cur = map.get(r.loan_id) || { total: 0, lastAmt: 0, lastDate: '' };
       cur.total += Number(r.recovered_amount) || 0;
       if (!cur.lastDate || r.recovery_date > cur.lastDate) {
         cur.lastDate = r.recovery_date;
         cur.lastAmt = Number(r.recovered_amount) || 0;
       }
-      recoveryAgg.set(r.loan_id, cur);
+      map.set(r.loan_id, cur);
     });
+    return map;
+  }, [allRecoveries]);
+
+  // Branch ID → Branch Code lookup
+  const branchCodeMap = useMemo(() => {
+    const m = new Map<string, string>();
+    branches?.forEach(b => m.set(b.id, b.branch_code));
+    return m;
+  }, [branches]);
+
+  // Resolve which loan columns to export (settings-driven, canonical order)
+  const exportColumns = useMemo(() => {
+    const selected = appSettings?.pdf_loan_columns?.length
+      ? new Set(appSettings.pdf_loan_columns)
+      : new Set(CANONICAL_LOAN_COLUMN_ORDER);
+    return CANONICAL_LOAN_COLUMN_ORDER.filter(k => selected.has(k));
+  }, [appSettings]);
+
+  const handleExportExcel = () => {
+    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
+    const headerLabel = `Loan Report — ${userRole === 'admin' ? (adminBranchFilter === '__all__' ? 'All Branches' : (branches?.find(b => b.id === adminBranchFilter)?.branch_name || '')) : (branchName || 'All')}`;
+    const subHeader = `Generated: ${new Date().toLocaleString()} | Total: ${filteredLoans.length}`;
+    const headers = exportColumns.map(k => ALL_LOAN_COLUMNS[k]);
+    const rows = filteredLoans.map(l =>
+      exportColumns.map(k => getLoanFieldValue(l, k, { recoveryAgg, branchMap: branchCodeMap }))
+    );
+    // Footer: total row (sum of numeric columns)
+    const totals = exportColumns.map((k, idx) => {
+      if (idx === 0) return 'TOTAL';
+      const numericKeys = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount'];
+      if (!numericKeys.includes(k)) return '';
+      return rows.reduce((s, r) => s + (Number(r[idx]) || 0), 0);
+    });
+    // Build single sheet: header (merged) + sub-header (merged) + blank + table headers + rows + blank + totals
+    const aoa: any[][] = [
+      [headerLabel, ...Array(Math.max(0, headers.length - 1)).fill('')],
+      [subHeader, ...Array(Math.max(0, headers.length - 1)).fill('')],
+      Array(headers.length).fill(''),
+      headers,
+      ...rows,
+      Array(headers.length).fill(''),
+      totals,
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // Merge header cells across full table width
+    const lastCol = headers.length - 1;
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+    ];
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Loans');
+    XLSX.writeFile(wb, `loans_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Excel exported with ${exportColumns.length} columns`);
+  };
+
+  const handleExportPDF = () => {
+    if (!filteredLoans.length) { toast.error('No loans to export'); return; }
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
     doc.text('Loan Report', 14, 15);
     doc.setFontSize(7);
     doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${filteredLoans.length}`, 14, 21);
+
+    // Compute column widths to fit landscape (A4 = ~297mm; usable ~280mm)
+    const usableWidth = 280;
+    const colWidth = Math.max(14, Math.floor(usableWidth / exportColumns.length));
+    const xs: number[] = [];
+    { let x = 10; exportColumns.forEach(() => { xs.push(x); x += colWidth; }); }
+
     let y = 28;
-    const cols = ['Acc No', 'Borrower', 'Mobile', 'Type', 'Outstand.', 'Overdue', 'Class', 'Total Rec.', 'Last Rec.', 'Last Rec. Date'];
-    const widths = [24, 32, 22, 22, 24, 22, 14, 24, 22, 26];
-    const xs: number[] = []; { let x = 10; widths.forEach(w => { xs.push(x); x += w; }); }
     doc.setFont('helvetica', 'bold');
-    cols.forEach((h, i) => doc.text(h, xs[i], y));
+    doc.setFontSize(7);
+    exportColumns.forEach((k, i) => {
+      const label = ALL_LOAN_COLUMNS[k];
+      // Truncate long header to fit cell width
+      const maxChars = Math.floor(colWidth / 1.6);
+      doc.text(label.length > maxChars ? label.slice(0, maxChars) : label, xs[i], y);
+    });
     y += 5;
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+
     filteredLoans.forEach(l => {
-      if (y > 195) { doc.addPage(); y = 15; }
-      const agg = recoveryAgg.get(l.id) || { total: 0, lastAmt: 0, lastDate: '' };
-      const vals = [
-        l.account_no, l.borrower_name, l.mobile, l.account_type,
-        String(l.outstanding_amount || 0), String(l.overdue_amount || 0), l.classification,
-        String(agg.total), agg.lastAmt ? String(agg.lastAmt) : '-', agg.lastDate || '-',
-      ];
-      vals.forEach((v, i) => doc.text(String(v || '').substring(0, 22), xs[i], y));
+      if (y > 195) {
+        doc.addPage();
+        y = 15;
+        // Re-draw header on new page
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        exportColumns.forEach((k, i) => {
+          const label = ALL_LOAN_COLUMNS[k];
+          const maxChars = Math.floor(colWidth / 1.6);
+          doc.text(label.length > maxChars ? label.slice(0, maxChars) : label, xs[i], y);
+        });
+        y += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+      }
+      exportColumns.forEach((k, i) => {
+        const v = getLoanFieldValue(l, k, { recoveryAgg, branchMap: branchCodeMap });
+        const str = String(v ?? '');
+        const maxChars = Math.floor(colWidth / 1.4);
+        doc.text(str.length > maxChars ? str.slice(0, maxChars) : str, xs[i], y);
+      });
       y += 4.5;
     });
     doc.save(`loans_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success(`PDF exported with ${exportColumns.length} columns`);
   };
 
   const openLoanDetail = (loan: Loan) => { setDetailLoan(loan); setDetailOpen(true); };
