@@ -186,6 +186,7 @@ const LegalManagement = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [branchFilterVal, setBranchFilterVal] = useState('all');
   const [lawyerFilter, setLawyerFilter] = useState('all');
+  const [officerFilter, setOfficerFilter] = useState('all');
   const [statsFilter, setStatsFilter] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editCase, setEditCase] = useState<LegalCase | null>(null);
