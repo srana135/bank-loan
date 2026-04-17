@@ -1,30 +1,41 @@
 
 
-# Proposed Date — Comment Sync Fix + Inline Quick Edit
+## Audit findings
 
-## পরিবর্তন ১: Comment Edit Sync Fix (`useLoans.ts`)
+**Why "Court Orders" shows "-" for every case:**
 
-`useUpdateComment` হুকে comment এর `proposed_repayment_date` এডিট করলে `loans` টেবিলের `latest_proposed_date` ও আপডেট হবে। এর জন্য mutation এ `loan_id` প্যারামিটার যোগ করতে হবে এবং সর্বশেষ proposed date খুঁজে loans টেবিল আপডেট করতে হবে।
+1. The table/cards read `c.latest_order_summary` and `c.latest_order_date` directly from the `legal_cases` row.
+2. These two columns are only written by `recomputeCaseLatestOrder()` in `useLegal.ts` — which only fires when an order is **added/updated/deleted** through the new UI.
+3. All cases that already had orders **before** this logic existed (or cases whose orders were created via bulk import/migration) still have `latest_order_summary = NULL` and `latest_order_date = NULL` in the DB.
+4. Result: the column is permanently "-" until someone manually re-saves an order on each case.
 
-`useDeleteComment` এও একই লজিক — কমেন্ট ডিলিট হলে বাকি কমেন্টগুলো থেকে সর্বশেষ proposed date বের করে loans টেবিল আপডেট করবে।
+The display code at lines 855–858 (mobile card) and 918–924 (table) is correct; the data is just stale.
 
-## পরিবর্তন ২: Inline Quick Edit (`LoanManagement.tsx`)
+## Fix: derive Court Orders live from `legal_case_orders`
 
-Proposed কলামে তারিখের পাশে ছোট Edit আইকন বাটন থাকবে। ক্লিক করলে inline date input দেখাবে — সেভ করলে সরাসরি `loans.latest_proposed_date` আপডেট হবে।
+Make `legal_case_orders` the single source of truth for the column instead of the cached snapshot.
 
-## ফাইল পরিবর্তন
+### Changes (single file: `src/pages/LegalManagement.tsx`)
 
-### `src/hooks/useLoans.ts`
-- **useUpdateComment**: `loan_id` প্যারামিটার যোগ। আপডেটের পর ঐ loan এর সব কমেন্ট থেকে সর্বশেষ `proposed_repayment_date` বের করে `loans.latest_proposed_date` আপডেট।
-- **useDeleteComment**: `loan_id` প্যারামিটার যোগ। ডিলিটের পর একই sync লজিক।
-- `loans` query ও invalidate করবে।
+1. **Fetch all orders once at page level**
+   - Add a new query that selects `case_id, order_date, order_summary, next_date` from `legal_case_orders` for cases in the current branch scope, ordered by `order_date desc`.
+   - Build a `Map<caseId, { order_date, order_summary, next_date }>` keeping only the **latest** entry per case.
 
-### `src/components/loans/LoanComments.tsx`
-- `handleSaveEdit` এ `loan_id` পাস করবে `updateComment.mutateAsync` তে।
-- `handleDelete` এ `loan_id` পাস করবে `deleteComment.mutateAsync` তে।
+2. **Replace the snapshot reads with the map lookup**
+   - In the desktop table cell (line ~918): use `latestOrderMap.get(c.id)?.order_summary` and `?.order_date` with fallback to `c.latest_order_summary` / `c.latest_order_date` (so cached values still work as backup).
+   - Same fallback in the mobile card (line ~855).
+   - Same fallback in PDF export (line ~661, ~665).
+   - Same fallback in `CaseDetailDrawer`'s "Latest Order Date" row.
 
-### `src/pages/LoanManagement.tsx`
-- Proposed কলামে (desktop ও mobile) inline edit state যোগ।
-- Edit icon → date input → Save/Cancel বাটন।
-- সেভ করলে `useUpdateLoan` দিয়ে `latest_proposed_date` সরাসরি আপডেট।
+3. **Backfill on read (optional safety net)**
+   - When the live map yields a value that differs from the cached snapshot, fire a one-time silent update to write it back to `legal_cases`. Keeps future reads cheap and self-heals legacy rows.
+
+### Why this approach
+- No migration / SQL needed.
+- Works immediately for every existing case (including bulk-imported ones).
+- Keeps the existing `recomputeCaseLatestOrder()` for write-time updates — they remain in sync.
+- All security/RLS unchanged (same tables, same select rights as `useCaseOrders`).
+
+### Files to edit
+- `src/pages/LegalManagement.tsx` — add the bulk orders query + latest-per-case map, swap the four read sites to use it with fallback.
 
