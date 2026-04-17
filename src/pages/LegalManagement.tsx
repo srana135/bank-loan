@@ -373,7 +373,7 @@ const LegalManagement = () => {
       today: active.filter(c => { const d = daysUntil(c.next_date); return d !== null && d <= 0; }).length,
       totalClaim: sumClaim(active),
     };
-  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, loanMap]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, officerFilter, loanMap]);
 
   // Notice stats
   const noticeStats = useMemo(() => {
