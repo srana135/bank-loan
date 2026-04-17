@@ -60,8 +60,11 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
 
-  // Get configured columns from settings
-  const configuredColumns = settings?.import_loan_columns || Object.keys(ALL_IMPORT_COLUMNS);
+  // Canonical column order — template ALWAYS uses this order regardless of selection
+  const CANONICAL_ORDER = Object.keys(ALL_IMPORT_COLUMNS);
+  // Get configured columns from settings (or all if none configured); then re-sort to canonical order
+  const selectedSet = new Set<string>(settings?.import_loan_columns?.length ? settings.import_loan_columns : CANONICAL_ORDER);
+  const configuredColumns = CANONICAL_ORDER.filter(k => selectedSet.has(k));
   const templateColumns = configuredColumns.map(k => ALL_IMPORT_COLUMNS[k] || k).filter(Boolean);
 
   const downloadTemplate = useCallback(() => {

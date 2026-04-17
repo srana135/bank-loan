@@ -89,19 +89,17 @@ const Login = () => {
     const isEmail = email.includes("@");
 
     if (!isEmail) {
-      // Look up email from profiles table using user_id
-      const { data: profileData, error: lookupError } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("user_id", data.identifier)
-        .single();
+      // Profiles table is auth-gated by RLS, so use a SECURITY DEFINER RPC
+      // that anonymous users can call to resolve user_id → email.
+      const { data: resolvedEmail, error: lookupError } = await supabase
+        .rpc("get_email_by_user_id", { _user_id: data.identifier });
 
-      if (lookupError || !profileData?.email) {
+      if (lookupError || !resolvedEmail) {
         setLoading(false);
         toast.error("User ID not found. Please check and try again.");
         return;
       }
-      email = profileData.email;
+      email = resolvedEmail as string;
     }
 
     const { error } = await signIn(email, data.password);
