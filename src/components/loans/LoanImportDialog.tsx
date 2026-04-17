@@ -154,8 +154,47 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
             payload.created_by = user?.id;
 
             const { error } = await supabase.from('loans').upsert(payload, { onConflict: 'account_no' });
-            if (error) errors.push({ row: rowNum, accountNo, error: error.message });
-            else success++;
+            if (error) { errors.push({ row: rowNum, accountNo, error: error.message }); continue; }
+            success++;
+
+            // Recovery insert (if Recovery Amount + Recovery Date supplied in this row)
+            const recAmtRaw = row['Recovery Amount'];
+            const recDateRaw = row['Recovery Date'];
+            const recAmt = Number(recAmtRaw) || 0;
+            let recDate = '';
+            if (recDateRaw) {
+              if (typeof recDateRaw === 'number') {
+                // Excel date serial → ISO
+                const d = XLSX.SSF.parse_date_code(recDateRaw);
+                if (d) recDate = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+              } else {
+                recDate = String(recDateRaw).trim().slice(0, 10);
+              }
+            }
+            if (recAmt > 0 && recDate) {
+              // Resolve loan id by account_no
+              const { data: loanRow } = await supabase.from('loans').select('id, outstanding_amount, installment_amount, overdue_installment_number').eq('account_no', accountNo).maybeSingle();
+              if (loanRow) {
+                // Upsert by (loan_id, recovery_date) — same date = update amount only
+                const { data: existing } = await supabase.from('loan_recoveries').select('id, recovered_amount').eq('loan_id', loanRow.id).eq('recovery_date', recDate).maybeSingle();
+                let amountDelta = recAmt;
+                if (existing) {
+                  amountDelta = recAmt - (existing.recovered_amount || 0);
+                  await supabase.from('loan_recoveries').update({ recovered_amount: recAmt, recovery_type: 'imported' }).eq('id', existing.id);
+                } else {
+                  await supabase.from('loan_recoveries').insert({
+                    loan_id: loanRow.id, recovery_date: recDate, recovered_amount: recAmt,
+                    recovery_type: 'imported', note: 'From import', created_by: user?.id,
+                  });
+                }
+                // Adjust outstanding & overdue installments
+                const newOutstanding = Math.max(0, (loanRow.outstanding_amount || 0) - amountDelta);
+                const installment = loanRow.installment_amount || 1;
+                const installmentsDelta = Math.floor(Math.abs(amountDelta) / installment) * Math.sign(amountDelta);
+                const newOverdue = Math.max(0, (loanRow.overdue_installment_number || 0) - installmentsDelta);
+                await supabase.from('loans').update({ outstanding_amount: newOutstanding, overdue_installment_number: newOverdue }).eq('id', loanRow.id);
+              }
+            }
           } catch (err: any) {
             errors.push({ row: rowNum, accountNo: String(row['Account No'] || ''), error: err.message });
           }
@@ -170,6 +209,8 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
           error_summary: errors.length > 0 ? errors : null, imported_by: user?.id,
         });
         qc.invalidateQueries({ queryKey: ['loans'] });
+        qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
+        qc.invalidateQueries({ queryKey: ['all-recoveries'] });
         if (success > 0) toast.success(`${success} loan(s) imported/updated`);
         if (errors.length > 0) toast.error(`${errors.length} row(s) failed`);
       } catch (err: any) {
