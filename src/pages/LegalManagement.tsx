@@ -186,6 +186,7 @@ const LegalManagement = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [branchFilterVal, setBranchFilterVal] = useState('all');
   const [lawyerFilter, setLawyerFilter] = useState('all');
+  const [officerFilter, setOfficerFilter] = useState('all');
   const [statsFilter, setStatsFilter] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editCase, setEditCase] = useState<LegalCase | null>(null);
@@ -307,7 +308,8 @@ const LegalManagement = () => {
       const matchType = typeFilter === 'all' || c.case_type === typeFilter;
       const matchBranch = branchFilterVal === 'all' || c.branch_id === branchFilterVal;
       const matchLawyer = lawyerFilter === 'all' || c.lawyer_id === lawyerFilter;
-      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer;
+      const matchOfficer = officerFilter === 'all' || c.officer_id === officerFilter;
+      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer && matchOfficer;
     });
 
     // Stats filter
@@ -337,7 +339,7 @@ const LegalManagement = () => {
     }
 
     return result;
-  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, statsFilter, sortKey, sortDir, loanMap]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, officerFilter, statsFilter, sortKey, sortDir, loanMap]);
 
   // Stats should reflect dropdown filters (status, type, branch, lawyer) but NOT statsFilter
   const stats = useMemo(() => {
@@ -353,7 +355,8 @@ const LegalManagement = () => {
       const matchType = typeFilter === 'all' || c.case_type === typeFilter;
       const matchBranch = branchFilterVal === 'all' || c.branch_id === branchFilterVal;
       const matchLawyer = lawyerFilter === 'all' || c.lawyer_id === lawyerFilter;
-      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer;
+      const matchOfficer = officerFilter === 'all' || c.officer_id === officerFilter;
+      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer && matchOfficer;
     });
     const active = base.filter(c => c.status === 'active');
     const niCases = active.filter(c => c.case_type === 'NI Act');
@@ -370,7 +373,7 @@ const LegalManagement = () => {
       today: active.filter(c => { const d = daysUntil(c.next_date); return d !== null && d <= 0; }).length,
       totalClaim: sumClaim(active),
     };
-  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, loanMap]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, officerFilter, loanMap]);
 
   // Notice stats
   const noticeStats = useMemo(() => {
@@ -780,6 +783,17 @@ const LegalManagement = () => {
                 </SelectContent>
               </Select>
             )}
+            {profiles && profiles.length > 0 && (
+              <Select value={officerFilter} onValueChange={setOfficerFilter}>
+                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Responsible Officer" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Responsible Officer</SelectItem>
+                  {profiles.filter(p => p.is_active).map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {lawyers && lawyers.length > 0 && (
               <Select value={lawyerFilter} onValueChange={setLawyerFilter}>
                 <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Lawyer" /></SelectTrigger>
@@ -840,8 +854,8 @@ const LegalManagement = () => {
                         </div>
                         {c.latest_order_summary && (
                           <div className="col-span-2">
-                            <span className="text-muted-foreground">Last Order:</span> <span className="truncate">{c.latest_order_summary}</span>
-                            {c.latest_order_date && <span className="text-muted-foreground ml-1">({c.latest_order_date})</span>}
+                            <span className="text-muted-foreground">Court Orders:</span> <span className="truncate">{c.latest_order_summary}</span>
+                            {c.latest_order_date && <div className="text-[10px] text-muted-foreground">{c.latest_order_date}</div>}
                           </div>
                         )}
                       </div>
@@ -881,7 +895,7 @@ const LegalManagement = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('next_date')}>
                     <span className="flex items-center">Next Date <SortIcon active={sortKey === 'next_date'} dir={sortDir} /></span>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">Latest Order</TableHead>
+                  <TableHead className="hidden lg:table-cell">Court Orders</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
