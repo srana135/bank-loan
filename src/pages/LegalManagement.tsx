@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLegalCases, useCreateLegalCase, useUpdateLegalCase, useDeleteLegalCase, useCaseOrders, useAddCaseOrder, useLawyers, useCreateLawyer, useUpdateLawyer, useDeleteLawyer, useBulkImportCases } from '@/hooks/useLegal';
 import { useLegalNotices, useCreateLegalNotice, useUpdateLegalNotice, useDeleteLegalNotice } from '@/hooks/useLegalNotices';
@@ -196,6 +197,23 @@ const LegalManagement = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey | ''>('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // Auto-open a case from ?case=<id> query param (e.g. linked from Loan Management)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const caseId = searchParams.get('case');
+    if (caseId && cases) {
+      const found = cases.find(c => c.id === caseId);
+      if (found) {
+        setDetailCase(found);
+        setDetailOpen(true);
+        // clean URL after opening
+        searchParams.delete('case');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cases]);
 
   // Form state
   const [caseNumber, setCaseNumber] = useState('');
