@@ -1,68 +1,37 @@
 
 
-## Goal
-Settings এ "মামলা (Legal Case) PDF কলাম" section যোগ করা, ছবিতে দেখানো ১২-কলাম Bengali serial layout অনুযায়ী Report Generator থেকে PDF + Excel generate করা। User checkbox এ যেভাবেই select করুক — output সর্বদা canonical order এ থাকবে।
+The previous plan was already approved and implemented (see last-diff: `legalCaseColumns.ts` created, settings + ReportGenerator updated). The user's current message re-states the original three answers but the work is already done with those exact choices applied:
 
-## Image-based canonical column order
+- Field mapping: canonical 12-column Bengali order in `ALL_LEGAL_CASE_COLUMNS` ✓
+- Loan link: uses `loan_id` → loans map → `classification` (per existing `Loan.classification`) ✓
+- Default selection: `pdf_legal_case_columns` defaults to `['serial', 'case_type', 'case_number', 'filing_date', 'parties', 'claim_amount', 'latest_status']` ✓
 
-| # | Bengali header | Source field |
-|---|---|---|
-| ১ | ক্রমিক নং | auto serial |
-| ২ক | মামলার ধরন | `case_type` |
-| ২খ | মামলার নম্বর | `case_number` |
-| ৩ | মামলা দায়েরের তারিখ | `filing_date` |
-| ৪ | বাদী এবং বিবাদী | `plaintiff_name` + `defendant_name` (one cell, two lines) |
-| ৫ | আমলী আদালত | `court_name` |
-| ৬ | নিয়োজিত আইনজীবীর নাম ও মোবাইল | lawyer.name + lawyer.mobile (lookup via `lawyer_id`) |
-| ৭ | মামলার সর্বশেষ অবস্থা | latest entries from `legal_case_orders` (date + summary) |
-| ৮ | ব্যাংক কর্তৃক গৃহীত সর্বশেষ পদক্ষেপ | `description` (or remarks if empty) |
-| ৯ | জড়িত অন্যান্য ব্যাংক | new optional field — fallback "-" |
-| ১০ | ঋণ হিসাবের শ্রেণীকৃতমান (SMA/SS/DF/BL) | linked loan via `loan_id` → `classification` |
-| ১১ | মামলায় বিজড়িত অর্থের পরিমান | `claim_amount` (lakh format) |
-| ১২ | মন্তব্য | `remarks` |
+However, the user's stated preference for **Loan link** differs slightly: they said "LegalCase এ `loan_classification` নামে আলাদা field আছে — সেটাই use কর" (use a direct `loan_classification` field on LegalCase). Current implementation reads from the joined `loans` table via `loan_id`. Let me check whether `LegalCase` actually has a `loan_classification` field.
 
-Missing/null fields → blank cell (column order preserved)।
+Looking at `src/types/index.ts` LegalCase interface — there is **no** `loan_classification` field. So the user's stated assumption was incorrect; the current implementation (joining via `loan_id`) is the only viable approach with the existing schema.
 
-## Implementation
+## Proposal
 
-### 1. New file `src/lib/legalCaseColumns.ts`
-- `ALL_LEGAL_CASE_COLUMNS` map (key → Bengali label) in canonical order।
-- `CANONICAL_LEGAL_CASE_COLUMN_ORDER = Object.keys(...)`।
-- `getLegalCaseFieldValue(caseRow, key, ctx)` resolves loan classification, lawyer info, latest order, parties combination।
+Two options for closing this out:
 
-### 2. `src/hooks/useAppSettings.ts`
-- Add `pdf_legal_case_columns: string[]` to `AppSettingsMap` + DEFAULTS (all 12 selected by default)।
+### Option A — Keep current implementation (recommended)
+Current code already works correctly: `loan_classification` column resolves via `loan_id` → `loans.classification`. No `loan_classification` field exists on `LegalCase`, so a direct read isn't possible without a schema migration. Just confirm to user and ask them to verify.
 
-### 3. `src/pages/AppSettings.tsx` → "PDF" tab
-- Loan PDF column section এর নিচে নতুন "মামলা (Legal Case) PDF কলাম" section।
-- Checkbox list iterating `ALL_LEGAL_CASE_COLUMNS` in canonical order।
-- "Select All / Clear All" buttons।
-- Save → upsert `pdf_legal_case_columns`।
+### Option B — Add `loan_classification` field to LegalCase
+1. SQL migration: `ALTER TABLE legal_cases ADD COLUMN loan_classification text;`
+2. Update `LegalCase` type
+3. Update `LegalCaseForm` to allow setting it (optional override)
+4. Update `getLegalCaseFieldValue`: prefer `c.loan_classification` if set, fallback to joined loan
+5. Update bulk import template
 
-### 4. `src/pages/ReportGenerator.tsx` — "Legal Cases" report
-- Add queries: `useLawyers()`, `useLoans()` (for classification), bulk `legal_case_orders` (latest-per-case map — same pattern as LegalManagement)।
-- Compute `legalCaseExportColumns = CANONICAL_LEGAL_CASE_COLUMN_ORDER.filter(k => settings.pdf_legal_case_columns.includes(k))` → **always canonical order**, selection only filters in/out।
-- **PDF (jsPDF + autoTable)**:
-  - Landscape A4
-  - Title row (merged): "ব্যাংক/আর্থিক প্রতিষ্ঠানের মামলা সংক্রান্ত বিবরণী"
-  - Subtitle: "{dateTo} তারিখ ভিত্তিক"
-  - Table: header row (Bengali labels) + numbered serial row (১,২,৩...) + data rows
-  - Header repeats per page; title only on page 1
-- **Excel (xlsx)**:
-  - Single sheet, merged title row at top, merged subtitle row, header row, data rows, optional totals
-  - Cell-by-cell mapping using `getLegalCaseFieldValue`
+This adds a manual override field — useful if the case isn't linked to a loan, or if classification differs.
 
-### 5. Bengali numerals helper
-Reuse existing or add small `toBengaliNumber(n)` utility for serial column।
+### Recommendation
+Go with **Option A** (no code change needed — already implemented and shipped in the last diff). The joined-loan approach is more accurate (always reflects current loan classification) and avoids data-sync issues.
 
 ## Files
-- `src/lib/legalCaseColumns.ts` — new
-- `src/hooks/useAppSettings.ts` — add setting key + default
-- `src/pages/AppSettings.tsx` — add checkbox section in PDF tab
-- `src/pages/ReportGenerator.tsx` — rewrite legal-cases PDF + Excel using new column system
+- None (already implemented)
 
-## Notes
-- "জড়িত অন্যান্য ব্যাংক" column — DB তে field নেই, blank দেখাবে। পরে চাইলে schema এ add করা যাবে।
-- Selection order উপেক্ষা করা হবে — output সর্বদা canonical (image) order।
-- Security/RLS unchanged।
+## Next step for user
+Test in preview: open Settings → PDF tab → confirm the new "মামলা (Legal Case) PDF কলাম" section, then go to Report Generator → Legal Cases → download PDF + Excel and verify ১-১২ canonical order.
 
