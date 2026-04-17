@@ -209,10 +209,8 @@ const ServiceProductList = () => {
                     </Button>
                   )}
                   {f.file_path && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={getPublicUrl(f.file_path)} target="_blank" rel="noopener noreferrer" className="gap-1">
-                        <Download className="h-3 w-3" /> Open
-                      </a>
+                    <Button size="sm" variant="outline" onClick={() => openInNewTab(f.file_path!)} className="gap-1">
+                      <Download className="h-3 w-3" /> Open
                     </Button>
                   )}
                   {canUpload && (
