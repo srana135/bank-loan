@@ -83,7 +83,7 @@ const Login = () => {
 
   const onLogin = async (data: z.infer<typeof loginSchema>) => {
     setLoading(true);
-    let email = data.identifier;
+    let email = data.identifier.trim();
 
     // Check if identifier looks like an email
     const isEmail = email.includes("@");
@@ -92,11 +92,15 @@ const Login = () => {
       // Profiles table is auth-gated by RLS, so use a SECURITY DEFINER RPC
       // that anonymous users can call to resolve user_id → email.
       const { data: resolvedEmail, error: lookupError } = await supabase
-        .rpc("get_email_by_user_id", { _user_id: data.identifier });
+        .rpc("get_email_by_user_id", { _user_id: email });
 
       if (lookupError || !resolvedEmail) {
         setLoading(false);
-        toast.error("User ID not found. Please check and try again.");
+        toast.error(
+          lookupError
+            ? `Lookup failed: ${lookupError.message}`
+            : "User ID not found. Please check spelling/case and try again."
+        );
         return;
       }
       email = resolvedEmail as string;

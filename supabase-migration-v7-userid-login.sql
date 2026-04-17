@@ -15,7 +15,7 @@ SET search_path = public
 AS $$
   SELECT email
   FROM public.profiles
-  WHERE user_id = _user_id
+  WHERE lower(btrim(user_id)) = lower(btrim(_user_id))
     AND is_active = true
   LIMIT 1
 $$;
