@@ -783,6 +783,17 @@ const LegalManagement = () => {
                 </SelectContent>
               </Select>
             )}
+            {profiles && profiles.length > 0 && (
+              <Select value={officerFilter} onValueChange={setOfficerFilter}>
+                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Responsible Officer" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Responsible Officer</SelectItem>
+                  {profiles.filter(p => p.is_active).map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {lawyers && lawyers.length > 0 && (
               <Select value={lawyerFilter} onValueChange={setLawyerFilter}>
                 <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Lawyer" /></SelectTrigger>
