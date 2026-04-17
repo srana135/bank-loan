@@ -371,12 +371,31 @@ const ReportGenerator = () => {
       }
 
       if (reportType === 'legal-cases') {
-        const rows = filteredCases.map(c => ({
-          'Case No': c.case_number, 'Type': c.case_type, 'Status': c.status,
-          'Plaintiff': c.plaintiff_name, 'Defendant': c.defendant_name,
-          'Claim': c.claim_amount, 'Next Date': c.next_date, 'Court': c.court_name,
-        }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Legal Cases');
+        const cols = legalCaseExportColumns;
+        const headerLabel = `Bank/Financial Institution Legal Case Report — ${branchId === 'all' ? 'All Branches' : branchName(branchId)}`;
+        const reportDate = dateTo ? new Date(dateTo).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
+        const subHeader = `As of: ${reportDate}  |  Total: ${filteredCases.length}`;
+        const headers = cols.map(k => ALL_LEGAL_CASE_COLUMNS[k]);
+        const serialRow = cols.map(k => toBengaliNumber(CANONICAL_LEGAL_CASE_COLUMN_ORDER.indexOf(k) + 1));
+        const dataRows = filteredCases.map((cs, idx) =>
+          cols.map(k => getLegalCaseFieldValue(cs, k, { index: idx, lawyersMap, loansMap, latestOrderMap }))
+        );
+        const aoa: any[][] = [
+          [headerLabel, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          [subHeader, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          Array(headers.length).fill(''),
+          headers,
+          serialRow,
+          ...dataRows,
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const lastCol = Math.max(0, headers.length - 1);
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+        ];
+        ws['!cols'] = headers.map(() => ({ wch: 22 }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Legal Cases');
       }
 
       if (reportType === 'recovery') {
