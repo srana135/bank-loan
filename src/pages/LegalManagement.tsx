@@ -355,7 +355,8 @@ const LegalManagement = () => {
       const matchType = typeFilter === 'all' || c.case_type === typeFilter;
       const matchBranch = branchFilterVal === 'all' || c.branch_id === branchFilterVal;
       const matchLawyer = lawyerFilter === 'all' || c.lawyer_id === lawyerFilter;
-      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer;
+      const matchOfficer = officerFilter === 'all' || c.officer_id === officerFilter;
+      return matchSearch && matchStatus && matchType && matchBranch && matchLawyer && matchOfficer;
     });
     const active = base.filter(c => c.status === 'active');
     const niCases = active.filter(c => c.case_type === 'NI Act');
