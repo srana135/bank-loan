@@ -895,7 +895,7 @@ const LegalManagement = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('next_date')}>
                     <span className="flex items-center">Next Date <SortIcon active={sortKey === 'next_date'} dir={sortDir} /></span>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">Latest Order</TableHead>
+                  <TableHead className="hidden lg:table-cell">Court Orders</TableHead>
                   {canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
