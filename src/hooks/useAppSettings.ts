@@ -124,6 +124,7 @@ const DEFAULTS: AppSettingsMap = {
     'address', 'disbursed_loan_amount', 'disbursement_date', 'expiry_date', 'installment_amount',
     'overdue_installment_number', 'overdue_amount', 'outstanding_amount', 'classification',
     'guarantor_1_name', 'guarantor_1_mobile', 'guarantor_2_name', 'guarantor_2_mobile', 'branch_code',
+    'recovered_amount', 'recovery_date',
   ],
 };
 

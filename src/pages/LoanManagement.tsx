@@ -35,7 +35,7 @@ import ClassificationSuggestion from '@/components/loans/ClassificationSuggestio
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type SortKey = 'account_name' | 'borrower_name' | 'overdue_amount' | 'outstanding_amount' | 'classification' | 'overdue_installment_number' | 'latest_proposed_date';
+type SortKey = 'account_no' | 'account_name' | 'borrower_name' | 'overdue_amount' | 'outstanding_amount' | 'classification' | 'overdue_installment_number' | 'latest_proposed_date';
 type SortDir = 'asc' | 'desc';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) => {
@@ -505,7 +505,9 @@ const LoanManagement = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('account_name')}>
                     <span className="flex items-center">Account Name <SortIcon active={sortKey === 'account_name'} dir={sortDir} /></span>
                   </TableHead>
-                  <TableHead>Account No</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('account_no')}>
+                    <span className="flex items-center">Account No <SortIcon active={sortKey === 'account_no'} dir={sortDir} /></span>
+                  </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('borrower_name')}>
                     <span className="flex items-center">Borrower <SortIcon active={sortKey === 'borrower_name'} dir={sortDir} /></span>
                   </TableHead>
@@ -550,11 +552,21 @@ const LoanManagement = () => {
                         {loan.classification || '-'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">
+                    <TableCell className="hidden lg:table-cell" onClick={e => e.stopPropagation()}>
                       {lc ? (
                         <div className="flex items-center gap-1">
                           <Gavel className="h-3 w-3 text-primary" />
-                          <span className="text-xs font-mono">{lc.case_number}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const caseObj = legalCases?.find(c => c.loan_id === loan.id && c.status === 'active');
+                              if (caseObj) window.open(`/legal?case=${caseObj.id}`, '_blank');
+                            }}
+                            className="text-xs font-mono text-primary hover:underline cursor-pointer"
+                            title="View case details"
+                          >
+                            {lc.case_number}
+                          </button>
                           {lc.next_date && (
                             <Badge variant={days !== null && days <= 0 ? 'destructive' : 'outline'}
                               className={`text-[10px] ${days !== null && days > 0 && days <= 7 ? 'bg-yellow-500 text-black border-yellow-500' : ''}`}>
