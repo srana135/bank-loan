@@ -960,12 +960,15 @@ const LegalManagement = () => {
                         <TableCell className="text-sm">{c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</TableCell>
                         <TableCell>{nextDateBadge(c.next_date) || '-'}</TableCell>
                         <TableCell className="hidden lg:table-cell text-xs max-w-[200px]">
-                          {c.latest_order_summary ? (
-                            <div>
-                              <p className="truncate">{c.latest_order_summary}</p>
-                              {c.latest_order_date && <p className="text-[10px] text-muted-foreground">{c.latest_order_date}</p>}
-                            </div>
-                          ) : '-'}
+                          {(() => {
+                            const lo = getLatestOrder(c);
+                            return lo.order_summary ? (
+                              <div>
+                                <p className="truncate">{lo.order_summary}</p>
+                                {lo.order_date && <p className="text-[10px] text-muted-foreground">{lo.order_date}</p>}
+                              </div>
+                            ) : '-';
+                          })()}
                         </TableCell>
                         {canManage && (
                           <TableCell onClick={e => e.stopPropagation()}>
