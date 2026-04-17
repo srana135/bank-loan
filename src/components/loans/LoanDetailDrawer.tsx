@@ -128,7 +128,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Mobile" value={loan.mobile} isPhone />
           <DetailRow label="Account Type" value={loan.account_type} />
           <DetailRow label="Account Status" value={loan.account_status} />
-          <DetailRow label="Address" value={loan.address} />
+          <AddressRow />
           <DetailRow label="Branch" value={branchName} />
         </div>
 
