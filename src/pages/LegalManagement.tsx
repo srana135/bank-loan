@@ -339,7 +339,7 @@ const LegalManagement = () => {
     }
 
     return result;
-  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, statsFilter, sortKey, sortDir, loanMap]);
+  }, [cases, search, statusFilter, typeFilter, branchFilterVal, lawyerFilter, officerFilter, statsFilter, sortKey, sortDir, loanMap]);
 
   // Stats should reflect dropdown filters (status, type, branch, lawyer) but NOT statsFilter
   const stats = useMemo(() => {
