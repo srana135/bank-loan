@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock } from 'lucide-react';
+import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock, MapPin, ExternalLink } from 'lucide-react';
 import AccountStatusChange from './AccountStatusChange';
 import LoanComments from './LoanComments';
 import LoanRecoveries from './LoanRecoveries';
 import LoanTimeline from './LoanTimeline';
 import ClassificationSuggestion from './ClassificationSuggestion';
+import { useLoanRecoveries } from '@/hooks/useRecoveries';
 
 interface Props {
   loan: Loan | null;
@@ -35,6 +36,21 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
   const canEdit = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin' || userRole === 'manager';
 
+  // Live total recovery sum
+  const { data: recoveries } = useLoanRecoveries(loan.id);
+  const totalRecovery = (recoveries || []).reduce((s, r) => s + (r.recovered_amount || 0), 0);
+
+  // Build Google Maps URL — prefer coords, fall back to address text
+  const mapsUrl = (() => {
+    if (loan.latitude && loan.longitude) {
+      return `https://www.google.com/maps?q=${loan.latitude},${loan.longitude}`;
+    }
+    if (loan.address) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loan.address)}`;
+    }
+    return null;
+  })();
+
   const DetailRow = ({ label, value, isPhone }: { label: string; value?: string | number | null; isPhone?: boolean }) => (
     <div className="flex justify-between py-1.5 text-sm">
       <span className="text-muted-foreground">{label}</span>
@@ -44,6 +60,27 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
         </a>
       ) : (
         <span className="font-medium text-right max-w-[60%] break-words">{value ?? '-'}</span>
+      )}
+    </div>
+  );
+
+  const AddressRow = () => (
+    <div className="flex justify-between py-1.5 text-sm">
+      <span className="text-muted-foreground">Address</span>
+      {loan.address && mapsUrl ? (
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-right max-w-[60%] break-words text-primary hover:underline inline-flex items-center gap-1"
+          title="Open in Google Maps"
+        >
+          <MapPin className="h-3 w-3 flex-shrink-0" />
+          <span className="break-words">{loan.address}</span>
+          <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-60" />
+        </a>
+      ) : (
+        <span className="font-medium text-right max-w-[60%] break-words">{loan.address ?? '-'}</span>
       )}
     </div>
   );
