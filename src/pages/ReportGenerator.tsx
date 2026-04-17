@@ -1,12 +1,15 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
-import { useLegalCases } from '@/hooks/useLegal';
+import { useLegalCases, useLawyers } from '@/hooks/useLegal';
 import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, getLoanFieldValue } from '@/lib/loanColumns';
+import { ALL_LEGAL_CASE_COLUMNS, CANONICAL_LEGAL_CASE_COLUMN_ORDER, getLegalCaseFieldValue, toBengaliNumber } from '@/lib/legalCaseColumns';
 import { BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -90,6 +93,55 @@ const ReportGenerator = () => {
     return CANONICAL_LOAN_COLUMN_ORDER.filter(k => selected.has(k));
   }, [appSettings]);
 
+  // === Legal case report support ===
+  const { data: lawyers } = useLawyers();
+  const lawyersMap = useMemo(() => {
+    const m = new Map<string, any>();
+    (lawyers || []).forEach(l => m.set(l.id, l));
+    return m;
+  }, [lawyers]);
+  const loansMap = useMemo(() => {
+    const m = new Map<string, any>();
+    (loans || []).forEach(l => m.set(l.id, l));
+    return m;
+  }, [loans]);
+
+  // Bulk-fetch latest order per case in current scope
+  const caseIds = useMemo(() => filteredCases.map(c => c.id), [filteredCases]);
+  const { data: caseOrders } = useQuery({
+    queryKey: ['report-case-orders', caseIds],
+    queryFn: async () => {
+      if (!caseIds.length) return [];
+      const { data, error } = await supabase
+        .from('legal_case_orders')
+        .select('case_id, order_date, order_summary, next_date')
+        .in('case_id', caseIds)
+        .order('order_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: caseIds.length > 0,
+    staleTime: 60_000,
+  });
+  const latestOrderMap = useMemo(() => {
+    const m = new Map<string, { order_date: string; order_summary: string; next_date?: string | null }>();
+    (caseOrders || []).forEach((o: any) => {
+      if (!m.has(o.case_id)) {
+        m.set(o.case_id, { order_date: o.order_date, order_summary: o.order_summary, next_date: o.next_date });
+      }
+    });
+    return m;
+  }, [caseOrders]);
+
+  // Legal case columns from settings — always canonical order, selection only filters in/out
+  const legalCaseExportColumns = useMemo(() => {
+    const sel = appSettings?.pdf_legal_case_columns?.length
+      ? new Set(appSettings.pdf_legal_case_columns)
+      : new Set(CANONICAL_LEGAL_CASE_COLUMN_ORDER);
+    return CANONICAL_LEGAL_CASE_COLUMN_ORDER.filter(k => sel.has(k));
+  }, [appSettings]);
+
+
   const handleGenerate = () => {
     setGenerating(true);
     setTimeout(() => {
@@ -170,16 +222,75 @@ const ReportGenerator = () => {
           y += 7;
         });
       } else if (reportType === 'legal-cases') {
-        doc.setFontSize(8);
-        doc.text(`Total Active Cases: ${filteredCases.filter(c => c.status === 'active').length}`, 14, y);
-        y += 8;
-        const types = [...new Set(filteredCases.map(c => c.case_type))];
-        types.forEach(t => {
-          const tc = filteredCases.filter(c => c.case_type === t);
-          const claim = tc.reduce((s, c) => s + (c.claim_amount || 0), 0);
-          doc.text(`${t}: ${tc.length} cases — Claim: BDT ${claim.toLocaleString()}`, 14, y);
-          y += 6;
+        // Canonical 12-column legal-case report — landscape A4
+        const ls = new jsPDF({ orientation: 'landscape', format: 'a4' });
+        const pageW = ls.internal.pageSize.getWidth();
+        const pageH = ls.internal.pageSize.getHeight();
+        const reportDate = dateTo ? new Date(dateTo).toLocaleDateString('en-GB') : now;
+
+        ls.setFont('helvetica', 'bold');
+        ls.setFontSize(13);
+        ls.text('Bank/Financial Institution Legal Case Report', pageW / 2, 12, { align: 'center' });
+        ls.setFontSize(9);
+        ls.setFont('helvetica', 'normal');
+        ls.text(`As of: ${reportDate}  |  Branch: ${brLabel}  |  Total: ${filteredCases.length}`, pageW / 2, 18, { align: 'center' });
+
+        const cols = legalCaseExportColumns;
+        const usable = pageW - 14;
+        const colW = Math.max(16, Math.floor(usable / Math.max(1, cols.length)));
+        const xs: number[] = [];
+        { let x = 7; cols.forEach(() => { xs.push(x); x += colW; }); }
+
+        const lineH = 4;
+        let ly = 26;
+
+        const drawHeader = () => {
+          ls.setFont('helvetica', 'bold');
+          ls.setFontSize(7);
+          cols.forEach((k, i) => {
+            const label = ALL_LEGAL_CASE_COLUMNS[k];
+            const max = Math.floor(colW / 1.5);
+            ls.text(label.length > max ? label.slice(0, max) : label, xs[i] + 1, ly);
+          });
+          ly += 4;
+          cols.forEach((k, i) => {
+            const idx = CANONICAL_LEGAL_CASE_COLUMN_ORDER.indexOf(k) + 1;
+            ls.text(toBengaliNumber(idx), xs[i] + 1, ly);
+          });
+          ly += 4;
+          ls.setLineWidth(0.2);
+          ls.line(7, ly - 1, pageW - 7, ly - 1);
+          ls.setFont('helvetica', 'normal');
+          ls.setFontSize(6.5);
+        };
+        drawHeader();
+
+        filteredCases.forEach((cs, idx) => {
+          const cells = cols.map(k => String(getLegalCaseFieldValue(cs, k, { index: idx, lawyersMap, loansMap, latestOrderMap }) ?? ''));
+          const wrapped = cells.map((txt) => {
+            const max = Math.max(8, Math.floor(colW / 1.4));
+            return txt.split('\n').flatMap(line => {
+              const out: string[] = [];
+              let cur = line;
+              while (cur.length > max) { out.push(cur.slice(0, max)); cur = cur.slice(max); }
+              out.push(cur);
+              return out;
+            });
+          });
+          const rowH = Math.max(1, ...wrapped.map(w => w.length)) * lineH;
+          if (ly + rowH > pageH - 8) { ls.addPage(); ly = 12; drawHeader(); }
+          wrapped.forEach((lines, i) => {
+            lines.forEach((ln, li) => {
+              ls.text(ln, xs[i] + 1, ly + li * lineH);
+            });
+          });
+          ly += rowH + 1;
         });
+
+        ls.save(`legal-cases_report_${now.replace(/\//g, '-')}.pdf`);
+        toast.success(`PDF Report generated (${cols.length} columns)`);
+        setGenerating(false);
+        return;
       } else if (reportType === 'aging') {
         AGING_BUCKETS_CONFIG.forEach(b => {
           const matching = filteredLoans.filter(l => {
@@ -260,12 +371,31 @@ const ReportGenerator = () => {
       }
 
       if (reportType === 'legal-cases') {
-        const rows = filteredCases.map(c => ({
-          'Case No': c.case_number, 'Type': c.case_type, 'Status': c.status,
-          'Plaintiff': c.plaintiff_name, 'Defendant': c.defendant_name,
-          'Claim': c.claim_amount, 'Next Date': c.next_date, 'Court': c.court_name,
-        }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Legal Cases');
+        const cols = legalCaseExportColumns;
+        const headerLabel = `Bank/Financial Institution Legal Case Report — ${branchId === 'all' ? 'All Branches' : branchName(branchId)}`;
+        const reportDate = dateTo ? new Date(dateTo).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
+        const subHeader = `As of: ${reportDate}  |  Total: ${filteredCases.length}`;
+        const headers = cols.map(k => ALL_LEGAL_CASE_COLUMNS[k]);
+        const serialRow = cols.map(k => toBengaliNumber(CANONICAL_LEGAL_CASE_COLUMN_ORDER.indexOf(k) + 1));
+        const dataRows = filteredCases.map((cs, idx) =>
+          cols.map(k => getLegalCaseFieldValue(cs, k, { index: idx, lawyersMap, loansMap, latestOrderMap }))
+        );
+        const aoa: any[][] = [
+          [headerLabel, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          [subHeader, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          Array(headers.length).fill(''),
+          headers,
+          serialRow,
+          ...dataRows,
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const lastCol = Math.max(0, headers.length - 1);
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+        ];
+        ws['!cols'] = headers.map(() => ({ wch: 22 }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Legal Cases');
       }
 
       if (reportType === 'recovery') {

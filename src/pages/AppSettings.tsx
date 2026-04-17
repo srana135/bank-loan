@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER } from '@/lib/loanColumns';
+import { ALL_LEGAL_CASE_COLUMNS, CANONICAL_LEGAL_CASE_COLUMN_ORDER } from '@/lib/legalCaseColumns';
 
 const upsertSetting = async (key: string, value: unknown) => {
   const { data, error: selErr } = await supabase
@@ -616,9 +617,36 @@ const AppSettings = () => {
 
               <Separator />
 
-              {/* Legal PDF columns */}
+              {/* Legal Case canonical PDF columns (image-based 12-column report) */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">মামলা (Legal Case) PDF কলাম</Label>
+                <p className="text-xs text-muted-foreground">Report Generator এর "Legal Cases" রিপোর্টে এই কলামগুলো ছবির ক্রমে (১-১২) PDF + Excel এ আসবে। যেভাবেই select করুন, output সর্বদা canonical order এ থাকবে।</p>
+                <div className="flex gap-2 mb-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => update('pdf_legal_case_columns', [...CANONICAL_LEGAL_CASE_COLUMN_ORDER])}>সব নির্বাচন</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => update('pdf_legal_case_columns', [])}>সব বাদ</Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {CANONICAL_LEGAL_CASE_COLUMN_ORDER.map((key, i) => (
+                    <label key={key} className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={(form.pdf_legal_case_columns || []).includes(key)}
+                        onCheckedChange={(checked) => {
+                          const cur = form.pdf_legal_case_columns || [];
+                          if (checked) update('pdf_legal_case_columns', [...cur, key]);
+                          else update('pdf_legal_case_columns', cur.filter(c => c !== key));
+                        }}
+                      />
+                      <span className="font-mono text-muted-foreground">{i + 1}.</span> {ALL_LEGAL_CASE_COLUMNS[key]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Legacy Legal PDF columns (used elsewhere, e.g. LegalManagement export) */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">মামলা (Legacy) PDF কলাম</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {[
                     { key: 'case_number', label: 'মামলা নং' },
