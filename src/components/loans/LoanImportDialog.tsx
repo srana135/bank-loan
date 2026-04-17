@@ -74,6 +74,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
       if (k === 'account_status') return 'active';
       if (k === 'address') return '123 Main St';
       if (k === 'classification') return 'STD';
+      if (k === 'recovery_date') return new Date().toISOString().slice(0, 10);
       if (NUMERIC_COLS.includes(k)) return '0';
       if (INT_COLS.includes(k)) return '0';
       return '';
@@ -85,11 +86,11 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
     XLSX.writeFile(wb, 'loan_import_template.xlsx');
   }, [configuredColumns, templateColumns]);
 
-  // Build reverse map: display label → db column
+  // Build reverse map: display label → db column (excludes recovery cols + branch_code)
   const colMap = new Map<string, string>();
   configuredColumns.forEach(k => {
     const label = ALL_IMPORT_COLUMNS[k];
-    if (label && k !== 'branch_code') colMap.set(label, k);
+    if (label && k !== 'branch_code' && !RECOVERY_COLS.includes(k)) colMap.set(label, k);
   });
 
   const handleImport = async () => {
