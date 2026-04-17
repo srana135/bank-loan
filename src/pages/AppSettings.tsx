@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save, Plus, Trash2, Settings, Calculator, Scale, MapPin, Gavel, MessageSquare, Globe, Shield, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER } from '@/lib/loanColumns';
 
 const upsertSetting = async (key: string, value: unknown) => {
   const { data, error: selErr } = await supabase

@@ -14,35 +14,8 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { ALL_LOAN_COLUMNS as ALL_IMPORT_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, NUMERIC_LOAN_COLS as NUMERIC_COLS, INT_LOAN_COLS as INT_COLS } from '@/lib/loanColumns';
 
-// All possible import columns: db_key → display label
-const ALL_IMPORT_COLUMNS: Record<string, string> = {
-  account_no: 'Account No',
-  account_name: 'Account Name',
-  borrower_name: 'Borrower Name',
-  mobile: 'Mobile',
-  account_type: 'Account Type',
-  account_status: 'Account Status',
-  address: 'Address',
-  disbursed_loan_amount: 'Disbursed Loan Amount',
-  disbursement_date: 'Disbursement Date',
-  expiry_date: 'Expiry Date',
-  installment_amount: 'Installment Amount',
-  overdue_installment_number: 'Overdue Installment Number',
-  overdue_amount: 'Overdue Amount',
-  outstanding_amount: 'Outstanding Amount',
-  classification: 'Classification',
-  guarantor_1_name: 'Guarantor 1 Name',
-  guarantor_1_mobile: 'Guarantor 1 Mobile',
-  guarantor_2_name: 'Guarantor 2 Name',
-  guarantor_2_mobile: 'Guarantor 2 Mobile',
-  branch_code: 'Branch Code',
-  recovered_amount: 'Recovery Amount',
-  recovery_date: 'Recovery Date',
-};
-
-const NUMERIC_COLS = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount'];
-const INT_COLS = ['overdue_installment_number'];
 // Recovery-specific columns are written to loan_recoveries instead of loans
 const RECOVERY_COLS = ['recovered_amount', 'recovery_date'];
 
@@ -61,10 +34,9 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   // Canonical column order — template ALWAYS uses this order regardless of selection
-  const CANONICAL_ORDER = Object.keys(ALL_IMPORT_COLUMNS);
   // Get configured columns from settings (or all if none configured); then re-sort to canonical order
-  const selectedSet = new Set<string>(settings?.import_loan_columns?.length ? settings.import_loan_columns : CANONICAL_ORDER);
-  const configuredColumns = CANONICAL_ORDER.filter(k => selectedSet.has(k));
+  const selectedSet = new Set<string>(settings?.import_loan_columns?.length ? settings.import_loan_columns : CANONICAL_LOAN_COLUMN_ORDER);
+  const configuredColumns = CANONICAL_LOAN_COLUMN_ORDER.filter(k => selectedSet.has(k));
   const templateColumns = configuredColumns.map(k => ALL_IMPORT_COLUMNS[k] || k).filter(Boolean);
 
   const downloadTemplate = useCallback(() => {
