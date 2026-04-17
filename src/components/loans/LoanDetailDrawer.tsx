@@ -143,6 +143,17 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Classification" value={loan.classification} />
           <DetailRow label="Disbursed Amount" value={loan.disbursed_loan_amount ? `৳${loan.disbursed_loan_amount.toLocaleString()}` : null} />
           <DetailRow label="Disbursement Date" value={loan.disbursement_date} />
+          <div className="flex justify-between py-1.5 text-sm">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Banknote className="h-3 w-3 text-green-600" /> Total Recovery
+            </span>
+            <span className="font-semibold text-right text-green-700 dark:text-green-400">
+              ৳{totalRecovery.toLocaleString()}
+              {recoveries && recoveries.length > 0 && (
+                <span className="text-[10px] text-muted-foreground ml-1 font-normal">({recoveries.length} entries)</span>
+              )}
+            </span>
+          </div>
         </div>
 
         {(loan.latitude || loan.longitude) && (
