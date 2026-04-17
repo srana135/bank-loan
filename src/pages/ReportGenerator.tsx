@@ -5,6 +5,8 @@ import { useBranches } from '@/hooks/useBranches';
 import { useLegalCases } from '@/hooks/useLegal';
 import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { useAllRecoveries } from '@/hooks/useAllRecoveries';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, getLoanFieldValue } from '@/lib/loanColumns';
 import { BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -20,6 +22,7 @@ const ReportGenerator = () => {
   const { data: legalCases } = useLegalCases(branchFilter);
   const { data: notices } = useLegalNotices(branchFilter);
   const { data: allRecoveries } = useAllRecoveries(branchFilter);
+  const { data: appSettings } = useAppSettings();
 
   const [reportType, setReportType] = useState<ReportType>('loan-summary');
   const [branchId, setBranchId] = useState('all');
@@ -58,6 +61,35 @@ const ReportGenerator = () => {
 
   const branchName = (id: string | null) => branches?.find(b => b.id === id)?.branch_name || 'Unknown';
 
+  // Recovery aggregates per loan (for loan PDF/Excel columns: recovered_amount, recovery_date)
+  const recoveryAgg = useMemo(() => {
+    const map = new Map<string, { total: number; lastAmt: number; lastDate: string }>();
+    (allRecoveries || []).forEach(r => {
+      const cur = map.get(r.loan_id) || { total: 0, lastAmt: 0, lastDate: '' };
+      cur.total += Number(r.recovered_amount) || 0;
+      if (!cur.lastDate || r.recovery_date > cur.lastDate) {
+        cur.lastDate = r.recovery_date;
+        cur.lastAmt = Number(r.recovered_amount) || 0;
+      }
+      map.set(r.loan_id, cur);
+    });
+    return map;
+  }, [allRecoveries]);
+
+  const branchCodeMap = useMemo(() => {
+    const m = new Map<string, string>();
+    branches?.forEach(b => m.set(b.id, b.branch_code));
+    return m;
+  }, [branches]);
+
+  // Loan columns from settings (canonical order)
+  const loanExportColumns = useMemo(() => {
+    const selected = appSettings?.pdf_loan_columns?.length
+      ? new Set(appSettings.pdf_loan_columns)
+      : new Set(CANONICAL_LOAN_COLUMN_ORDER);
+    return CANONICAL_LOAN_COLUMN_ORDER.filter(k => selected.has(k));
+  }, [appSettings]);
+
   const handleGenerate = () => {
     setGenerating(true);
     setTimeout(() => {
@@ -88,26 +120,48 @@ const ReportGenerator = () => {
       let y = 42;
 
       if (reportType === 'loan-summary') {
-        const headers = ['Branch', 'Accounts', 'Outstanding', 'Overdue', 'STD', 'SMA', 'SS', 'DF', 'BL'];
-        const branchGroups = new Map<string, any>();
+        // Full loan list using shared columns from AppSettings
+        // Switch to landscape for wide tables
+        const landscape = new jsPDF({ orientation: 'landscape' });
+        landscape.setFontSize(14);
+        landscape.text(REPORT_TYPES.find(r => r.value === reportType)?.label || 'Loan Report', 14, 15);
+        landscape.setFontSize(8);
+        landscape.text(`Branch: ${brLabel} | Date: ${now} | Total: ${filteredLoans.length}`, 14, 21);
+        if (dateFrom || dateTo) landscape.text(`Period: ${dateFrom || 'Start'} to ${dateTo || 'Present'}`, 14, 26);
+
+        const usableWidth = 280;
+        const colWidth = Math.max(14, Math.floor(usableWidth / loanExportColumns.length));
+        const xs: number[] = [];
+        { let x = 10; loanExportColumns.forEach(() => { xs.push(x); x += colWidth; }); }
+
+        let ly = 32;
+        const drawHeader = () => {
+          landscape.setFont('helvetica', 'bold');
+          landscape.setFontSize(7);
+          loanExportColumns.forEach((k, i) => {
+            const label = ALL_LOAN_COLUMNS[k];
+            const maxChars = Math.floor(colWidth / 1.6);
+            landscape.text(label.length > maxChars ? label.slice(0, maxChars) : label, xs[i], ly);
+          });
+          ly += 5;
+          landscape.setFont('helvetica', 'normal');
+          landscape.setFontSize(6.5);
+        };
+        drawHeader();
         filteredLoans.forEach(l => {
-          const bid = l.branch_id || 'unknown';
-          if (!branchGroups.has(bid)) branchGroups.set(bid, { count: 0, outstanding: 0, overdue: 0, STD: 0, SMA: 0, SS: 0, DF: 0, BL: 0 });
-          const g = branchGroups.get(bid)!;
-          g.count++;
-          g.outstanding += l.outstanding_amount || 0;
-          g.overdue += l.overdue_amount || 0;
-          g[l.classification || 'STD'] = (g[l.classification || 'STD'] || 0) + 1;
+          if (ly > 195) { landscape.addPage(); ly = 15; drawHeader(); }
+          loanExportColumns.forEach((k, i) => {
+            const v = getLoanFieldValue(l, k, { recoveryAgg, branchMap: branchCodeMap });
+            const str = String(v ?? '');
+            const maxChars = Math.floor(colWidth / 1.4);
+            landscape.text(str.length > maxChars ? str.slice(0, maxChars) : str, xs[i], ly);
+          });
+          ly += 4.5;
         });
-        doc.setFontSize(8);
-        headers.forEach((h, i) => doc.text(h, 14 + i * 22, y));
-        y += 6;
-        branchGroups.forEach((g, bid) => {
-          const row = [branchName(bid), g.count, g.outstanding.toLocaleString(), g.overdue.toLocaleString(), g.STD, g.SMA, g.SS, g.DF, g.BL];
-          row.forEach((v: any, i: number) => doc.text(String(v), 14 + i * 22, y));
-          y += 5;
-          if (y > 280) { doc.addPage(); y = 20; }
-        });
+        landscape.save(`${reportType}_report_${now.replace(/\//g, '-')}.pdf`);
+        toast.success(`PDF Report generated (${loanExportColumns.length} columns)`);
+        setGenerating(false);
+        return;
       } else if (reportType === 'classification') {
         ['STD', 'SMA', 'SS', 'DF', 'BL'].forEach(c => {
           const count = filteredLoans.filter(l => l.classification === c).length;
@@ -173,21 +227,36 @@ const ReportGenerator = () => {
       const wb = XLSX.utils.book_new();
 
       if (reportType === 'loan-summary' || reportType === 'classification' || reportType === 'aging') {
-        const rows = filteredLoans.map(l => ({
-          'Account No': l.account_no,
-          'Borrower': l.borrower_name,
-          'Organization': l.account_name,
-          'Branch': branchName(l.branch_id),
-          'Disbursed Amount': l.disbursed_loan_amount,
-          'Disbursement Date': l.disbursement_date,
-          'Outstanding': l.outstanding_amount,
-          'Overdue': l.overdue_amount,
-          'Installment': l.installment_amount,
-          'Overdue Count': l.overdue_installment_number,
-          'Classification': l.classification,
-          'Mobile': l.mobile,
-        }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Loans');
+        // Use shared columns + same-layout (header/footer once, table cell-by-cell)
+        const headerLabel = `Loan Report — ${branchId === 'all' ? 'All Branches' : branchName(branchId)}`;
+        const subHeader = `Generated: ${new Date().toLocaleString()} | Total: ${filteredLoans.length}${(dateFrom || dateTo) ? ` | Period: ${dateFrom || 'Start'} – ${dateTo || 'Present'}` : ''}`;
+        const headers = loanExportColumns.map(k => ALL_LOAN_COLUMNS[k]);
+        const rows = filteredLoans.map(l =>
+          loanExportColumns.map(k => getLoanFieldValue(l, k, { recoveryAgg, branchMap: branchCodeMap }))
+        );
+        const numericKeys = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount'];
+        const totals = loanExportColumns.map((k, idx) => {
+          if (idx === 0) return 'TOTAL';
+          if (!numericKeys.includes(k)) return '';
+          return rows.reduce((s, r) => s + (Number(r[idx]) || 0), 0);
+        });
+        const aoa: any[][] = [
+          [headerLabel, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          [subHeader, ...Array(Math.max(0, headers.length - 1)).fill('')],
+          Array(headers.length).fill(''),
+          headers,
+          ...rows,
+          Array(headers.length).fill(''),
+          totals,
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const lastCol = headers.length - 1;
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+        ];
+        ws['!cols'] = headers.map(() => ({ wch: 18 }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Loans');
       }
 
       if (reportType === 'legal-cases') {

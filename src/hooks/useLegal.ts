@@ -87,6 +87,23 @@ export const useCaseOrders = (caseId: string | null) => {
   });
 };
 
+// Recompute latest_order_date / latest_order_summary / next_date on the parent case
+// after add/update/delete of an order.
+async function recomputeCaseLatestOrder(caseId: string) {
+  const { data: orders } = await supabase
+    .from('legal_case_orders')
+    .select('order_date, order_summary, next_date')
+    .eq('case_id', caseId)
+    .order('order_date', { ascending: false })
+    .limit(1);
+  const latest = orders?.[0];
+  await supabase.from('legal_cases').update({
+    latest_order_date: latest?.order_date || null,
+    latest_order_summary: latest?.order_summary || null,
+    next_date: latest?.next_date || null,
+  }).eq('id', caseId);
+}
+
 export const useAddCaseOrder = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -94,15 +111,7 @@ export const useAddCaseOrder = () => {
       const { _case_id, _userId, _userName, ...orderData } = order;
       const { error } = await supabase.from('legal_case_orders').insert(orderData);
       if (error) throw error;
-      if (orderData.case_id) {
-        const updatePayload: Record<string, any> = {};
-        if (orderData.next_date) updatePayload.next_date = orderData.next_date;
-        if (orderData.order_summary) updatePayload.latest_order_summary = orderData.order_summary;
-        if (orderData.order_date) updatePayload.latest_order_date = orderData.order_date;
-        if (Object.keys(updatePayload).length > 0) {
-          await supabase.from('legal_cases').update(updatePayload).eq('id', orderData.case_id);
-        }
-      }
+      if (orderData.case_id) await recomputeCaseLatestOrder(orderData.case_id);
       logActivity(_userId || null, _userName || null, 'create', 'case_order', orderData.case_id || null, {
         field: 'Case Order Added',
         new_value: orderData.order_summary?.slice(0, 80) || '-',
@@ -113,6 +122,48 @@ export const useAddCaseOrder = () => {
       qc.invalidateQueries({ queryKey: ['case-orders'] });
       qc.invalidateQueries({ queryKey: ['legal-cases'] });
       toast.success('Order added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useUpdateCaseOrder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, case_id, _userId, _userName, ...updates }: Partial<LegalCaseOrder> & { id: string; case_id: string } & LogMeta) => {
+      const { data: oldOrder } = await supabase.from('legal_case_orders').select('*').eq('id', id).single();
+      const { error } = await supabase.from('legal_case_orders').update(updates).eq('id', id);
+      if (error) throw error;
+      await recomputeCaseLatestOrder(case_id);
+      if (oldOrder) {
+        logFieldChanges(_userId || null, _userName || null, 'update', 'case_order', id, oldOrder, updates, `Order: ${oldOrder.order_date || id}`);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['case-orders'] });
+      qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      toast.success('Order updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+};
+
+export const useDeleteCaseOrder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, case_id, _userId, _userName }: { id: string; case_id: string } & LogMeta) => {
+      const { error } = await supabase.from('legal_case_orders').delete().eq('id', id);
+      if (error) throw error;
+      await recomputeCaseLatestOrder(case_id);
+      logActivity(_userId || null, _userName || null, 'delete', 'case_order', id, {
+        field: 'Case Order Deleted',
+        old_value: id,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['case-orders'] });
+      qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      toast.success('Order deleted');
     },
     onError: (e: Error) => toast.error(e.message),
   });

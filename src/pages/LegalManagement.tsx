@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLegalCases, useCreateLegalCase, useUpdateLegalCase, useDeleteLegalCase, useCaseOrders, useAddCaseOrder, useLawyers, useCreateLawyer, useUpdateLawyer, useDeleteLawyer, useBulkImportCases } from '@/hooks/useLegal';
+import { useLegalCases, useCreateLegalCase, useUpdateLegalCase, useDeleteLegalCase, useCaseOrders, useAddCaseOrder, useUpdateCaseOrder, useDeleteCaseOrder, useLawyers, useCreateLawyer, useUpdateLawyer, useDeleteLawyer, useBulkImportCases } from '@/hooks/useLegal';
 import { useLegalNotices, useCreateLegalNotice, useUpdateLegalNotice, useDeleteLegalNotice } from '@/hooks/useLegalNotices';
 import { useBranches } from '@/hooks/useBranches';
 import { useLoans } from '@/hooks/useLoans';
@@ -1365,15 +1365,62 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
   profiles, loanMap, officerMap,
   orderDate, setOrderDate, orderSummary, setOrderSummary, nextDate, setNextDate,
   orderType, setOrderType, onAddOrder, addOrderPending, onGenerateStatement }: DrawerProps) => {
+  const { user, profile, userRole } = useAuth();
   const { data: orders } = useCaseOrders(legalCase?.id || null);
   const { data: recoveries } = useLoanRecoveries(legalCase?.loan_id || null);
+  const updateOrder = useUpdateCaseOrder();
+  const deleteOrder = useDeleteCaseOrder();
+
+  // Edit/Delete state for orders
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
+  const [eOrderDate, setEOrderDate] = useState('');
+  const [eOrderSummary, setEOrderSummary] = useState('');
+  const [eNextDate, setENextDate] = useState('');
+  const [eOrderType, setEOrderType] = useState('');
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
 
   if (!legalCase) return null;
 
+  const canEditOrders = userRole === 'admin' || userRole === 'manager';
   const lawyer = lawyers.find(l => l.id === legalCase.lawyer_id);
   const loan = legalCase.loan_id ? loanMap.get(legalCase.loan_id) : null;
   const officer = legalCase.officer_id ? officerMap.get(legalCase.officer_id) : null;
   const totalRecovery = (recoveries || []).reduce((s, r) => s + (Number(r.recovered_amount) || 0), 0);
+
+  const openEditOrder = (o: any) => {
+    setEditOrderId(o.id);
+    setEOrderDate(o.order_date || '');
+    setEOrderSummary(o.order_summary || '');
+    setENextDate(o.next_date || '');
+    setEOrderType(o.order_type || '');
+  };
+
+  const handleSaveOrderEdit = async () => {
+    if (!editOrderId || !legalCase) return;
+    try {
+      await updateOrder.mutateAsync({
+        id: editOrderId,
+        case_id: legalCase.id,
+        order_date: eOrderDate,
+        order_summary: eOrderSummary,
+        next_date: eNextDate || null,
+        order_type: eOrderType || null,
+        _userId: user?.id, _userName: profile?.full_name,
+      });
+      setEditOrderId(null);
+    } catch {}
+  };
+
+  const handleConfirmDeleteOrder = async () => {
+    if (!deleteOrderId || !legalCase) return;
+    try {
+      await deleteOrder.mutateAsync({
+        id: deleteOrderId, case_id: legalCase.id,
+        _userId: user?.id, _userName: profile?.full_name,
+      });
+      setDeleteOrderId(null);
+    } catch {}
+  };
 
   const Row = ({ label, value }: { label: string; value?: string | number | null }) => (
     <div className="flex justify-between py-1 text-sm">
@@ -1414,6 +1461,9 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
             <span className="text-muted-foreground">Next Date</span>
             <span>{nextDateBadge(legalCase.next_date) || '-'}</span>
           </div>
+          {legalCase.latest_order_date && (
+            <Row label="Latest Order Date" value={legalCase.latest_order_date} />
+          )}
           {legalCase.remarks && <Row label="Remarks" value={legalCase.remarks} />}
           {loan && (
             <>
@@ -1437,9 +1487,21 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
               {orders.map((o, i) => (
                 <Card key={o.id} className={i < 3 ? 'bg-primary/5 border-primary/20' : 'bg-muted/30'}>
                   <CardContent className="p-3 space-y-1">
-                    <div className="flex justify-between text-xs">
+                    <div className="flex justify-between items-start text-xs gap-2">
                       <Badge variant="outline" className="text-[10px]">{o.order_type || 'Order'}</Badge>
-                      <span className="text-muted-foreground">{o.order_date}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">{o.order_date}</span>
+                        {canEditOrders && (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEditOrder(o)} aria-label="Edit order">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setDeleteOrderId(o.id)} aria-label="Delete order">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm">{o.order_summary}</p>
                     {o.next_date && (
@@ -1471,6 +1533,45 @@ const CaseDetailDrawer = ({ legalCase, open, onClose, canManage, isEmployee, law
             </div>
           )}
         </div>
+
+        {/* Edit Order Dialog */}
+        <Dialog open={!!editOrderId} onOpenChange={v => { if (!v) setEditOrderId(null); }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit Court Order</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label className="text-xs">Order Date *</Label>
+                  <Input type="date" value={eOrderDate} onChange={e => setEOrderDate(e.target.value)} className="h-9" /></div>
+                <div className="space-y-1.5"><Label className="text-xs">Type</Label>
+                  <Input value={eOrderType} onChange={e => setEOrderType(e.target.value)} className="h-9" placeholder="Adjournment" /></div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Order Summary *</Label>
+                <Textarea value={eOrderSummary} onChange={e => setEOrderSummary(e.target.value)} className="min-h-[80px]" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Next Date</Label>
+                <Input type="date" value={eNextDate} onChange={e => setENextDate(e.target.value)} className="h-9" /></div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditOrderId(null)}>Cancel</Button>
+                <Button onClick={handleSaveOrderEdit} disabled={updateOrder.isPending || !eOrderDate || !eOrderSummary.trim()}>
+                  {updateOrder.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Order Confirmation */}
+        <AlertDialog open={!!deleteOrderId} onOpenChange={v => { if (!v) setDeleteOrderId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Order</AlertDialogTitle>
+              <AlertDialogDescription>This order will be permanently removed and the case's latest order will be recomputed.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteOrder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
