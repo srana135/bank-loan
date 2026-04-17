@@ -646,16 +646,25 @@ const LegalManagement = () => {
     doc.setFontSize(7);
     doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${filtered.length}`, 14, 21);
     let y = 28;
-    const cols = ['Case No', 'Type', 'Account', 'Borrower', 'Claim', 'Next Date', 'Status'];
-    const cw = 38;
+    const cols = ['Case No', 'Type', 'Account', 'Borrower', 'Claim', 'Next Date', 'Status', 'Latest Order', 'Order Date'];
+    const widths = [28, 22, 22, 30, 26, 22, 18, 60, 22];
+    const xs: number[] = []; { let x = 10; widths.forEach(w => { xs.push(x); x += w; }); }
     doc.setFont('helvetica', 'bold');
-    cols.forEach((h, i) => doc.text(h, 10 + i * cw, y));
+    cols.forEach((h, i) => doc.text(h, xs[i], y));
     y += 5; doc.setFont('helvetica', 'normal');
     filtered.forEach(c => {
       if (y > 195) { doc.addPage(); y = 15; }
       const loan = c.loan_id ? loanMap.get(c.loan_id) : null;
-      const vals = [c.case_number, c.case_type, loan?.account_no || '-', loan?.borrower_name || '-', c.claim_amount ? `Tk ${c.claim_amount.toLocaleString()}` : '-', c.next_date || '-', c.status];
-      vals.forEach((v, i) => doc.text(String(v).substring(0, 22), 10 + i * cw, y));
+      const orderSummary = c.latest_order_summary ? String(c.latest_order_summary).substring(0, 50) : '-';
+      const vals = [
+        c.case_number, c.case_type, loan?.account_no || '-', loan?.borrower_name || '-',
+        c.claim_amount ? `Tk ${c.claim_amount.toLocaleString()}` : '-',
+        c.next_date || '-', c.status, orderSummary, c.latest_order_date || '-',
+      ];
+      vals.forEach((v, i) => {
+        const maxLen = i === 7 ? 50 : 18;
+        doc.text(String(v).substring(0, maxLen), xs[i], y);
+      });
       y += 4.5;
     });
     doc.save(`legal_cases_${new Date().toISOString().slice(0, 10)}.pdf`);

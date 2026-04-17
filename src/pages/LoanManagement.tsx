@@ -236,22 +236,39 @@ const LoanManagement = () => {
 
   const handleExportPDF = () => {
     if (!filteredLoans.length) { toast.error('No loans to export'); return; }
+    // Build per-loan recovery aggregates: total, last amount, last date
+    const recoveryAgg = new Map<string, { total: number; lastAmt: number; lastDate: string }>();
+    (allRecoveries || []).forEach(r => {
+      const cur = recoveryAgg.get(r.loan_id) || { total: 0, lastAmt: 0, lastDate: '' };
+      cur.total += Number(r.recovered_amount) || 0;
+      if (!cur.lastDate || r.recovery_date > cur.lastDate) {
+        cur.lastDate = r.recovery_date;
+        cur.lastAmt = Number(r.recovered_amount) || 0;
+      }
+      recoveryAgg.set(r.loan_id, cur);
+    });
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
     doc.text('Loan Report', 14, 15);
     doc.setFontSize(7);
     doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${filteredLoans.length}`, 14, 21);
     let y = 28;
-    const cols = ['Acc No', 'Borrower', 'Mobile', 'Type', 'Status', 'Install.', 'Overdue', 'Outstand.', 'Class'];
-    const cw = 30;
-    cols.forEach((h, i) => { doc.setFont('helvetica', 'bold'); doc.text(h, 10 + i * cw, y); });
+    const cols = ['Acc No', 'Borrower', 'Mobile', 'Type', 'Outstand.', 'Overdue', 'Class', 'Total Rec.', 'Last Rec.', 'Last Rec. Date'];
+    const widths = [24, 32, 22, 22, 24, 22, 14, 24, 22, 26];
+    const xs: number[] = []; { let x = 10; widths.forEach(w => { xs.push(x); x += w; }); }
+    doc.setFont('helvetica', 'bold');
+    cols.forEach((h, i) => doc.text(h, xs[i], y));
     y += 5;
     doc.setFont('helvetica', 'normal');
     filteredLoans.forEach(l => {
       if (y > 195) { doc.addPage(); y = 15; }
-      const vals = [l.account_no, l.borrower_name, l.mobile, l.account_type, l.account_status,
-        String(l.installment_amount || 0), String(l.overdue_amount || 0), String(l.outstanding_amount || 0), l.classification];
-      vals.forEach((v, i) => doc.text(String(v || '').substring(0, 18), 10 + i * cw, y));
+      const agg = recoveryAgg.get(l.id) || { total: 0, lastAmt: 0, lastDate: '' };
+      const vals = [
+        l.account_no, l.borrower_name, l.mobile, l.account_type,
+        String(l.outstanding_amount || 0), String(l.overdue_amount || 0), l.classification,
+        String(agg.total), agg.lastAmt ? String(agg.lastAmt) : '-', agg.lastDate || '-',
+      ];
+      vals.forEach((v, i) => doc.text(String(v || '').substring(0, 22), xs[i], y));
       y += 4.5;
     });
     doc.save(`loans_report_${new Date().toISOString().slice(0, 10)}.pdf`);
