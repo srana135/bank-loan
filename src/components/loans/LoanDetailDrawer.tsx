@@ -40,6 +40,18 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
   const { data: recoveries } = useLoanRecoveries(loan.id);
   const totalRecovery = (recoveries || []).reduce((s, r) => s + (r.recovered_amount || 0), 0);
 
+  // Expiry / overdue calculation
+  const fmtDDMMYYYY = (s?: string | null) =>
+    s ? new Date(s).toLocaleDateString('en-GB').replace(/\//g, '-') : '-';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = loan.expiry_date ? new Date(loan.expiry_date) : null;
+  if (expiry) expiry.setHours(0, 0, 0, 0);
+  const isOverdue = expiry ? today.getTime() > expiry.getTime() : false;
+  const dayDiff = expiry
+    ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
+    : null;
+
   // Build Google Maps URL — prefer coords, fall back to address text
   const mapsUrl = (() => {
     if (loan.latitude && loan.longitude) {
