@@ -51,6 +51,14 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
   const dayDiff = expiry
     ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
     : null;
+  const formatMonthsDays = (days: number) => {
+    const d = Math.abs(days);
+    const months = Math.floor(d / 30);
+    const rem = d % 30;
+    if (months === 0) return `${rem} দিন`;
+    if (rem === 0) return `${months} মাস`;
+    return `${months} মাস ${rem} দিন`;
+  };
 
   // Build Google Maps URL — prefer coords, fall back to address text
   const mapsUrl = (() => {
