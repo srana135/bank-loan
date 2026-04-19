@@ -314,10 +314,12 @@ const Converter = () => {
               )}
               <div className="rounded-lg bg-muted/30 p-3 text-xs space-y-1">
                 <p className="font-medium">কীভাবে কাজ করে:</p>
-                <p>• PDF এর প্রতিটি পেজ আলাদা শীট হিসেবে কনভার্ট হবে</p>
-                <p>• টেবিল অংশ → সেপারেট সেলে (cell-by-cell)</p>
-                <p>• টেবিলের বাইরের লেখা → প্যারাগ্রাফ অনুযায়ী রো-তে</p>
-                <p>• লেআউট পজিশন অনুযায়ী একই রকম থাকবে</p>
+                <p>• সব পেজ একটি শীটে merge হবে (single sheet output)</p>
+                <p>• সব পেজের টেবিল → একটি continuous merged table</p>
+                <p>• Page 1: টেবিলের আগের লেখা → paragraph rows হিসেবে উপরে</p>
+                <p>• Page 2+: শুধু টেবিল data (উপরের text বাদ)</p>
+                <p>• Last page: টেবিলের পরের লেখা → footer paragraph rows</p>
+                <p>• Consistent column mapping; alignment-এর জন্য empty cells</p>
               </div>
             </div>
           ) : (
