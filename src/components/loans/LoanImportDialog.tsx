@@ -115,14 +115,30 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               else { errors.push({ row: rowNum, accountNo, error: `Branch "${branchCodeVal}" not found.` }); continue; }
             }
 
+            // Helper: parse number from Excel cell — handles commas, spaces, Bengali digits, currency symbols
+            const parseNum = (v: any): number => {
+              if (v === undefined || v === null || v === '') return 0;
+              if (typeof v === 'number') return isFinite(v) ? v : 0;
+              let s = String(v).trim();
+              // Convert Bengali/Arabic digits → English
+              s = s.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+                   .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+              // Strip currency symbols, commas, spaces
+              s = s.replace(/[৳$€£₹,\s]/g, '');
+              const n = parseFloat(s);
+              return isFinite(n) ? n : 0;
+            };
+
             const payload: Record<string, any> = {};
             for (const [label, dbCol] of colMap.entries()) {
               let val = row[label];
-              if (val === undefined || val === null || val === '') {
-                val = NUMERIC_COLS.includes(dbCol) || INT_COLS.includes(dbCol) ? 0 : '';
+              if (NUMERIC_COLS.includes(dbCol)) {
+                val = parseNum(val);
+              } else if (INT_COLS.includes(dbCol)) {
+                val = Math.round(parseNum(val));
+              } else if (val === undefined || val === null) {
+                val = '';
               }
-              if (NUMERIC_COLS.includes(dbCol)) val = Number(val) || 0;
-              if (INT_COLS.includes(dbCol)) val = parseInt(String(val), 10) || 0;
               payload[dbCol] = val;
             }
             payload.branch_id = resolvedBranchId;
