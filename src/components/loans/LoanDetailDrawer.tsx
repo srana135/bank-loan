@@ -187,6 +187,18 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
               {fmtDDMMYYYY(loan.expiry_date)}
             </span>
           </div>
+          {loan.data_as_of_date && (
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-muted-foreground">Data As-of Date</span>
+              <span className="font-medium text-right">{fmtDDMMYYYY(loan.data_as_of_date)}</span>
+            </div>
+          )}
+          <div className="flex justify-between py-1.5 text-sm">
+            <span className="text-muted-foreground">Loan Category</span>
+            <Badge variant={loan.loan_category === 'rescheduled' ? 'secondary' : 'outline'} className="text-[10px]">
+              {loan.loan_category === 'rescheduled' ? 'Rescheduled' : 'New Loan'}
+            </Badge>
+          </div>
           {expiry && (
             <div className="flex justify-between py-1.5 text-sm">
               <span className="text-muted-foreground">Status</span>
@@ -228,7 +240,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
             <TabsTrigger value="timeline" className="text-xs gap-1"><Clock className="h-3 w-3" /> Timeline</TabsTrigger>
           </TabsList>
           <TabsContent value="comments"><LoanComments loanId={loan.id} /></TabsContent>
-          <TabsContent value="recoveries"><LoanRecoveries loanId={loan.id} /></TabsContent>
+          <TabsContent value="recoveries"><LoanRecoveries loanId={loan.id} asOfDate={loan.data_as_of_date} /></TabsContent>
           <TabsContent value="timeline"><LoanTimeline loanId={loan.id} createdAt={loan.created_at} /></TabsContent>
         </Tabs>
       </SheetContent>
