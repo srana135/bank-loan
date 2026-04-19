@@ -105,8 +105,15 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
         <SheetHeader className="pb-4">
           <div className="flex items-start justify-between">
             <div>
-              <SheetTitle className="text-lg">{loan.borrower_name}</SheetTitle>
-              <SheetDescription className="font-mono">{loan.account_no}</SheetDescription>
+              <SheetTitle className={`text-lg ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+                {loan.borrower_name}
+              </SheetTitle>
+              <SheetDescription className={`font-mono ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+                {loan.account_no}
+              </SheetDescription>
+              {isOverdue && (
+                <Badge variant="destructive" className="mt-2">মেয়াদ উত্তীর্ণ</Badge>
+              )}
             </div>
             <Badge variant={classColors[loan.classification || ''] as any || 'secondary'}>{loan.classification}</Badge>
           </div>
