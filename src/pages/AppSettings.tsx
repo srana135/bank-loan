@@ -95,6 +95,12 @@ const AppSettings = () => {
   const updateClassDays = (field: string, val: number) => {
     update('classification_days', { ...form.classification_days, [field]: val });
   };
+  const updateClassDaysNew = (field: 'sma_max' | 'ss_max' | 'df_max', val: number) => {
+    update('classification_days_new', { ...(form.classification_days_new || { sma_max: 90, ss_max: 180, df_max: 270 }), [field]: val });
+  };
+  const updateClassDaysResch = (field: 'sma_max' | 'ss_max' | 'df_max', val: number) => {
+    update('classification_days_resch', { ...(form.classification_days_resch || { sma_max: 180, ss_max: 270, df_max: 360 }), [field]: val });
+  };
 
   // Legal config helpers
   const addCaseType = () => {
@@ -301,8 +307,8 @@ const AppSettings = () => {
         <TabsContent value="classification" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">ঋণ শ্রেণিবিভাগ (Loan Classification)</CardTitle>
-              <CardDescription>বকেয়া দিনের উপর ভিত্তি করে ঋণ শ্রেণিবিভাগ — STD, SMA, SS, DF, BL</CardDescription>
+              <CardTitle className="text-lg">ঋণ শ্রেণিবিভাগ — সাধারণ (Legacy)</CardTitle>
+              <CardDescription>পুরাতন একক থ্রেশহোল্ড সেট — নতুন/পুনঃতফসিল splitping না থাকলে ব্যবহৃত হয়</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1.5">
@@ -327,6 +333,59 @@ const AppSettings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Split: New Loan vs Rescheduled Loan */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">নতুন ঋণ (New Loan)</CardTitle>
+                <CardDescription>নতুন ঋণের জন্য থ্রেশহোল্ড — ClassificationSuggestion এ ব্যবহৃত</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>SMA সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_new?.sma_max ?? 90} onChange={e => updateClassDaysNew('sma_max', +e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>SS সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_new?.ss_max ?? 180} onChange={e => updateClassDaysNew('ss_max', +e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>DF সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_new?.df_max ?? 270} onChange={e => updateClassDaysNew('df_max', +e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground col-span-3">
+                  0 – {form.classification_days_new?.sma_max ?? 90} দিন = STD/SMA · {(form.classification_days_new?.sma_max ?? 90) + 1} – {form.classification_days_new?.ss_max ?? 180} = SS · 
+                  {' '}{(form.classification_days_new?.ss_max ?? 180) + 1} – {form.classification_days_new?.df_max ?? 270} = DF · {(form.classification_days_new?.df_max ?? 270) + 1}+ = BL
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">পুনঃতফসিল ঋণ (Rescheduled)</CardTitle>
+                <CardDescription>RS-1 / Special RS — সাধারণত শিথিল থ্রেশহোল্ড</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>SMA সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_resch?.sma_max ?? 180} onChange={e => updateClassDaysResch('sma_max', +e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>SS সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_resch?.ss_max ?? 270} onChange={e => updateClassDaysResch('ss_max', +e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>DF সর্বোচ্চ দিন</Label>
+                  <Input type="number" value={form.classification_days_resch?.df_max ?? 360} onChange={e => updateClassDaysResch('df_max', +e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground col-span-3">
+                  0 – {form.classification_days_resch?.sma_max ?? 180} দিন = STD/SMA · {(form.classification_days_resch?.sma_max ?? 180) + 1} – {form.classification_days_resch?.ss_max ?? 270} = SS · 
+                  {' '}{(form.classification_days_resch?.ss_max ?? 270) + 1} – {form.classification_days_resch?.df_max ?? 360} = DF · {(form.classification_days_resch?.df_max ?? 360) + 1}+ = BL
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* ============ CALCULATOR DEFAULTS ============ */}

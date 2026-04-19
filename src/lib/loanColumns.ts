@@ -8,6 +8,7 @@ export const ALL_LOAN_COLUMNS: Record<string, string> = {
   mobile: 'Mobile',
   account_type: 'Account Type',
   account_status: 'Account Status',
+  loan_category: 'Loan Category',
   address: 'Address',
   disbursed_loan_amount: 'Disbursed Loan Amount',
   disbursement_date: 'Disbursement Date',
@@ -22,6 +23,7 @@ export const ALL_LOAN_COLUMNS: Record<string, string> = {
   guarantor_2_name: 'Guarantor 2 Name',
   guarantor_2_mobile: 'Guarantor 2 Mobile',
   branch_code: 'Branch Code',
+  data_as_of_date: 'Data As-of Date',
   recovered_amount: 'Recovery Amount',
   recovery_date: 'Recovery Date',
 };

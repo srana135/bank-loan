@@ -16,9 +16,10 @@ const RECOVERY_TYPES = ['Cash', 'Bank Transfer', 'Cheque', 'Court Recovery', 'As
 
 interface Props {
   loanId: string;
+  asOfDate?: string | null;
 }
 
-const LoanRecoveries = ({ loanId }: Props) => {
+const LoanRecoveries = ({ loanId, asOfDate }: Props) => {
   const { user, profile, userRole } = useAuth();
   const { data: recoveries, isLoading } = useLoanRecoveries(loanId);
   const addRecovery = useAddRecovery();
@@ -162,7 +163,18 @@ const LoanRecoveries = ({ loanId }: Props) => {
                       <Banknote className="h-3.5 w-3.5 text-primary" />
                       <div>
                         <p className="text-xs font-medium">৳{r.recovered_amount.toLocaleString()}</p>
-                        <p className="text-[10px] text-muted-foreground">{r.recovery_date} · {r.recovery_type}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {r.recovery_date} · {r.recovery_type}
+                          {asOfDate && (
+                            <Badge
+                              variant={r.recovery_date > asOfDate ? 'default' : 'outline'}
+                              className="ml-1.5 text-[8px] h-3.5 px-1"
+                              title={r.recovery_date > asOfDate ? 'Adjusted from imported balance' : 'Informational — pre-cutoff'}
+                            >
+                              {r.recovery_date > asOfDate ? 'Post-cutoff' : 'Pre-cutoff'}
+                            </Badge>
+                          )}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

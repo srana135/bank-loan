@@ -9,6 +9,12 @@ export interface LoanClassificationDays {
   // BL = anything above df_max
 }
 
+export interface LoanClassificationDaysSplit {
+  sma_max: number;
+  ss_max: number;
+  df_max: number;
+}
+
 export interface LegalCaseConfig {
   case_types: string[];
   default_court: string;
@@ -34,6 +40,9 @@ export interface AppSettingsMap {
   default_map_lng: number;
   // Classification days
   classification_days: LoanClassificationDays;
+  // Split: New Loan vs Rescheduled Loan thresholds
+  classification_days_new: LoanClassificationDaysSplit;
+  classification_days_resch: LoanClassificationDaysSplit;
   // Legal case config
   legal_case_config: LegalCaseConfig;
   // Currency converter defaults
@@ -97,6 +106,8 @@ const DEFAULTS: AppSettingsMap = {
   default_map_lat: 23.8103,
   default_map_lng: 90.4125,
   classification_days: { std_max: 90, sma_max: 180, ss_max: 270, df_max: 360 },
+  classification_days_new:   { sma_max: 90,  ss_max: 180, df_max: 270 },
+  classification_days_resch: { sma_max: 180, ss_max: 270, df_max: 360 },
   legal_case_config: { case_types: ['NI', 'Artha Rin', 'PDR'], default_court: '' },
   default_currencies: ['USD', 'SAR', 'AED', 'EUR', 'GBP', 'KWD', 'OMR', 'QAR', 'MYR', 'SGD'],
   dps_default_rate: 8,

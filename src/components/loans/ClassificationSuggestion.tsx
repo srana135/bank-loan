@@ -23,9 +23,18 @@ const ClassificationSuggestion = ({ loan, compact = false }: Props) => {
   
   if (!settings) return null;
 
-  const cd = settings.classification_days || { std_max: 0, sma_max: 90, ss_max: 180, df_max: 270 };
+  // Pick threshold set based on loan_category
+  const isResch = loan.loan_category === 'rescheduled';
+  const split = isResch
+    ? (settings.classification_days_resch || { sma_max: 180, ss_max: 270, df_max: 360 })
+    : (settings.classification_days_new   || { sma_max: 90,  ss_max: 180, df_max: 270 });
+
   const classificationDays = {
-    STD: 0, SMA: cd.sma_max || 90, SS: cd.ss_max || 180, DF: cd.df_max || 270, BL: (cd.df_max || 270) + 90,
+    STD: 0,
+    SMA: split.sma_max,
+    SS:  split.ss_max,
+    DF:  split.df_max,
+    BL:  split.df_max + 90,
   };
 
   const overdueDays = (loan.overdue_installment_number || 0) * 30;

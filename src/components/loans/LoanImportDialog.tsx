@@ -8,15 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { ALL_LOAN_COLUMNS as ALL_IMPORT_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, NUMERIC_LOAN_COLS as NUMERIC_COLS, INT_LOAN_COLS as INT_COLS } from '@/lib/loanColumns';
 
-// Recovery-specific columns are written to loan_recoveries instead of loans
+// Recovery + meta columns are written separately, not directly to loans table fields
 const RECOVERY_COLS = ['recovered_amount', 'recovery_date'];
 
 interface RowError { row: number; accountNo: string; error: string; }
@@ -32,9 +31,9 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
+  // Required: Data-as-of date — defaults to today
+  const [asOfDate, setAsOfDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
-  // Canonical column order — template ALWAYS uses this order regardless of selection
-  // Get configured columns from settings (or all if none configured); then re-sort to canonical order
   const selectedSet = new Set<string>(settings?.import_loan_columns?.length ? settings.import_loan_columns : CANONICAL_LOAN_COLUMN_ORDER);
   const configuredColumns = CANONICAL_LOAN_COLUMN_ORDER.filter(k => selectedSet.has(k));
   const templateColumns = configuredColumns.map(k => ALL_IMPORT_COLUMNS[k] || k).filter(Boolean);
@@ -46,10 +45,12 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
       if (k === 'borrower_name') return 'John Doe';
       if (k === 'mobile') return '01700000000';
       if (k === 'account_type') return 'Term Loan';
-      if (k === 'account_status') return 'active';
+      if (k === 'account_status') return 'New Loan';
+      if (k === 'loan_category') return 'new';
       if (k === 'address') return '123 Main St';
       if (k === 'classification') return 'STD';
       if (k === 'recovery_date') return new Date().toISOString().slice(0, 10);
+      if (k === 'data_as_of_date') return asOfDate;
       if (NUMERIC_COLS.includes(k)) return '0';
       if (INT_COLS.includes(k)) return '0';
       return '';
@@ -59,17 +60,18 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
     XLSX.utils.book_append_sheet(wb, ws, 'Loans Template');
     ws['!cols'] = templateColumns.map(() => ({ wch: 18 }));
     XLSX.writeFile(wb, 'loan_import_template.xlsx');
-  }, [configuredColumns, templateColumns]);
+  }, [configuredColumns, templateColumns, asOfDate]);
 
-  // Build reverse map: display label → db column (excludes recovery cols + branch_code)
+  // Reverse map: display label → db column (excludes recovery cols + branch_code + data_as_of_date which is set globally)
   const colMap = new Map<string, string>();
   configuredColumns.forEach(k => {
     const label = ALL_IMPORT_COLUMNS[k];
-    if (label && k !== 'branch_code' && !RECOVERY_COLS.includes(k)) colMap.set(label, k);
+    if (label && k !== 'branch_code' && k !== 'data_as_of_date' && !RECOVERY_COLS.includes(k)) colMap.set(label, k);
   });
 
   const handleImport = async () => {
     if (!file) { toast.error('Select a file'); return; }
+    if (!asOfDate) { toast.error('Data As-of Date is required'); return; }
     setImporting(true); setProgress(0); setResult(null);
 
     const reader = new FileReader();
@@ -94,6 +96,17 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
         const errors: RowError[] = [];
         let success = 0;
 
+        const parseNum = (v: any): number => {
+          if (v === undefined || v === null || v === '') return 0;
+          if (typeof v === 'number') return isFinite(v) ? v : 0;
+          let s = String(v).trim();
+          s = s.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+               .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+          s = s.replace(/[৳$€£₹,\s]/g, '');
+          const n = parseFloat(s);
+          return isFinite(n) ? n : 0;
+        };
+
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           const rowNum = i + 2;
@@ -115,20 +128,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               else { errors.push({ row: rowNum, accountNo, error: `Branch "${branchCodeVal}" not found.` }); continue; }
             }
 
-            // Helper: parse number from Excel cell — handles commas, spaces, Bengali digits, currency symbols
-            const parseNum = (v: any): number => {
-              if (v === undefined || v === null || v === '') return 0;
-              if (typeof v === 'number') return isFinite(v) ? v : 0;
-              let s = String(v).trim();
-              // Convert Bengali/Arabic digits → English
-              s = s.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
-                   .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
-              // Strip currency symbols, commas, spaces
-              s = s.replace(/[৳$€£₹,\s]/g, '');
-              const n = parseFloat(s);
-              return isFinite(n) ? n : 0;
-            };
-
+            // Build payload — Excel values written verbatim. NO auto-adjustment.
             const payload: Record<string, any> = {};
             for (const [label, dbCol] of colMap.entries()) {
               let val = row[label];
@@ -141,21 +141,35 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               }
               payload[dbCol] = val;
             }
+            // Normalize loan_category from Excel (if present) → 'new' | 'rescheduled'
+            if (payload.loan_category) {
+              const lc = String(payload.loan_category).trim().toLowerCase();
+              payload.loan_category = (lc === 'rescheduled' || lc === 'resch' || lc === 'rs' || lc === 'rs-1' || lc === 'special rs') ? 'rescheduled' : 'new';
+            } else if (payload.account_status) {
+              const st = String(payload.account_status).trim().toLowerCase();
+              payload.loan_category = (st === 'rs-1' || st === 'special rs') ? 'rescheduled' : 'new';
+            }
+
             payload.branch_id = resolvedBranchId;
             payload.created_by = user?.id;
+            payload.data_as_of_date = asOfDate;
 
             const { error } = await supabase.from('loans').upsert(payload, { onConflict: 'account_no' });
             if (error) { errors.push({ row: rowNum, accountNo, error: error.message }); continue; }
-            success++;
 
-            // Recovery insert (if Recovery Amount + Recovery Date supplied in this row)
+            // Get loan id for recovery operations
+            const { data: loanRow } = await supabase.from('loans')
+              .select('id, outstanding_amount, installment_amount, overdue_installment_number')
+              .eq('account_no', accountNo).maybeSingle();
+            if (!loanRow) { success++; continue; }
+
+            // 1. Insert/upsert recovery row from Excel (if provided) — INFORMATIONAL only, no balance adjust
             const recAmtRaw = row['Recovery Amount'];
             const recDateRaw = row['Recovery Date'];
-            const recAmt = Number(recAmtRaw) || 0;
+            const recAmt = parseNum(recAmtRaw);
             let recDate = '';
             if (recDateRaw) {
               if (typeof recDateRaw === 'number') {
-                // Excel date serial → ISO
                 const d = XLSX.SSF.parse_date_code(recDateRaw);
                 if (d) recDate = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
               } else {
@@ -163,29 +177,41 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
               }
             }
             if (recAmt > 0 && recDate) {
-              // Resolve loan id by account_no
-              const { data: loanRow } = await supabase.from('loans').select('id, outstanding_amount, installment_amount, overdue_installment_number').eq('account_no', accountNo).maybeSingle();
-              if (loanRow) {
-                // Upsert by (loan_id, recovery_date) — same date = update amount only
-                const { data: existing } = await supabase.from('loan_recoveries').select('id, recovered_amount').eq('loan_id', loanRow.id).eq('recovery_date', recDate).maybeSingle();
-                let amountDelta = recAmt;
-                if (existing) {
-                  amountDelta = recAmt - (existing.recovered_amount || 0);
-                  await supabase.from('loan_recoveries').update({ recovered_amount: recAmt, recovery_type: 'imported' }).eq('id', existing.id);
-                } else {
-                  await supabase.from('loan_recoveries').insert({
-                    loan_id: loanRow.id, recovery_date: recDate, recovered_amount: recAmt,
-                    recovery_type: 'imported', note: 'From import', created_by: user?.id,
-                  });
-                }
-                // Adjust outstanding & overdue installments
-                const newOutstanding = Math.max(0, (loanRow.outstanding_amount || 0) - amountDelta);
-                const installment = loanRow.installment_amount || 1;
-                const installmentsDelta = Math.floor(Math.abs(amountDelta) / installment) * Math.sign(amountDelta);
-                const newOverdue = Math.max(0, (loanRow.overdue_installment_number || 0) - installmentsDelta);
-                await supabase.from('loans').update({ outstanding_amount: newOutstanding, overdue_installment_number: newOverdue }).eq('id', loanRow.id);
+              const { data: existing } = await supabase.from('loan_recoveries')
+                .select('id').eq('loan_id', loanRow.id).eq('recovery_date', recDate).maybeSingle();
+              if (existing) {
+                await supabase.from('loan_recoveries').update({ recovered_amount: recAmt, recovery_type: 'imported' }).eq('id', existing.id);
+              } else {
+                await supabase.from('loan_recoveries').insert({
+                  loan_id: loanRow.id, recovery_date: recDate, recovered_amount: recAmt,
+                  recovery_type: 'imported', note: 'From import', created_by: user?.id,
+                });
+              }
+              // NOTE: outstanding/overdue NOT adjusted — Excel value is the truth as of as-of date
+            }
+
+            // 2. Apply post-cutoff recoveries (recoveries dated AFTER as-of date) → deduct from imported balances
+            const { data: postRecs } = await supabase.from('loan_recoveries')
+              .select('recovered_amount, recovery_date')
+              .eq('loan_id', loanRow.id)
+              .gt('recovery_date', asOfDate);
+            if (postRecs && postRecs.length > 0) {
+              const totalPost = postRecs.reduce((s, r) => s + (Number(r.recovered_amount) || 0), 0);
+              if (totalPost > 0) {
+                const installment = Number(payload.installment_amount) || loanRow.installment_amount || 1;
+                const importedOutstanding = Number(payload.outstanding_amount) || 0;
+                const importedOverdueInst = Number(payload.overdue_installment_number) || 0;
+                const newOutstanding = Math.max(0, importedOutstanding - totalPost);
+                const installmentsCovered = Math.floor(totalPost / Math.max(1, installment));
+                const newOverdueInst = Math.max(0, importedOverdueInst - installmentsCovered);
+                await supabase.from('loans').update({
+                  outstanding_amount: newOutstanding,
+                  overdue_installment_number: newOverdueInst,
+                }).eq('id', loanRow.id);
               }
             }
+
+            success++;
           } catch (err: any) {
             errors.push({ row: rowNum, accountNo: String(row['Account No'] || ''), error: err.message });
           }
@@ -202,7 +228,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
         qc.invalidateQueries({ queryKey: ['loans'] });
         qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
         qc.invalidateQueries({ queryKey: ['all-recoveries'] });
-        if (success > 0) toast.success(`${success} loan(s) imported/updated`);
+        if (success > 0) toast.success(`${success} loan(s) imported as of ${asOfDate}`);
         if (errors.length > 0) toast.error(`${errors.length} row(s) failed`);
       } catch (err: any) {
         toast.error('Import failed: ' + err.message);
@@ -224,6 +250,16 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
         </DialogHeader>
         {!result ? (
           <div className="space-y-4">
+            <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10 space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-amber-600" /> Data As-of Date <span className="text-destructive">*</span>
+              </Label>
+              <Input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="max-w-xs" />
+              <p className="text-xs text-muted-foreground">
+                এই তারিখ ভিত্তিক ডাটা ইম্পোর্ট হবে। এই তারিখের আগের পুরোনো রিকভারি list-এ থাকবে কিন্তু balance adjust করবে না। 
+                এই তারিখের পরের রিকভারি imported balance থেকে বিয়োগ হবে।
+              </p>
+            </div>
             <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
               <div>
                 <p className="text-sm font-medium">Download Template</p>
@@ -243,7 +279,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button onClick={handleImport} disabled={!file || importing} className="gap-2">
+              <Button onClick={handleImport} disabled={!file || importing || !asOfDate} className="gap-2">
                 {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 {importing ? 'Importing...' : 'Start Import'}
               </Button>
