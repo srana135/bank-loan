@@ -303,64 +303,48 @@ const AppSettings = () => {
           </Card>
         </TabsContent>
 
-        {/* ============ CLASSIFICATION ============ */}
+        {/* ============ CLASSIFICATION (Installment-based) ============ */}
         <TabsContent value="classification" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">ঋণ শ্রেণিবিভাগ — সাধারণ (Legacy)</CardTitle>
-              <CardDescription>পুরাতন একক থ্রেশহোল্ড সেট — নতুন/পুনঃতফসিল splitping না থাকলে ব্যবহৃত হয়</CardDescription>
+              <CardTitle className="text-lg">ঋণ শ্রেণিবিভাগ — বকেয়া কিস্তি ভিত্তিক</CardTitle>
+              <CardDescription>
+                বকেয়া কিস্তির সংখ্যা অনুযায়ী STD / SMA / SS / DF / BL নির্ধারণ। দিন সংখ্যা নয়।
+                নতুন ঋণ ও পুনঃতফসিল ঋণের জন্য আলাদা থ্রেশহোল্ড।
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <Label>STD সর্বোচ্চ দিন</Label>
-                <Input type="number" value={form.classification_days.std_max} onChange={e => updateClassDays('std_max', +e.target.value)} />
-                <p className="text-xs text-muted-foreground">0 – {form.classification_days.std_max} দিন = STD</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>SMA সর্বোচ্চ দিন</Label>
-                <Input type="number" value={form.classification_days.sma_max} onChange={e => updateClassDays('sma_max', +e.target.value)} />
-                <p className="text-xs text-muted-foreground">{form.classification_days.std_max + 1} – {form.classification_days.sma_max} দিন = SMA</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>SS সর্বোচ্চ দিন</Label>
-                <Input type="number" value={form.classification_days.ss_max} onChange={e => updateClassDays('ss_max', +e.target.value)} />
-                <p className="text-xs text-muted-foreground">{form.classification_days.sma_max + 1} – {form.classification_days.ss_max} দিন = SS</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>DF সর্বোচ্চ দিন</Label>
-                <Input type="number" value={form.classification_days.df_max} onChange={e => updateClassDays('df_max', +e.target.value)} />
-                <p className="text-xs text-muted-foreground">{form.classification_days.ss_max + 1} – {form.classification_days.df_max} দিন = DF<br />{form.classification_days.df_max}+ দিন = BL</p>
-              </div>
-            </CardContent>
           </Card>
 
-          {/* Split: New Loan vs Rescheduled Loan */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* New Loan */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">নতুন ঋণ (New Loan)</CardTitle>
-                <CardDescription>নতুন ঋণের জন্য থ্রেশহোল্ড — ClassificationSuggestion এ ব্যবহৃত</CardDescription>
+                <CardDescription>সর্বোচ্চ কত বকেয়া কিস্তি পর্যন্ত প্রতিটি শ্রেণি</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label>SMA সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_new?.sma_max ?? 90} onChange={e => updateClassDaysNew('sma_max', +e.target.value)} />
+                  <Label>SMA সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_new?.sma_max ?? 3} onChange={e => updateClassInstNew('sma_max', +e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>SS সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_new?.ss_max ?? 180} onChange={e => updateClassDaysNew('ss_max', +e.target.value)} />
+                  <Label>SS সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_new?.ss_max ?? 6} onChange={e => updateClassInstNew('ss_max', +e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>DF সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_new?.df_max ?? 270} onChange={e => updateClassDaysNew('df_max', +e.target.value)} />
+                  <Label>DF সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_new?.df_max ?? 9} onChange={e => updateClassInstNew('df_max', +e.target.value)} />
                 </div>
                 <p className="text-xs text-muted-foreground col-span-3">
-                  0 – {form.classification_days_new?.sma_max ?? 90} দিন = STD/SMA · {(form.classification_days_new?.sma_max ?? 90) + 1} – {form.classification_days_new?.ss_max ?? 180} = SS · 
-                  {' '}{(form.classification_days_new?.ss_max ?? 180) + 1} – {form.classification_days_new?.df_max ?? 270} = DF · {(form.classification_days_new?.df_max ?? 270) + 1}+ = BL
+                  0 কিস্তি = STD · 1 – {form.classification_installments_new?.sma_max ?? 3} = SMA ·{' '}
+                  {(form.classification_installments_new?.sma_max ?? 3) + 1} – {form.classification_installments_new?.ss_max ?? 6} = SS ·{' '}
+                  {(form.classification_installments_new?.ss_max ?? 6) + 1} – {form.classification_installments_new?.df_max ?? 9} = DF ·{' '}
+                  {(form.classification_installments_new?.df_max ?? 9) + 1}+ = BL
                 </p>
               </CardContent>
             </Card>
 
+            {/* Rescheduled */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">পুনঃতফসিল ঋণ (Rescheduled)</CardTitle>
@@ -368,20 +352,22 @@ const AppSettings = () => {
               </CardHeader>
               <CardContent className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label>SMA সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_resch?.sma_max ?? 180} onChange={e => updateClassDaysResch('sma_max', +e.target.value)} />
+                  <Label>SMA সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_resch?.sma_max ?? 6} onChange={e => updateClassInstResch('sma_max', +e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>SS সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_resch?.ss_max ?? 270} onChange={e => updateClassDaysResch('ss_max', +e.target.value)} />
+                  <Label>SS সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_resch?.ss_max ?? 9} onChange={e => updateClassInstResch('ss_max', +e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>DF সর্বোচ্চ দিন</Label>
-                  <Input type="number" value={form.classification_days_resch?.df_max ?? 360} onChange={e => updateClassDaysResch('df_max', +e.target.value)} />
+                  <Label>DF সর্বোচ্চ কিস্তি</Label>
+                  <Input type="number" min={1} value={form.classification_installments_resch?.df_max ?? 12} onChange={e => updateClassInstResch('df_max', +e.target.value)} />
                 </div>
                 <p className="text-xs text-muted-foreground col-span-3">
-                  0 – {form.classification_days_resch?.sma_max ?? 180} দিন = STD/SMA · {(form.classification_days_resch?.sma_max ?? 180) + 1} – {form.classification_days_resch?.ss_max ?? 270} = SS · 
-                  {' '}{(form.classification_days_resch?.ss_max ?? 270) + 1} – {form.classification_days_resch?.df_max ?? 360} = DF · {(form.classification_days_resch?.df_max ?? 360) + 1}+ = BL
+                  0 কিস্তি = STD · 1 – {form.classification_installments_resch?.sma_max ?? 6} = SMA ·{' '}
+                  {(form.classification_installments_resch?.sma_max ?? 6) + 1} – {form.classification_installments_resch?.ss_max ?? 9} = SS ·{' '}
+                  {(form.classification_installments_resch?.ss_max ?? 9) + 1} – {form.classification_installments_resch?.df_max ?? 12} = DF ·{' '}
+                  {(form.classification_installments_resch?.df_max ?? 12) + 1}+ = BL
                 </p>
               </CardContent>
             </Card>
