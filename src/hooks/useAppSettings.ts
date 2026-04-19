@@ -9,6 +9,12 @@ export interface LoanClassificationDays {
   // BL = anything above df_max
 }
 
+export interface LoanClassificationDaysSplit {
+  sma_max: number;
+  ss_max: number;
+  df_max: number;
+}
+
 export interface LegalCaseConfig {
   case_types: string[];
   default_court: string;

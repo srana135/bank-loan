@@ -69,6 +69,8 @@ export interface Loan {
   latest_comment: string | null;
   latest_proposed_date: string | null;
   expiry_date: string | null;
+  data_as_of_date: string | null;
+  loan_category: 'new' | 'rescheduled';
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
