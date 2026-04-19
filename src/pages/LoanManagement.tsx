@@ -629,7 +629,14 @@ const LoanManagement = () => {
                       </TableCell>
                     )}
                     <TableCell className="font-medium text-sm">{loan.account_name || '-'}</TableCell>
-                    <TableCell className="font-mono text-xs">{loan.account_no}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <div className="flex flex-col gap-0.5 items-start">
+                        <span>{loan.account_no}</span>
+                        {loan.expiry_date && new Date(loan.expiry_date) < new Date(new Date().setHours(0,0,0,0)) && (
+                          <Badge variant="destructive" className="text-[9px] h-4 px-1">Expired</Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm">{loan.borrower_name}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={(loan.overdue_installment_number || 0) > 0 ? 'destructive' : 'secondary'} className="text-xs">
