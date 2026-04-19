@@ -191,7 +191,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
             <div className="flex justify-between py-1.5 text-sm">
               <span className="text-muted-foreground">Status</span>
               <span className={isOverdue ? 'text-destructive font-semibold' : 'text-green-700 dark:text-green-400 font-medium'}>
-                {isOverdue ? `Overdue by ${Math.abs(dayDiff!)} days` : `${dayDiff} days remaining`}
+                {isOverdue ? `মেয়াদ উত্তীর্ণ ${formatMonthsDays(dayDiff!)}` : `বাকি ${formatMonthsDays(dayDiff!)}`}
               </span>
             </div>
           )}
