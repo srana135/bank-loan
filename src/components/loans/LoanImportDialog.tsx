@@ -250,7 +250,7 @@ const LoanImportDialog = ({ open, onClose, defaultBranchId }: Props) => {
         </DialogHeader>
         {!result ? (
           <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 space-y-2">
+            <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10 space-y-2">
               <Label className="text-sm font-semibold flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-amber-600" /> Data As-of Date <span className="text-destructive">*</span>
               </Label>

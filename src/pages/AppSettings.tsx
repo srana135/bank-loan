@@ -95,6 +95,12 @@ const AppSettings = () => {
   const updateClassDays = (field: string, val: number) => {
     update('classification_days', { ...form.classification_days, [field]: val });
   };
+  const updateClassDaysNew = (field: 'sma_max' | 'ss_max' | 'df_max', val: number) => {
+    update('classification_days_new', { ...(form.classification_days_new || { sma_max: 90, ss_max: 180, df_max: 270 }), [field]: val });
+  };
+  const updateClassDaysResch = (field: 'sma_max' | 'ss_max' | 'df_max', val: number) => {
+    update('classification_days_resch', { ...(form.classification_days_resch || { sma_max: 180, ss_max: 270, df_max: 360 }), [field]: val });
+  };
 
   // Legal config helpers
   const addCaseType = () => {
