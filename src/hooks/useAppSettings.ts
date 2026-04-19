@@ -15,6 +15,13 @@ export interface LoanClassificationDaysSplit {
   df_max: number;
 }
 
+// Installment-count based thresholds (number of overdue installments)
+export interface LoanClassificationInstallmentsSplit {
+  sma_max: number; // overdue installments up to this → SMA
+  ss_max: number;  // up to this → SS
+  df_max: number;  // up to this → DF; above → BL
+}
+
 export interface LegalCaseConfig {
   case_types: string[];
   default_court: string;
@@ -40,9 +47,12 @@ export interface AppSettingsMap {
   default_map_lng: number;
   // Classification days
   classification_days: LoanClassificationDays;
-  // Split: New Loan vs Rescheduled Loan thresholds
+  // Split: New Loan vs Rescheduled Loan thresholds (days — legacy)
   classification_days_new: LoanClassificationDaysSplit;
   classification_days_resch: LoanClassificationDaysSplit;
+  // Installment-count based thresholds (preferred)
+  classification_installments_new: LoanClassificationInstallmentsSplit;
+  classification_installments_resch: LoanClassificationInstallmentsSplit;
   // Legal case config
   legal_case_config: LegalCaseConfig;
   // Currency converter defaults
@@ -108,6 +118,8 @@ const DEFAULTS: AppSettingsMap = {
   classification_days: { std_max: 90, sma_max: 180, ss_max: 270, df_max: 360 },
   classification_days_new:   { sma_max: 90,  ss_max: 180, df_max: 270 },
   classification_days_resch: { sma_max: 180, ss_max: 270, df_max: 360 },
+  classification_installments_new:   { sma_max: 3, ss_max: 6, df_max: 9 },
+  classification_installments_resch: { sma_max: 6, ss_max: 9, df_max: 12 },
   legal_case_config: { case_types: ['NI', 'Artha Rin', 'PDR'], default_court: '' },
   default_currencies: ['USD', 'SAR', 'AED', 'EUR', 'GBP', 'KWD', 'OMR', 'QAR', 'MYR', 'SGD'],
   dps_default_rate: 8,

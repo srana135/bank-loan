@@ -10,42 +10,32 @@ interface Props {
 
 const CLS_ORDER = ['STD', 'SMA', 'SS', 'DF', 'BL'];
 
-function getSuggestedClassification(overdueDays: number, classificationDays: Record<string, number>): string {
-  if (overdueDays >= (classificationDays.BL || 360)) return 'BL';
-  if (overdueDays >= (classificationDays.DF || 270)) return 'DF';
-  if (overdueDays >= (classificationDays.SS || 180)) return 'SS';
-  if (overdueDays >= (classificationDays.SMA || 90)) return 'SMA';
+function classifyByInstallments(overdueInst: number, t: { sma_max: number; ss_max: number; df_max: number }): string {
+  if (overdueInst > t.df_max) return 'BL';
+  if (overdueInst > t.ss_max) return 'DF';
+  if (overdueInst > t.sma_max) return 'SS';
+  if (overdueInst > 0) return 'SMA';
   return 'STD';
 }
 
 const ClassificationSuggestion = ({ loan, compact = false }: Props) => {
   const { data: settings } = useAppSettings();
-  
+
   if (!settings) return null;
 
-  // Pick threshold set based on loan_category
   const isResch = loan.loan_category === 'rescheduled';
-  const split = isResch
-    ? (settings.classification_days_resch || { sma_max: 180, ss_max: 270, df_max: 360 })
-    : (settings.classification_days_new   || { sma_max: 90,  ss_max: 180, df_max: 270 });
+  const thresholds = isResch
+    ? (settings.classification_installments_resch || { sma_max: 6, ss_max: 9, df_max: 12 })
+    : (settings.classification_installments_new   || { sma_max: 3, ss_max: 6, df_max: 9 });
 
-  const classificationDays = {
-    STD: 0,
-    SMA: split.sma_max,
-    SS:  split.ss_max,
-    DF:  split.df_max,
-    BL:  split.df_max + 90,
-  };
-
-  const overdueDays = (loan.overdue_installment_number || 0) * 30;
-  const suggested = getSuggestedClassification(overdueDays, classificationDays);
+  const overdueInst = loan.overdue_installment_number || 0;
+  const suggested = classifyByInstallments(overdueInst, thresholds);
   const current = loan.classification || 'STD';
 
-  // Only show if mismatch
   const currentIdx = CLS_ORDER.indexOf(current);
   const suggestedIdx = CLS_ORDER.indexOf(suggested);
-  
-  if (suggestedIdx <= currentIdx) return null; // Already correct or higher
+
+  if (suggestedIdx <= currentIdx) return null;
 
   if (compact) {
     return (
@@ -59,7 +49,7 @@ const ClassificationSuggestion = ({ loan, compact = false }: Props) => {
     <div className="flex items-center gap-1.5 text-[10px] text-destructive bg-destructive/10 rounded px-2 py-1">
       <AlertTriangle className="h-3 w-3 shrink-0" />
       <span>
-        Overdue {overdueDays}d → Suggested: <strong>{suggested}</strong> (current: {current})
+        বকেয়া {overdueInst} কিস্তি → প্রস্তাবিত: <strong>{suggested}</strong> (বর্তমান: {current})
       </span>
     </div>
   );
