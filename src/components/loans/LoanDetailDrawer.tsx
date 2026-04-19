@@ -40,6 +40,18 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
   const { data: recoveries } = useLoanRecoveries(loan.id);
   const totalRecovery = (recoveries || []).reduce((s, r) => s + (r.recovered_amount || 0), 0);
 
+  // Expiry / overdue calculation
+  const fmtDDMMYYYY = (s?: string | null) =>
+    s ? new Date(s).toLocaleDateString('en-GB').replace(/\//g, '-') : '-';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = loan.expiry_date ? new Date(loan.expiry_date) : null;
+  if (expiry) expiry.setHours(0, 0, 0, 0);
+  const isOverdue = expiry ? today.getTime() > expiry.getTime() : false;
+  const dayDiff = expiry
+    ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
+    : null;
+
   // Build Google Maps URL — prefer coords, fall back to address text
   const mapsUrl = (() => {
     if (loan.latitude && loan.longitude) {
@@ -93,8 +105,15 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
         <SheetHeader className="pb-4">
           <div className="flex items-start justify-between">
             <div>
-              <SheetTitle className="text-lg">{loan.borrower_name}</SheetTitle>
-              <SheetDescription className="font-mono">{loan.account_no}</SheetDescription>
+              <SheetTitle className={`text-lg ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+                {loan.borrower_name}
+              </SheetTitle>
+              <SheetDescription className={`font-mono ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+                {loan.account_no}
+              </SheetDescription>
+              {isOverdue && (
+                <Badge variant="destructive" className="mt-2">মেয়াদ উত্তীর্ণ</Badge>
+              )}
             </div>
             <Badge variant={classColors[loan.classification || ''] as any || 'secondary'}>{loan.classification}</Badge>
           </div>
@@ -154,6 +173,20 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
               )}
             </span>
           </div>
+          <div className="flex justify-between py-1.5 text-sm">
+            <span className="text-muted-foreground">Expiry Date</span>
+            <span className={`font-medium text-right ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+              {fmtDDMMYYYY(loan.expiry_date)}
+            </span>
+          </div>
+          {expiry && (
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-muted-foreground">Status</span>
+              <span className={isOverdue ? 'text-destructive font-semibold' : 'text-green-700 dark:text-green-400 font-medium'}>
+                {isOverdue ? `Overdue by ${Math.abs(dayDiff!)} days` : `${dayDiff} days remaining`}
+              </span>
+            </div>
+          )}
         </div>
 
         {(loan.latitude || loan.longitude) && (
