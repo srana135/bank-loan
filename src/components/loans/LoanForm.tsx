@@ -14,7 +14,7 @@ const loanSchema = z.object({
   borrower_name: z.string().min(1, 'Borrower name is required'),
   mobile: z.string().regex(/^[0-9+\-\s]*$/, 'Invalid mobile format').optional().default(''),
   account_type: z.string().optional().default(''),
-  account_status: z.string().optional().default('active'),
+  account_status: z.string().optional().default('New Loan'),
   address: z.string().optional().default(''),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
@@ -56,7 +56,7 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
       borrower_name: loan?.borrower_name || '',
       mobile: loan?.mobile || '',
       account_type: loan?.account_type || '',
-      account_status: loan?.account_status || 'active',
+      account_status: loan?.account_status || 'New Loan',
       address: loan?.address || '',
       latitude: loan?.latitude ?? undefined,
       longitude: loan?.longitude ?? undefined,
@@ -98,12 +98,13 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
         <Field name="account_type" label="Account Type" />
         <div className="space-y-1.5">
           <Label className="text-xs">Account Status</Label>
-          <Select value={watch('account_status') || 'active'} onValueChange={v => setValue('account_status', v)}>
+          <Select value={watch('account_status') || 'New Loan'} onValueChange={v => setValue('account_status', v)}>
             <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
+              <SelectItem value="New Loan">New Loan</SelectItem>
+              <SelectItem value="RS-1">RS-1</SelectItem>
+              <SelectItem value="Special RS">Special RS</SelectItem>
+              <SelectItem value="Exit">Exit</SelectItem>
             </SelectContent>
           </Select>
         </div>

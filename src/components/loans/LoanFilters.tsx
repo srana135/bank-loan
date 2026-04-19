@@ -123,9 +123,10 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-              <SelectItem value="Suspended">Suspended</SelectItem>
+              <SelectItem value="New Loan">New Loan</SelectItem>
+              <SelectItem value="RS-1">RS-1</SelectItem>
+              <SelectItem value="Special RS">Special RS</SelectItem>
+              <SelectItem value="Exit">Exit</SelectItem>
             </SelectContent>
           </Select>
         </div>
