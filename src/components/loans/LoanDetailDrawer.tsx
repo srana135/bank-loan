@@ -173,6 +173,20 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
               )}
             </span>
           </div>
+          <div className="flex justify-between py-1.5 text-sm">
+            <span className="text-muted-foreground">Expiry Date</span>
+            <span className={`font-medium text-right ${isOverdue ? 'text-destructive font-bold' : ''}`}>
+              {fmtDDMMYYYY(loan.expiry_date)}
+            </span>
+          </div>
+          {expiry && (
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-muted-foreground">Status</span>
+              <span className={isOverdue ? 'text-destructive font-semibold' : 'text-green-700 dark:text-green-400 font-medium'}>
+                {isOverdue ? `Overdue by ${Math.abs(dayDiff!)} days` : `${dayDiff} days remaining`}
+              </span>
+            </div>
+          )}
         </div>
 
         {(loan.latitude || loan.longitude) && (
