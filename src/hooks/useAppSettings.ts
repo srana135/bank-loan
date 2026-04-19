@@ -47,9 +47,12 @@ export interface AppSettingsMap {
   default_map_lng: number;
   // Classification days
   classification_days: LoanClassificationDays;
-  // Split: New Loan vs Rescheduled Loan thresholds
+  // Split: New Loan vs Rescheduled Loan thresholds (days — legacy)
   classification_days_new: LoanClassificationDaysSplit;
   classification_days_resch: LoanClassificationDaysSplit;
+  // Installment-count based thresholds (preferred)
+  classification_installments_new: LoanClassificationInstallmentsSplit;
+  classification_installments_resch: LoanClassificationInstallmentsSplit;
   // Legal case config
   legal_case_config: LegalCaseConfig;
   // Currency converter defaults
