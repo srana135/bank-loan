@@ -15,6 +15,13 @@ export interface LoanClassificationDaysSplit {
   df_max: number;
 }
 
+// Installment-count based thresholds (number of overdue installments)
+export interface LoanClassificationInstallmentsSplit {
+  sma_max: number; // overdue installments up to this → SMA
+  ss_max: number;  // up to this → SS
+  df_max: number;  // up to this → DF; above → BL
+}
+
 export interface LegalCaseConfig {
   case_types: string[];
   default_court: string;
