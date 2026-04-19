@@ -51,6 +51,14 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
   const dayDiff = expiry
     ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
     : null;
+  const formatMonthsDays = (days: number) => {
+    const d = Math.abs(days);
+    const months = Math.floor(d / 30);
+    const rem = d % 30;
+    if (months === 0) return `${rem} দিন`;
+    if (rem === 0) return `${months} মাস`;
+    return `${months} মাস ${rem} দিন`;
+  };
 
   // Build Google Maps URL — prefer coords, fall back to address text
   const mapsUrl = (() => {
@@ -183,7 +191,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
             <div className="flex justify-between py-1.5 text-sm">
               <span className="text-muted-foreground">Status</span>
               <span className={isOverdue ? 'text-destructive font-semibold' : 'text-green-700 dark:text-green-400 font-medium'}>
-                {isOverdue ? `Overdue by ${Math.abs(dayDiff!)} days` : `${dayDiff} days remaining`}
+                {isOverdue ? `মেয়াদ উত্তীর্ণ ${formatMonthsDays(dayDiff!)}` : `বাকি ${formatMonthsDays(dayDiff!)}`}
               </span>
             </div>
           )}
