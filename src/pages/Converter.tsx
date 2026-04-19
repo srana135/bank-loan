@@ -107,15 +107,20 @@ const Converter = () => {
     setPdfStatus('Loading PDF...');
     try {
       const pdfjsLib: any = await import('pdfjs-dist/build/pdf.mjs');
-      // Use CDN worker matching installed version
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
       const buf = await pdfFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      const wb = XLSX.utils.book_new();
+
+      // Pass 1: extract per-page rows + detect blocks
+      type PageData = {
+        pageNum: number;
+        blocks: Array<{ type: 'table' | 'paragraph'; data: string[][] | string }>;
+      };
+      const pagesData: PageData[] = [];
 
       for (let p = 1; p <= pdf.numPages; p++) {
-        setPdfStatus(`Processing page ${p}/${pdf.numPages}...`);
+        setPdfStatus(`Reading page ${p}/${pdf.numPages}...`);
         const page = await pdf.getPage(p);
         const tc = await page.getTextContent();
         const items: PdfTextItem[] = tc.items.map((it: any) => ({
@@ -126,7 +131,6 @@ const Converter = () => {
           height: it.height || Math.abs(it.transform[3]) || 10,
         })).filter((it: PdfTextItem) => it.str && it.str.trim());
 
-        // Group into rows
         const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
         const rowGroups: PdfTextItem[][] = [];
         const yTol = ((sorted[0]?.height) || 10) * 0.6;
@@ -135,7 +139,6 @@ const Converter = () => {
           if (last && Math.abs(last[0].y - it.y) <= yTol) last.push(it);
           else rowGroups.push([it]);
         }
-        // For each row, cluster items into columns by gap
         const rows = rowGroups.map(group => {
           const sortedByX = group.sort((a, b) => a.x - b.x);
           const cells: string[] = [];
@@ -155,33 +158,85 @@ const Converter = () => {
           return { cells: cells.filter(c => c.length > 0), raw: group };
         }).filter(r => r.cells.length > 0);
 
-        const blocks = splitTablesAndText(rows);
+        pagesData.push({ pageNum: p, blocks: splitTablesAndText(rows) });
+      }
 
-        // Build sheet rows preserving order
-        const sheetRows: string[][] = [];
-        sheetRows.push([`--- Page ${p} ---`]);
-        let maxCols = 1;
-        for (const b of blocks) {
+      // Determine the maximum column count across ALL tables (consistent column mapping)
+      let maxCols = 1;
+      for (const pg of pagesData) {
+        for (const b of pg.blocks) {
           if (b.type === 'table') {
-            const tbl = b.data as string[][];
-            for (const row of tbl) {
-              sheetRows.push(row);
+            for (const row of b.data as string[][]) {
               if (row.length > maxCols) maxCols = row.length;
             }
-            sheetRows.push([]); // spacer
-          } else {
-            sheetRows.push([b.data as string]);
           }
         }
-        const ws = XLSX.utils.aoa_to_sheet(sheetRows);
-        // Auto width
-        ws['!cols'] = Array.from({ length: maxCols }, () => ({ wch: 22 }));
-        XLSX.utils.book_append_sheet(wb, ws, `Page ${p}`.substring(0, 31));
       }
+      const padRow = (r: string[]) => {
+        const out = [...r];
+        while (out.length < maxCols) out.push('');
+        return out;
+      };
+
+      // Build single combined sheet
+      const sheetRows: string[][] = [];
+
+      // PAGE 1: paragraphs above first table, then table rows
+      const firstPage = pagesData[0];
+      if (firstPage) {
+        const firstTableIdx = firstPage.blocks.findIndex(b => b.type === 'table');
+        const headerBlocks = firstTableIdx === -1 ? firstPage.blocks : firstPage.blocks.slice(0, firstTableIdx);
+        for (const b of headerBlocks) {
+          if (b.type === 'paragraph') {
+            const text = (b.data as string).trim();
+            if (text) sheetRows.push(padRow([text]));
+          } else {
+            // unlikely — but fallback to table cells
+            for (const row of b.data as string[][]) sheetRows.push(padRow(row));
+          }
+        }
+        if (headerBlocks.length > 0) sheetRows.push(padRow([])); // spacer before table
+      }
+
+      // ALL PAGES: append table rows only (continuous merged table)
+      for (const pg of pagesData) {
+        for (const b of pg.blocks) {
+          if (b.type === 'table') {
+            for (const row of b.data as string[][]) sheetRows.push(padRow(row));
+          }
+        }
+      }
+
+      // LAST PAGE: footer paragraphs (text AFTER the last table on the last page)
+      const lastPage = pagesData[pagesData.length - 1];
+      if (lastPage) {
+        const lastTableIdx = (() => {
+          let idx = -1;
+          lastPage.blocks.forEach((b, i) => { if (b.type === 'table') idx = i; });
+          return idx;
+        })();
+        if (lastTableIdx !== -1 && lastTableIdx < lastPage.blocks.length - 1) {
+          const footerBlocks = lastPage.blocks.slice(lastTableIdx + 1);
+          if (footerBlocks.some(b => b.type === 'paragraph' && (b.data as string).trim())) {
+            sheetRows.push(padRow([])); // spacer after table
+          }
+          for (const b of footerBlocks) {
+            if (b.type === 'paragraph') {
+              const text = (b.data as string).trim();
+              if (text) sheetRows.push(padRow([text]));
+            }
+          }
+        }
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+      ws['!cols'] = Array.from({ length: maxCols }, () => ({ wch: 22 }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Converted');
 
       const fname = pdfFile.name.replace(/\.pdf$/i, '') + '.xlsx';
       XLSX.writeFile(wb, fname);
-      setPdfStatus(`✓ Converted ${pdf.numPages} page(s)`);
+      setPdfStatus(`✓ Converted ${pdf.numPages} page(s) → 1 sheet`);
       toast.success(`Excel saved: ${fname}`);
     } catch (err: any) {
       console.error('PDF→Excel error:', err);
