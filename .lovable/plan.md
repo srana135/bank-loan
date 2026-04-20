@@ -1,81 +1,81 @@
 
 
-## আপনার চাহিদার সারাংশ
+## পরিকল্পনা: Auto-Status + Manual Override দুটোই রাখা
 
-আপনি ৩১/০৩/২০২৬ ("data-as-of date") ভিত্তিক Excel data import করবেন এবং চান:
+### লজিক
+- **Auto**: নতুন loan create বা `loan_amount` change হলে trigger অটো সেট করবে:
+  - `loan_amount % 1 = 0` → `'New Loan'` + `loan_category='new'`
+  - else → `'RS-1'` + `loan_category='rescheduled'`
+- **Manual override**: Admin/Manager আগের মতোই `AccountStatusChange` dialog দিয়ে যেকোনো status (Frozen, Closed, Written Off, Settled, RS-1, Special RS ইত্যাদি) সেট করতে পারবেন। Trigger তখন fire করবে না কারণ `loan_amount` unchanged।
 
-1. **As-of date ভিত্তিক import**: Excel-এর outstanding/overdue/due-installments/recovery যেমন আছে hubuhu DB-তে written হবে — কোনো auto-adjustment না।
-2. **Pre-cutoff recoveries**: ৩১/০৩/২০২৬-এর আগের সব পুরোনো recovery records list-এ থাকবে কিন্তু imported balance-এর সাথে adjust হবে না (display only)।
-3. **Post-cutoff recoveries**: ৩১/০৩/২০২৬-এর পরে যদি কোনো recovery থাকে, সেটা imported outstanding/overdue থেকে বিয়োগ হবে।
-4. **Classification (STD/SMA/SS/DF/BL)** সেটিং থেকে দুটি set: **New Loan** ও **Rescheduled Loan** — admin আলাদা thresholds দিতে পারবে।
-5. **Account Status enum পরিবর্তন**: `Active` সরিয়ে → `New Loan`, `RS-1`, `Special RS`, `Exit`।
+### Migration: `supabase-migration-v11-auto-status.sql`
 
-## বর্তমান অবস্থা (audit findings)
+```sql
+-- 1. NUMERIC type নিশ্চিত
+ALTER TABLE public.loans
+  ALTER COLUMN loan_amount TYPE numeric USING loan_amount::numeric;
 
-- `LoanImportDialog.tsx` এখন import করার পর outstanding থেকে recovery বিয়োগ করছে — এটা আপনার "যেমন আছে তেমনই import" rule ভঙ্গ করছে।
-- `loans` table-এ কোনো `data_as_of_date` field নেই → pre/post cutoff পার্থক্য করা যাচ্ছে না।
-- `loan_recoveries`-এর `recovery_type` শুধু string — pre/post cutoff filter করার মত flag নেই (তবে `recovery_date` দিয়েই কাজ চলে যাবে)।
-- `useAppSettings.ts`-এ `classification_days` একটাই set আছে — new vs rescheduled আলাদা না।
-- Account status কোথাও enum নয়, plain text — UI form/filter-এ "active" hard-coded থাকতে পারে।
+-- 2. Backfill (শুধু auto-managed values touch করব)
+UPDATE public.loans
+SET account_status = CASE
+      WHEN (loan_amount % 1) = 0 THEN 'New Loan'
+      ELSE 'RS-1' END,
+    loan_category = CASE
+      WHEN (loan_amount % 1) = 0 THEN 'new'
+      ELSE 'rescheduled' END
+WHERE loan_amount IS NOT NULL
+  AND (account_status IS NULL
+       OR account_status IN ('New Loan','RS-1','active','New',''));
 
-## প্রস্তাবিত সমাধান
+-- 3. Trigger function — শুধু INSERT এবং loan_amount change-এ fire
+CREATE OR REPLACE FUNCTION public.set_account_status_by_amount()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.loan_amount IS NOT NULL THEN
+    IF (NEW.loan_amount % 1) = 0 THEN
+      NEW.account_status := 'New Loan';
+      NEW.loan_category := 'new';
+    ELSE
+      NEW.account_status := 'RS-1';
+      NEW.loan_category := 'rescheduled';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-### ১. Schema পরিবর্তন (migration)
-- `loans` table: নতুন column যোগ —
-  - `data_as_of_date date` (এই loan-এর latest import cutoff)
-  - `loan_category text` ('new' | 'rescheduled' — classification rule choose করতে)
-- কোনো enum তৈরি হবে না; account_status text-ই থাকবে কিন্তু allowed values হবে: `New Loan`, `RS-1`, `Special RS`, `Exit`।
+-- 4. Triggers — INSERT সবসময়, UPDATE শুধু loan_amount change হলে
+DROP TRIGGER IF EXISTS trg_auto_status_insert ON public.loans;
+CREATE TRIGGER trg_auto_status_insert
+  BEFORE INSERT ON public.loans
+  FOR EACH ROW EXECUTE FUNCTION public.set_account_status_by_amount();
 
-### ২. Import logic পরিবর্তন (`LoanImportDialog.tsx`)
-- Dialog-এ একটা **"Data As-of Date" picker** যোগ হবে (default: today, required)।
-- প্রতিটি row import-এ:
-  - **a. Loan upsert**: outstanding_amount, overdue_amount, overdue_installment_number, installment_amount — Excel value verbatim লেখা হবে (কোনো adjustment না)। `data_as_of_date` set হবে।
-  - **b. Pre-cutoff recoveries (existing)**: `recovery_date <= as_of_date` যেগুলো আগে থেকে DB-তে আছে → untouched থাকবে, list-এ দেখাবে, কিন্তু balance-এ touch হবে না।
-  - **c. Excel-এর Recovery row (if present)**: আগের মতো `loan_recoveries`-এ insert হবে, কিন্তু **outstanding/overdue auto-adjust হবে না** (Excel-এর outstanding ই truth)।
-  - **d. Post-cutoff recoveries (existing in DB)**: `recovery_date > as_of_date` যেগুলো → import-এর পরে loop করে imported outstanding থেকে বিয়োগ ও installment-অনুযায়ী overdue কমানো হবে।
-- Display logic (LoanDetailDrawer): recoveries section-এ "Pre-cutoff (informational)" ও "Post-cutoff (adjusted)" — দুই group দেখাবে।
+DROP TRIGGER IF EXISTS trg_auto_status_update ON public.loans;
+CREATE TRIGGER trg_auto_status_update
+  BEFORE UPDATE OF loan_amount ON public.loans
+  FOR EACH ROW
+  WHEN (OLD.loan_amount IS DISTINCT FROM NEW.loan_amount)
+  EXECUTE FUNCTION public.set_account_status_by_amount();
+```
 
-### ৩. Classification settings (`AppSettings.tsx` + `useAppSettings.ts`)
-- `classification_days` কে split:
-  ```ts
-  classification_days_new:    { sma_max, ss_max, df_max }
-  classification_days_resch:  { sma_max, ss_max, df_max }
-  ```
-- AppSettings page → "Classification" tab-এ দুটি column-এ side-by-side input।
-- `ClassificationSuggestion.tsx` → `loan.loan_category` দেখে কোন set ব্যবহার হবে decide করবে।
+### Frontend পরিবর্তন
+- **`LoanForm.tsx`** — `account_status` field hidden/read-only করব এবং একটা note দেখাব:  
+  *"Status loan amount অনুযায়ী auto-set হবে। পরে admin/manager manually override করতে পারবেন।"*
+- **`AccountStatusChange.tsx`** — অপরিবর্তিত থাকবে (manual override-এর জন্য)। এটাই admin override দেবে।
+- **`LoanDetailDrawer.tsx`** — `<AccountStatusChange />` যেমন আছে থাকবে।
+- **`LoanImportDialog.tsx`** — কিছু করতে হবে না; trigger import সময়ও fire করবে।
 
-### ৪. Account Status options
-- `LoanForm.tsx`-এর status `<Select>` এর options replace:
-  - `New Loan`, `RS-1`, `Special RS`, `Exit`
-- Loan creation default → `New Loan`। `RS-1`/`Special RS` select করলে `loan_category='rescheduled'` auto-set।
-- `LoanFilters`, summary badges, filter chips সব update।
-- Existing `'active'` data → migration-এ `New Loan`-এ map।
+### আচরণ সারাংশ
 
-## ফাইল পরিবর্তনের তালিকা
+| পরিস্থিতি | Status আচরণ |
+|---|---|
+| নতুন loan create | trigger অটো সেট |
+| Excel import | trigger অটো সেট |
+| `loan_amount` edit | trigger reset করবে |
+| অন্য field edit (without loan_amount) | manual status অপরিবর্তিত |
+| Admin "Change Status" dialog | manual override কাজ করবে |
 
-**Schema**: নতুন migration (loans-এ ২ column, existing status data map)
-**Code**:
-- `src/types/index.ts` — Loan type-এ ২ field
-- `src/components/loans/LoanImportDialog.tsx` — as-of date picker + new logic
-- `src/components/loans/LoanForm.tsx` — status options + loan_category auto-set
-- `src/components/loans/LoanFilters.tsx` — status filter options
-- `src/components/loans/LoanSummary.tsx` — যেখানে status reference আছে
-- `src/components/loans/LoanDetailDrawer.tsx` — recoveries pre/post grouping
-- `src/components/loans/ClassificationSuggestion.tsx` — category-aware
-- `src/components/loans/LoanRecoveries.tsx` — pre/post visual marker
-- `src/hooks/useAppSettings.ts` — split classification_days
-- `src/pages/AppSettings.tsx` — Classification tab UI
-- `src/lib/loanColumns.ts` — `data_as_of_date`, `loan_category` column যোগ (import template-এ)
-
-## Out of scope (পরে চাইলে)
-- Bulk historical re-categorization (existing loans-এ loan_category set করা manually)
-- Reports-এ pre/post recovery split
-
-## একটা confirmation দরকার
-
-**Default `loan_category`**: existing সব loans-এর জন্য migration-এ default কী হবে?
-- Option A: সব → `'new'` (তারপর admin manually rescheduled mark করবে)
-- Option B: যাদের status আগে `RS-1`/`Special RS` ছিল → `'rescheduled'`, বাকি → `'new'`
-
-আপনার approval পেলে আমি default `Option B` ধরে implementation শুরু করব (কারণ এতে data সবচেয়ে accurate রূপে migrate হবে)।
+### প্রভাবিত ফাইল
+1. `supabase-migration-v11-auto-status.sql` (নতুন)
+2. `src/components/loans/LoanForm.tsx` (status field hide + note)
 
