@@ -221,6 +221,7 @@ export interface RemittanceProfile {
   account_number: string | null;
   mobile_number: string;
   expat_name: string | null;
+  expat_mobile: string | null;
   expat_relation: ExpatRelation | null;
   country: string | null;
   city: string | null;
