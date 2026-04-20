@@ -98,15 +98,10 @@ const LoanForm = ({ loan, branches, defaultBranchId, isAdmin, saving, onSubmit, 
         <Field name="account_type" label="Account Type" />
         <div className="space-y-1.5">
           <Label className="text-xs">Account Status</Label>
-          <Select value={watch('account_status') || 'New Loan'} onValueChange={v => setValue('account_status', v)}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="New Loan">New Loan</SelectItem>
-              <SelectItem value="RS-1">RS-1</SelectItem>
-              <SelectItem value="Special RS">Special RS</SelectItem>
-              <SelectItem value="Exit">Exit</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input value={watch('account_status') || 'Auto'} readOnly className="h-9 text-sm bg-muted" />
+          <p className="text-[10px] text-muted-foreground leading-tight">
+            Loan amount অনুযায়ী auto-set হবে (পূর্ণসংখ্যা → New Loan, দশমিক → RS-1)। পরে admin/manager "Change Status" দিয়ে override করতে পারবেন।
+          </p>
         </div>
         <div className="sm:col-span-2"><Field name="address" label="Address" /></div>
         <Field name="latitude" label="Latitude" type="number" />
