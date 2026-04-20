@@ -73,7 +73,9 @@ export const useUpdateRemittance = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, _userId, _userName, ...updates }: Partial<RemittanceProfile> & { id: string } & LogMeta) => {
-      const { data, error } = await supabase.from('remittance_profiles').update(updates).eq('id', id).select().single();
+      // Strip immutable / server-managed fields to avoid update conflicts
+      const { created_at, updated_at, collected_by, ...safe } = updates as any;
+      const { data, error } = await supabase.from('remittance_profiles').update(safe).eq('id', id).select().single();
       if (error) throw error;
       logActivity(_userId || null, _userName || null, 'update', 'remittance_profile', id, {
         field: 'Remittance Profile Updated',

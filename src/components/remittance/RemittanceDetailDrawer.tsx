@@ -86,6 +86,7 @@ const RemittanceDetailDrawer = ({ profile, open, onClose, onEdit, onDelete, user
         <section>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Expat Family</h4>
           <Row label="Expat Name" value={profile.expat_name} />
+          <Row label="Expat Mobile" value={profile.expat_mobile} isPhone />
           <Row label="Relation" value={profile.expat_relation} />
           <Row label="Country" value={profile.country} />
           <Row label="City" value={profile.city} />

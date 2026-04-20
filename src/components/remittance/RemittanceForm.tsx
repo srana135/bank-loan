@@ -22,6 +22,7 @@ const schema = z.object({
   account_number: z.string().trim().max(40).optional().or(z.literal('')),
   mobile_number: z.string().trim().min(6, 'Min 6 digits').max(20),
   expat_name: z.string().trim().max(120).optional().or(z.literal('')),
+  expat_mobile: z.string().trim().max(20).optional().or(z.literal('')),
   country: z.string().trim().max(60).optional().or(z.literal('')),
   city: z.string().trim().max(60).optional().or(z.literal('')),
   receiver_name: z.string().trim().max(120).optional().or(z.literal('')),
@@ -38,7 +39,7 @@ interface Props {
 
 const empty = {
   account_holder_name: '', account_number: '', mobile_number: '',
-  expat_name: '', expat_relation: '' as any, country: '', city: '', years_abroad: '' as any,
+  expat_name: '', expat_mobile: '', expat_relation: '' as any, country: '', city: '', years_abroad: '' as any,
   sends_money: true, frequency: '' as any, average_amount: '' as any,
   channels: [] as RemittanceChannel[],
   receiver_name: '', receiver_mobile: '', receiver_method: '',
@@ -57,6 +58,7 @@ const RemittanceForm = ({ open, onClose, initial, loanId }: Props) => {
         ...initial,
         account_number: initial.account_number || '',
         expat_name: initial.expat_name || '',
+        expat_mobile: initial.expat_mobile || '',
         expat_relation: initial.expat_relation || '',
         country: initial.country || '',
         city: initial.city || '',
@@ -97,6 +99,7 @@ const RemittanceForm = ({ open, onClose, initial, loanId }: Props) => {
       account_number: form.account_number?.trim() || null,
       mobile_number: form.mobile_number.trim(),
       expat_name: form.expat_name?.trim() || null,
+      expat_mobile: form.expat_mobile?.trim() || null,
       expat_relation: form.expat_relation || null,
       country: form.country?.trim() || null,
       city: form.city?.trim() || null,
@@ -151,6 +154,7 @@ const RemittanceForm = ({ open, onClose, initial, loanId }: Props) => {
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expat Family Info</h4>
             <div className="grid sm:grid-cols-2 gap-3">
               <div><Label>Expat Name</Label><Input value={form.expat_name} onChange={e => setField('expat_name', e.target.value)} /></div>
+              <div><Label>Expat Mobile</Label><Input value={form.expat_mobile} onChange={e => setField('expat_mobile', e.target.value)} placeholder="+966 ..." /></div>
               <div>
                 <Label>Relation</Label>
                 <Select value={form.expat_relation || undefined} onValueChange={v => setField('expat_relation', v)}>
