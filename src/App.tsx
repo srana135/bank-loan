@@ -23,6 +23,7 @@ import UserProfile from "./pages/UserProfile";
 import Converter from "./pages/Converter";
 import LegalManagement from "./pages/LegalManagement";
 import ReportGenerator from "./pages/ReportGenerator";
+import Remittance from "./pages/Remittance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/emi-calculator/currency" element={<CurrencyConverter />} />
               <Route path="/converter" element={<Converter />} />
               <Route path="/reports" element={<ProtectedRoute><ReportGenerator /></ProtectedRoute>} />
+              <Route path="/remittance" element={<ProtectedRoute><Remittance /></ProtectedRoute>} />
               <Route path="/services" element={<ServiceProductList />} />
               <Route path="/connect" element={<ConnectUs />} />
               <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />

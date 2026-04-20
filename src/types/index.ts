@@ -208,6 +208,38 @@ export interface AppSetting {
   updated_at: string;
 }
 
+export type RemittanceChannel = 'Bank Transfer' | 'bKash' | 'Nagad' | 'Rocket' | 'Exchange House' | 'Hand Carry';
+export type ExpatRelation = 'Father' | 'Son' | 'Brother' | 'Husband' | 'Other';
+export type RemittanceFrequency = 'Monthly' | 'Irregular';
+export type RemittanceStability = 'Stable' | 'Medium' | 'Uncertain';
+
+export interface RemittanceProfile {
+  id: string;
+  loan_id: string | null;
+  branch_id: string | null;
+  account_holder_name: string;
+  account_number: string | null;
+  mobile_number: string;
+  expat_name: string | null;
+  expat_relation: ExpatRelation | null;
+  country: string | null;
+  city: string | null;
+  years_abroad: number | null;
+  sends_money: boolean;
+  frequency: RemittanceFrequency | null;
+  average_amount: number | null;
+  channels: RemittanceChannel[];
+  receiver_name: string | null;
+  receiver_mobile: string | null;
+  receiver_method: string | null;
+  stability: RemittanceStability | null;
+  notes: string | null;
+  collected_by: string | null;
+  collected_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ImportLog {
   id: string;
   import_type: string | null;
