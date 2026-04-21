@@ -745,7 +745,11 @@ const LoanManagement = () => {
 
       <LoanDetailDrawer loan={currentDetailLoan} open={detailOpen}
         onClose={() => { setDetailOpen(false); setDetailLoan(null); }}
-        onEdit={openEdit} onDelete={handleDelete} userRole={userRole} branches={branches || []} />
+        onEdit={openEdit} onDelete={handleDelete} userRole={userRole} branches={branches || []}
+        legalCases={legalCases} legalNotices={legalNotices}
+        onOpenCase={(id) => { setDetailOpen(false); navigate(`/legal?case=${id}`); }}
+        onOpenNotice={(id) => { setDetailOpen(false); navigate(`/legal?notice=${id}`); }}
+      />
 
       <Dialog open={formOpen} onOpenChange={v => { if (!v) { setFormOpen(false); setEditLoan(null); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
