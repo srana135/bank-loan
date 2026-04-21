@@ -1089,7 +1089,16 @@ const LegalManagement = () => {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-semibold text-sm">{n.borrower_name || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{n.organization_name || '-'} · {n.account_no || '-'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {n.organization_name || '-'} ·{' '}
+                          {n.loan_id ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openLinkedLoan(n.loan_id); }}
+                              className="font-mono text-primary hover:underline"
+                            >{n.account_no || '-'}</button>
+                          ) : (n.account_no || '-')}
+                        </p>
                       </div>
                       <Badge variant={n.receipt_status === 'received' ? 'default' : n.receipt_status === 'returned' ? 'destructive' : 'secondary'} className="capitalize text-[10px]">{n.receipt_status}</Badge>
                     </div>
