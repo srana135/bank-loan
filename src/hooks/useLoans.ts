@@ -282,6 +282,7 @@ export interface LoanFilters {
   address: string;
   classifications: string[];
   proposedDateFilter: '' | 'today' | '7days';
+  expiredOnly: boolean;
 }
 
 export const defaultFilters: LoanFilters = {
@@ -292,6 +293,7 @@ export const defaultFilters: LoanFilters = {
   address: '',
   classifications: [],
   proposedDateFilter: '',
+  expiredOnly: false,
 };
 
 export function applyFilters(loans: Loan[], filters: LoanFilters, search: string): Loan[] {
@@ -300,7 +302,7 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
   const todayStr = now.toISOString().split('T')[0];
   const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
 
-  return loans.filter(l => {
+  let result = loans.filter(l => {
     if (search) {
       const s = search.toLowerCase();
       const match = l.borrower_name?.toLowerCase().includes(s) ||
@@ -322,6 +324,16 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
       if (!l.latest_proposed_date || l.latest_proposed_date < todayStr || l.latest_proposed_date > in7Days) return false;
     }
 
+    if (filters.expiredOnly) {
+      if (!l.expiry_date || l.expiry_date >= todayStr) return false;
+    }
+
     return true;
   });
+
+  if (filters.expiredOnly) {
+    result = [...result].sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+  }
+
+  return result;
 }

@@ -8,6 +8,8 @@ import { useLoans } from '@/hooks/useLoans';
 import { useProfiles } from '@/hooks/useUsers';
 import { useLoanRecoveries } from '@/hooks/useRecoveries';
 import { LegalCase, Lawyer, LegalNotice, Profile } from '@/types';
+import type { Loan } from '@/types';
+import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,6 +219,30 @@ const LegalManagement = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cases]);
+
+  // Auto-open a notice from ?notice=<id> query param (linked from Loan Management)
+  useEffect(() => {
+    const noticeId = searchParams.get('notice');
+    if (noticeId && notices) {
+      const found = notices.find(n => n.id === noticeId);
+      if (found) {
+        setActiveTab('notices');
+        openEditNotice(found);
+        searchParams.delete('notice');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notices]);
+
+  // Linked loan (read-only) drawer for cross-link from legal page
+  const [linkedLoan, setLinkedLoan] = useState<Loan | null>(null);
+  const [linkedLoanOpen, setLinkedLoanOpen] = useState(false);
+  const openLinkedLoan = (loanId: string | null | undefined) => {
+    if (!loanId) return;
+    const l = loanMap.get(loanId);
+    if (l) { setLinkedLoan(l as Loan); setLinkedLoanOpen(true); }
+  };
 
   // Form state
   const [caseNumber, setCaseNumber] = useState('');
@@ -882,10 +908,24 @@ const LegalManagement = () => {
                         {loan && (
                           <>
                             <div>
-                              <span className="text-muted-foreground">A/C:</span> <span className="font-mono">{loan.account_no}</span>
+                              <span className="text-muted-foreground">A/C:</span>{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openLinkedLoan(c.loan_id); }}
+                                className="font-mono text-primary hover:underline"
+                              >
+                                {loan.account_no}
+                              </button>
                               {loan.account_name && <p className="text-[10px] text-muted-foreground">{loan.account_name}</p>}
                             </div>
-                            <div><span className="text-muted-foreground">Borrower:</span> {loan.borrower_name}</div>
+                            <div>
+                              <span className="text-muted-foreground">Borrower:</span>{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openLinkedLoan(c.loan_id); }}
+                                className="text-primary hover:underline"
+                              >{loan.borrower_name}</button>
+                            </div>
                           </>
                         )}
                         <div><span className="text-muted-foreground">Claim:</span> {c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</div>
@@ -949,13 +989,23 @@ const LegalManagement = () => {
                       <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailCase(c); setDetailOpen(true); }}>
                         <TableCell className="font-mono text-sm font-medium">{c.case_number}</TableCell>
                         <TableCell className="text-sm">{c.case_type}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           <div>
-                            <span className="font-mono text-xs">{loan?.account_no || '-'}</span>
+                            {loan ? (
+                              <button
+                                type="button"
+                                onClick={() => openLinkedLoan(c.loan_id)}
+                                className="font-mono text-xs text-primary hover:underline"
+                              >{loan.account_no}</button>
+                            ) : <span className="font-mono text-xs">-</span>}
                             {loan?.account_name && <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{loan.account_name}</p>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{loan?.borrower_name || c.defendant_name || '-'}</TableCell>
+                        <TableCell className="text-sm" onClick={e => e.stopPropagation()}>
+                          {loan ? (
+                            <button type="button" onClick={() => openLinkedLoan(c.loan_id)} className="text-primary hover:underline">{loan.borrower_name}</button>
+                          ) : (c.defendant_name || '-')}
+                        </TableCell>
                         <TableCell><Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{c.status}</Badge></TableCell>
                         <TableCell className="text-sm">{c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</TableCell>
                         <TableCell>{nextDateBadge(c.next_date) || '-'}</TableCell>
@@ -1039,7 +1089,16 @@ const LegalManagement = () => {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-semibold text-sm">{n.borrower_name || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{n.organization_name || '-'} · {n.account_no || '-'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {n.organization_name || '-'} ·{' '}
+                          {n.loan_id ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openLinkedLoan(n.loan_id); }}
+                              className="font-mono text-primary hover:underline"
+                            >{n.account_no || '-'}</button>
+                          ) : (n.account_no || '-')}
+                        </p>
                       </div>
                       <Badge variant={n.receipt_status === 'received' ? 'default' : n.receipt_status === 'returned' ? 'destructive' : 'secondary'} className="capitalize text-[10px]">{n.receipt_status}</Badge>
                     </div>
@@ -1095,7 +1154,11 @@ const LegalManagement = () => {
                     <TableRow key={n.id}>
                       <TableCell className="text-sm">{n.borrower_name || '-'}</TableCell>
                       <TableCell className="text-sm">{n.organization_name || '-'}</TableCell>
-                      <TableCell className="font-mono text-xs">{n.account_no || '-'}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {n.loan_id && n.account_no ? (
+                          <button type="button" onClick={() => openLinkedLoan(n.loan_id)} className="text-primary hover:underline">{n.account_no}</button>
+                        ) : (n.account_no || '-')}
+                      </TableCell>
                       <TableCell className="text-sm">{n.notice_type}</TableCell>
                       <TableCell className="text-xs">{n.sent_date || '-'}</TableCell>
                       <TableCell>
@@ -1140,6 +1203,27 @@ const LegalManagement = () => {
         orderType={orderType} setOrderType={setOrderType}
         onAddOrder={handleAddOrder} addOrderPending={addOrder.isPending}
         onGenerateStatement={generateStatement}
+      />
+
+      {/* Linked Loan Detail Drawer (read-only cross-link from legal records) */}
+      <LoanDetailDrawer
+        loan={linkedLoan}
+        open={linkedLoanOpen}
+        onClose={() => { setLinkedLoanOpen(false); setLinkedLoan(null); }}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        userRole={null}
+        branches={branches || []}
+        legalCases={cases || []}
+        legalNotices={notices || []}
+        onOpenCase={(id) => {
+          const c = cases?.find(cc => cc.id === id);
+          if (c) { setLinkedLoanOpen(false); setDetailCase(c); setDetailOpen(true); }
+        }}
+        onOpenNotice={(id) => {
+          const n = notices?.find(nn => nn.id === id);
+          if (n) { setLinkedLoanOpen(false); setActiveTab('notices'); openEditNotice(n); }
+        }}
       />
 
       {/* Create/Edit Case Dialog */}

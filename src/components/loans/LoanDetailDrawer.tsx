@@ -1,11 +1,11 @@
-import { Loan, Branch } from '@/types';
+import { Loan, Branch, LegalCase, LegalNotice } from '@/types';
 import { UserRole } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock, MapPin, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock, MapPin, ExternalLink, Gavel, FileWarning, ChevronRight } from 'lucide-react';
 import AccountStatusChange from './AccountStatusChange';
 import LoanComments from './LoanComments';
 import LoanRecoveries from './LoanRecoveries';
@@ -21,6 +21,10 @@ interface Props {
   onDelete: (id: string) => void;
   userRole: UserRole | null;
   branches: Branch[];
+  legalCases?: LegalCase[];
+  legalNotices?: LegalNotice[];
+  onOpenCase?: (id: string) => void;
+  onOpenNotice?: (id: string) => void;
 }
 
 const classColors: Record<string, string> = {
@@ -31,10 +35,14 @@ const classColors: Record<string, string> = {
   BL: 'destructive' as any,
 };
 
-const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, branches }: Props) => {
+const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, branches, legalCases, legalNotices, onOpenCase, onOpenNotice }: Props) => {
   if (!loan) return null;
   const canEdit = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin' || userRole === 'manager';
+
+  const linkedCases = (legalCases || []).filter(c => c.loan_id === loan.id);
+  const linkedNotices = (legalNotices || []).filter(n => n.loan_id === loan.id);
+  const hasLegalRecords = linkedCases.length > 0 || linkedNotices.length > 0;
 
   // Live total recovery sum
   const { data: recoveries } = useLoanRecoveries(loan.id);
@@ -229,6 +237,57 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Guarantor 2" value={loan.guarantor_2_name} />
           <DetailRow label="G2 Mobile" value={loan.guarantor_2_mobile} isPhone />
         </div>
+
+        {hasLegalRecords && (
+          <>
+            <Separator className="my-3" />
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Legal Records</h4>
+              {linkedCases.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onOpenCase?.(c.id)}
+                  className="w-full text-left rounded-md border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 p-2.5 transition-colors flex items-start gap-2"
+                >
+                  <Gavel className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-semibold">{c.case_number}</span>
+                      <Badge variant="outline" className="text-[10px] h-4">{c.case_type}</Badge>
+                      <Badge variant={c.status === 'active' ? 'destructive' : 'secondary'} className="text-[10px] h-4 capitalize">{c.status}</Badge>
+                    </div>
+                    {c.next_date && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Next: {c.next_date}</p>
+                    )}
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-1" />
+                </button>
+              ))}
+              {linkedNotices.map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => onOpenNotice?.(n.id)}
+                  className="w-full text-left rounded-md border border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 p-2.5 transition-colors flex items-start gap-2"
+                >
+                  <FileWarning className="h-4 w-4 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold">{n.notice_type}</span>
+                      <Badge variant={n.receipt_status === 'received' ? 'default' : n.receipt_status === 'returned' ? 'destructive' : 'secondary'} className="text-[10px] h-4 capitalize">{n.receipt_status}</Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {n.sent_date ? `Sent: ${n.sent_date}` : 'Not sent'}
+                      {n.case_filing_deadline ? ` · Deadline: ${n.case_filing_deadline}` : ''}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-1" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <Separator className="my-3" />
 

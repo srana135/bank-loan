@@ -4,10 +4,12 @@
  * ✅ Sorting, Proposed repayment date feeds, Mobile responsive cards
  */
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { useLegalCases } from '@/hooks/useLegal';
+import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, getLoanFieldValue } from '@/lib/loanColumns';
@@ -52,6 +54,7 @@ const LoanManagement = () => {
   const { data: branches } = useBranches();
   const branchFilterForLegal = userRole === 'manager' ? profile?.branch_id : undefined;
   const { data: legalCases } = useLegalCases(branchFilterForLegal);
+  const { data: legalNotices } = useLegalNotices(branchFilterForLegal);
   const { data: allRecoveries } = useAllRecoveries(branchFilter);
   const { data: appSettings } = useAppSettings();
   const createLoan = useCreateLoan();
@@ -61,6 +64,7 @@ const LoanManagement = () => {
   const bulkAddComment = useBulkAddComment();
   const addComment = useAddComment();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
@@ -133,6 +137,22 @@ const LoanManagement = () => {
     });
     return map;
   }, [legalCases]);
+
+  const loanNoticeMap = useMemo(() => {
+    const map = new Map<string, { id: string; notice_type: string; count: number }>();
+    legalNotices?.forEach(n => {
+      if (!n.loan_id) return;
+      const existing = map.get(n.loan_id);
+      if (existing) existing.count += 1;
+      else map.set(n.loan_id, { id: n.id, notice_type: n.notice_type, count: 1 });
+    });
+    return map;
+  }, [legalNotices]);
+
+  const legalCaseIdForLoan = (loanId: string): string | undefined => {
+    return legalCases?.find(c => c.loan_id === loanId && c.status === 'active')?.id
+      || legalCases?.find(c => c.loan_id === loanId)?.id;
+  };
 
   // Map: loanId → latest recovery date
   const loanRecoveryMap = useMemo(() => {
@@ -487,12 +507,32 @@ const LoanManagement = () => {
           <div className="text-xs text-muted-foreground">Showing {filteredLoans.length} of {allLoans?.length || 0} loans</div>
           {filteredLoans.map(loan => {
             const lc = loanCaseMap.get(loan.id);
+            const ln = loanNoticeMap.get(loan.id);
             return (
             <Card key={loan.id} className="card-shadow cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openLoanDetail(loan)}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
+                      {lc && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[9px] h-4 px-1.5 cursor-pointer gap-0.5"
+                          onClick={(e) => { e.stopPropagation(); const cid = legalCaseIdForLoan(loan.id); if (cid) navigate(`/legal?case=${cid}`); }}
+                        >
+                          <Gavel className="h-2.5 w-2.5" /> মামলা
+                        </Badge>
+                      )}
+                      {ln && (
+                        <Badge
+                          className="text-[9px] h-4 px-1.5 bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500 cursor-pointer gap-0.5"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/legal?notice=${ln.id}`); }}
+                        >
+                          নোটিশ{ln.count > 1 ? ` ${ln.count}` : ''}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground font-mono">{loan.account_no}</p>
                   </div>
                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
@@ -620,6 +660,7 @@ const LoanManagement = () => {
               <TableBody>
                 {filteredLoans.map(loan => {
                   const lc = loanCaseMap.get(loan.id);
+                  const ln = loanNoticeMap.get(loan.id);
                   const days = lc?.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
                   return (
                   <TableRow key={loan.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openLoanDetail(loan)}>
@@ -637,7 +678,28 @@ const LoanManagement = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{loan.borrower_name}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{loan.borrower_name}</span>
+                        {lc && (
+                          <Badge
+                            variant="destructive"
+                            className="text-[9px] h-4 px-1.5 cursor-pointer gap-0.5"
+                            onClick={(e) => { e.stopPropagation(); const cid = legalCaseIdForLoan(loan.id); if (cid) navigate(`/legal?case=${cid}`); }}
+                          >
+                            <Gavel className="h-2.5 w-2.5" /> মামলা
+                          </Badge>
+                        )}
+                        {ln && (
+                          <Badge
+                            className="text-[9px] h-4 px-1.5 bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/legal?notice=${ln.id}`); }}
+                          >
+                            নোটিশ{ln.count > 1 ? ` ${ln.count}` : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Badge variant={(loan.overdue_installment_number || 0) > 0 ? 'destructive' : 'secondary'} className="text-xs">
                         {loan.overdue_installment_number || 0}
@@ -725,7 +787,11 @@ const LoanManagement = () => {
 
       <LoanDetailDrawer loan={currentDetailLoan} open={detailOpen}
         onClose={() => { setDetailOpen(false); setDetailLoan(null); }}
-        onEdit={openEdit} onDelete={handleDelete} userRole={userRole} branches={branches || []} />
+        onEdit={openEdit} onDelete={handleDelete} userRole={userRole} branches={branches || []}
+        legalCases={legalCases} legalNotices={legalNotices}
+        onOpenCase={(id) => { setDetailOpen(false); navigate(`/legal?case=${id}`); }}
+        onOpenNotice={(id) => { setDetailOpen(false); navigate(`/legal?notice=${id}`); }}
+      />
 
       <Dialog open={formOpen} onOpenChange={v => { if (!v) { setFormOpen(false); setEditLoan(null); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
