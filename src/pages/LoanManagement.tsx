@@ -4,10 +4,12 @@
  * ✅ Sorting, Proposed repayment date feeds, Mobile responsive cards
  */
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoans, useCreateLoan, useUpdateLoan, useDeleteLoan, useBulkDeleteLoans, useBulkAddComment, useAddComment, type LoanFilters, defaultFilters, applyFilters } from '@/hooks/useLoans';
 import { useBranches } from '@/hooks/useBranches';
 import { useLegalCases } from '@/hooks/useLegal';
+import { useLegalNotices } from '@/hooks/useLegalNotices';
 import { useAllRecoveries } from '@/hooks/useAllRecoveries';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ALL_LOAN_COLUMNS, CANONICAL_LOAN_COLUMN_ORDER, getLoanFieldValue } from '@/lib/loanColumns';
@@ -52,6 +54,7 @@ const LoanManagement = () => {
   const { data: branches } = useBranches();
   const branchFilterForLegal = userRole === 'manager' ? profile?.branch_id : undefined;
   const { data: legalCases } = useLegalCases(branchFilterForLegal);
+  const { data: legalNotices } = useLegalNotices(branchFilterForLegal);
   const { data: allRecoveries } = useAllRecoveries(branchFilter);
   const { data: appSettings } = useAppSettings();
   const createLoan = useCreateLoan();
@@ -61,6 +64,7 @@ const LoanManagement = () => {
   const bulkAddComment = useBulkAddComment();
   const addComment = useAddComment();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<LoanFilters>(defaultFilters);
