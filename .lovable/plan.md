@@ -1,81 +1,70 @@
 
 
-## পরিকল্পনা: Auto-Status + Manual Override দুটোই রাখা
+## পরিকল্পনা: Legal ↔ Loan ক্রস-লিংক + Expired Loan Filter + Badge
 
-### লজিক
-- **Auto**: নতুন loan create বা `loan_amount` change হলে trigger অটো সেট করবে:
-  - `loan_amount % 1 = 0` → `'New Loan'` + `loan_category='new'`
-  - else → `'RS-1'` + `loan_category='rescheduled'`
-- **Manual override**: Admin/Manager আগের মতোই `AccountStatusChange` dialog দিয়ে যেকোনো status (Frozen, Closed, Written Off, Settled, RS-1, Special RS ইত্যাদি) সেট করতে পারবেন। Trigger তখন fire করবে না কারণ `loan_amount` unchanged।
+### 1. Legal Management (মামলা/নোটিশ) — Linked Account ক্লিকেবল
 
-### Migration: `supabase-migration-v11-auto-status.sql`
+**File:** `src/pages/LegalManagement.tsx`
 
-```sql
--- 1. NUMERIC type নিশ্চিত
-ALTER TABLE public.loans
-  ALTER COLUMN loan_amount TYPE numeric USING loan_amount::numeric;
+- **Cases tab (mobile card + desktop table)**:  
+  Linked loan-এর `account_no` / borrower name দেখানো cell-গুলো ক্লিকেবল link হবে। ক্লিক করলে `LoanDetailDrawer` ওপেন হবে same page-এ।
+- **Notices tab**: একইভাবে account_no ক্লিকেবল হবে → matching `loan_id` থেকে loan খুঁজে drawer ওপেন।
+- নতুন state: `const [linkedLoan, setLinkedLoan] = useState<Loan | null>(null)`; সাথে `<LoanDetailDrawer />` import করে render করা হবে (read-only mode — `onEdit`/`onDelete` no-op)।
+- Row-এর existing case-detail click event-কে disrupt না করার জন্য account cell-এ `onClick={e => { e.stopPropagation(); setLinkedLoan(loan); }}`।
 
--- 2. Backfill (শুধু auto-managed values touch করব)
-UPDATE public.loans
-SET account_status = CASE
-      WHEN (loan_amount % 1) = 0 THEN 'New Loan'
-      ELSE 'RS-1' END,
-    loan_category = CASE
-      WHEN (loan_amount % 1) = 0 THEN 'new'
-      ELSE 'rescheduled' END
-WHERE loan_amount IS NOT NULL
-  AND (account_status IS NULL
-       OR account_status IN ('New Loan','RS-1','active','New',''));
+### 2. Loan Management — Notice/Case Badge
 
--- 3. Trigger function — শুধু INSERT এবং loan_amount change-এ fire
-CREATE OR REPLACE FUNCTION public.set_account_status_by_amount()
-RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.loan_amount IS NOT NULL THEN
-    IF (NEW.loan_amount % 1) = 0 THEN
-      NEW.account_status := 'New Loan';
-      NEW.loan_category := 'new';
-    ELSE
-      NEW.account_status := 'RS-1';
-      NEW.loan_category := 'rescheduled';
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+**Files:** `src/pages/LoanManagement.tsx`, `src/components/loans/LoanFilters.tsx`
 
--- 4. Triggers — INSERT সবসময়, UPDATE শুধু loan_amount change হলে
-DROP TRIGGER IF EXISTS trg_auto_status_insert ON public.loans;
-CREATE TRIGGER trg_auto_status_insert
-  BEFORE INSERT ON public.loans
-  FOR EACH ROW EXECUTE FUNCTION public.set_account_status_by_amount();
+- নতুন hook ব্যবহার: `useLegalNotices(branchFilter)` import করে।
+- `loanNoticeMap`: `Map<loan_id, { count, latestType }>` build করা হবে।
+- বর্তমান `loanCaseMap` ইতিমধ্যে আছে।
+- **Table row + mobile card**-এ borrower name-এর পাশে badge দেখাব:
+  - 🔴 `মামলা` (case থাকলে) — ক্লিকে `/legal?case=<id>` (existing query-param handler ইতিমধ্যে কাজ করছে)
+  - 🟡 `নোটিশ` (notice থাকলে) — ক্লিকে `/legal?notice=<id>` (নতুন handler add করতে হবে — Plan §5)
 
-DROP TRIGGER IF EXISTS trg_auto_status_update ON public.loans;
-CREATE TRIGGER trg_auto_status_update
-  BEFORE UPDATE OF loan_amount ON public.loans
-  FOR EACH ROW
-  WHEN (OLD.loan_amount IS DISTINCT FROM NEW.loan_amount)
-  EXECUTE FUNCTION public.set_account_status_by_amount();
-```
+### 3. Filter অংশে "Expired Loan" Checkbox
 
-### Frontend পরিবর্তন
-- **`LoanForm.tsx`** — `account_status` field hidden/read-only করব এবং একটা note দেখাব:  
-  *"Status loan amount অনুযায়ী auto-set হবে। পরে admin/manager manually override করতে পারবেন।"*
-- **`AccountStatusChange.tsx`** — অপরিবর্তিত থাকবে (manual override-এর জন্য)। এটাই admin override দেবে।
-- **`LoanDetailDrawer.tsx`** — `<AccountStatusChange />` যেমন আছে থাকবে।
-- **`LoanImportDialog.tsx`** — কিছু করতে হবে না; trigger import সময়ও fire করবে।
+**Files:** `src/hooks/useLoans.ts`, `src/components/loans/LoanFilters.tsx`
+
+- `LoanFilters` interface-এ যোগ: `expiredOnly: boolean`
+- `defaultFilters`-এ: `expiredOnly: false`
+- `applyFilters`-এ logic: যদি `expiredOnly=true`, শুধু সেই loans যেগুলোর `expiry_date < today` রাখা হবে। সাথে `expiry_date asc` sort (most expired first)।
+- `LoanFilters.tsx`-এ Classification checkbox group-এর পাশে আরেকটা checkbox: **"Expired Loan"** label সহ। Active filter tag-এও দেখাবে।
+
+### 4. Loan Detail Drawer — Linked Case/Notice Section
+
+**File:** `src/components/loans/LoanDetailDrawer.tsx`
+
+- নতুন props: `legalCases?: LegalCase[]; legalNotices?: LegalNotice[]; onOpenCase?: (id: string) => void; onOpenNotice?: (id: string) => void;`
+- Drawer-এর Guarantors section-এর নিচে নতুন একটা section **"Legal Records"**:
+  - Filter: `legalCases.filter(c => c.loan_id === loan.id)` এবং একই notices-এর জন্য
+  - প্রতিটা item একটা ক্লিকেবল card — case হলে: `case_number · case_type · status` + next date; notice হলে: `notice_type · sent_date · receipt_status`
+  - ক্লিক করলে drawer close হয়ে navigate: `navigate('/legal?case=<id>')` বা `?notice=<id>`
+- কোনো record না থাকলে section hide।
+
+### 5. Notice Auto-Open Support (`?notice=<id>`)
+
+**File:** `src/pages/LegalManagement.tsx`
+
+- বর্তমান `?case=<id>` handler-এর pattern follow করে নতুন `useEffect` যা `notices` load হলে `?notice=<id>` খুঁজে notice tab-এ switch করে detail drawer/edit dialog খুলবে। (Notices-এর জন্য আলাদা detail drawer নেই — তাই `openEditNotice(found)` call করব যা existing edit dialog ব্যবহার করে।)
 
 ### আচরণ সারাংশ
 
-| পরিস্থিতি | Status আচরণ |
+| Feature | Result |
 |---|---|
-| নতুন loan create | trigger অটো সেট |
-| Excel import | trigger অটো সেট |
-| `loan_amount` edit | trigger reset করবে |
-| অন্য field edit (without loan_amount) | manual status অপরিবর্তিত |
-| Admin "Change Status" dialog | manual override কাজ করবে |
+| Legal cases-এ account number ক্লিক | Loan detail drawer খোলে |
+| Legal notices-এ account number ক্লিক | Loan detail drawer খোলে |
+| Loan যার case/notice আছে | Borrower-এর পাশে badge |
+| Badge ক্লিক | Legal page-এ ওই case/notice খোলে |
+| Filter → Expired Loan ✓ | শুধু expired loans, sorted oldest first |
+| Loan detail-এ "Legal Records" section | Linked case + notice list, ক্লিকেবল |
 
 ### প্রভাবিত ফাইল
-1. `supabase-migration-v11-auto-status.sql` (নতুন)
-2. `src/components/loans/LoanForm.tsx` (status field hide + note)
+
+1. `src/pages/LegalManagement.tsx` — clickable account cells, notice auto-open, embed `LoanDetailDrawer`
+2. `src/pages/LoanManagement.tsx` — notice map, badges in row/card, pass legal data to drawer
+3. `src/components/loans/LoanDetailDrawer.tsx` — new "Legal Records" section + props
+4. `src/components/loans/LoanFilters.tsx` — Expired Loan checkbox + active tag
+5. `src/hooks/useLoans.ts` — `expiredOnly` field + filter logic + sort
 
