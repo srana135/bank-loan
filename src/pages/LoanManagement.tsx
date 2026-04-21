@@ -507,12 +507,32 @@ const LoanManagement = () => {
           <div className="text-xs text-muted-foreground">Showing {filteredLoans.length} of {allLoans?.length || 0} loans</div>
           {filteredLoans.map(loan => {
             const lc = loanCaseMap.get(loan.id);
+            const ln = loanNoticeMap.get(loan.id);
             return (
             <Card key={loan.id} className="card-shadow cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openLoanDetail(loan)}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold text-sm truncate">{loan.borrower_name}</p>
+                      {lc && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[9px] h-4 px-1.5 cursor-pointer gap-0.5"
+                          onClick={(e) => { e.stopPropagation(); const cid = legalCaseIdForLoan(loan.id); if (cid) navigate(`/legal?case=${cid}`); }}
+                        >
+                          <Gavel className="h-2.5 w-2.5" /> মামলা
+                        </Badge>
+                      )}
+                      {ln && (
+                        <Badge
+                          className="text-[9px] h-4 px-1.5 bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500 cursor-pointer gap-0.5"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/legal?notice=${ln.id}`); }}
+                        >
+                          নোটিশ{ln.count > 1 ? ` ${ln.count}` : ''}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground font-mono">{loan.account_no}</p>
                   </div>
                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
