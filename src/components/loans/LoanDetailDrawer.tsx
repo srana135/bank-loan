@@ -1,11 +1,11 @@
-import { Loan, Branch } from '@/types';
+import { Loan, Branch, LegalCase, LegalNotice } from '@/types';
 import { UserRole } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock, MapPin, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Phone, MessageSquare, Banknote, Clock, MapPin, ExternalLink, Gavel, FileWarning, ChevronRight } from 'lucide-react';
 import AccountStatusChange from './AccountStatusChange';
 import LoanComments from './LoanComments';
 import LoanRecoveries from './LoanRecoveries';
@@ -21,6 +21,10 @@ interface Props {
   onDelete: (id: string) => void;
   userRole: UserRole | null;
   branches: Branch[];
+  legalCases?: LegalCase[];
+  legalNotices?: LegalNotice[];
+  onOpenCase?: (id: string) => void;
+  onOpenNotice?: (id: string) => void;
 }
 
 const classColors: Record<string, string> = {
@@ -31,10 +35,14 @@ const classColors: Record<string, string> = {
   BL: 'destructive' as any,
 };
 
-const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, branches }: Props) => {
+const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, branches, legalCases, legalNotices, onOpenCase, onOpenNotice }: Props) => {
   if (!loan) return null;
   const canEdit = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin' || userRole === 'manager';
+
+  const linkedCases = (legalCases || []).filter(c => c.loan_id === loan.id);
+  const linkedNotices = (legalNotices || []).filter(n => n.loan_id === loan.id);
+  const hasLegalRecords = linkedCases.length > 0 || linkedNotices.length > 0;
 
   // Live total recovery sum
   const { data: recoveries } = useLoanRecoveries(loan.id);
