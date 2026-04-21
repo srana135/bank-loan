@@ -53,7 +53,7 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
 
   const hasActiveFilters = filters.accountName || filters.borrowerName || filters.accountType ||
     filters.accountStatus || filters.address || filters.classifications.length > 0 ||
-    filters.proposedDateFilter ||
+    filters.proposedDateFilter || filters.expiredOnly ||
     (branchFilter && branchFilter !== '__all__');
 
   const activeFilterTags: { label: string; clear: () => void }[] = [];
@@ -64,6 +64,7 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
   if (filters.address) activeFilterTags.push({ label: `Address: ${filters.address}`, clear: () => update({ address: '' }) });
   if (filters.classifications.length > 0) activeFilterTags.push({ label: `Class: ${filters.classifications.join(', ')}`, clear: () => update({ classifications: [] }) });
   if (filters.proposedDateFilter) activeFilterTags.push({ label: `Proposed: ${filters.proposedDateFilter}`, clear: () => update({ proposedDateFilter: '' }) });
+  if (filters.expiredOnly) activeFilterTags.push({ label: 'Expired Loans', clear: () => update({ expiredOnly: false }) });
 
   const clearAll = () => {
     onChange(defaultFilters);
@@ -163,6 +164,10 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
               <span className="text-sm">{cls}</span>
             </label>
           ))}
+          <label className="flex items-center gap-1.5 cursor-pointer ml-2 border-l pl-3">
+            <Checkbox checked={filters.expiredOnly} onCheckedChange={v => update({ expiredOnly: !!v })} />
+            <span className="text-sm font-medium text-destructive">Expired Loan</span>
+          </label>
         </div>
       </div>
 
