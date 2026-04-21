@@ -1205,6 +1205,27 @@ const LegalManagement = () => {
         onGenerateStatement={generateStatement}
       />
 
+      {/* Linked Loan Detail Drawer (read-only cross-link from legal records) */}
+      <LoanDetailDrawer
+        loan={linkedLoan}
+        open={linkedLoanOpen}
+        onClose={() => { setLinkedLoanOpen(false); setLinkedLoan(null); }}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        userRole={null}
+        branches={branches || []}
+        legalCases={cases || []}
+        legalNotices={notices || []}
+        onOpenCase={(id) => {
+          const c = cases?.find(cc => cc.id === id);
+          if (c) { setLinkedLoanOpen(false); setDetailCase(c); setDetailOpen(true); }
+        }}
+        onOpenNotice={(id) => {
+          const n = notices?.find(nn => nn.id === id);
+          if (n) { setLinkedLoanOpen(false); setActiveTab('notices'); openEditNotice(n); }
+        }}
+      />
+
       {/* Create/Edit Case Dialog */}
       <Dialog open={formOpen} onOpenChange={v => { if (!v) setFormOpen(false); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
