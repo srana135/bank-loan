@@ -8,6 +8,8 @@ import { useLoans } from '@/hooks/useLoans';
 import { useProfiles } from '@/hooks/useUsers';
 import { useLoanRecoveries } from '@/hooks/useRecoveries';
 import { LegalCase, Lawyer, LegalNotice, Profile } from '@/types';
+import type { Loan } from '@/types';
+import LoanDetailDrawer from '@/components/loans/LoanDetailDrawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,6 +219,30 @@ const LegalManagement = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cases]);
+
+  // Auto-open a notice from ?notice=<id> query param (linked from Loan Management)
+  useEffect(() => {
+    const noticeId = searchParams.get('notice');
+    if (noticeId && notices) {
+      const found = notices.find(n => n.id === noticeId);
+      if (found) {
+        setActiveTab('notices');
+        openEditNotice(found);
+        searchParams.delete('notice');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notices]);
+
+  // Linked loan (read-only) drawer for cross-link from legal page
+  const [linkedLoan, setLinkedLoan] = useState<Loan | null>(null);
+  const [linkedLoanOpen, setLinkedLoanOpen] = useState(false);
+  const openLinkedLoan = (loanId: string | null | undefined) => {
+    if (!loanId) return;
+    const l = loanMap.get(loanId);
+    if (l) { setLinkedLoan(l as Loan); setLinkedLoanOpen(true); }
+  };
 
   // Form state
   const [caseNumber, setCaseNumber] = useState('');
