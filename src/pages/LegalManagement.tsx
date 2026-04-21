@@ -1154,7 +1154,11 @@ const LegalManagement = () => {
                     <TableRow key={n.id}>
                       <TableCell className="text-sm">{n.borrower_name || '-'}</TableCell>
                       <TableCell className="text-sm">{n.organization_name || '-'}</TableCell>
-                      <TableCell className="font-mono text-xs">{n.account_no || '-'}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {n.loan_id && n.account_no ? (
+                          <button type="button" onClick={() => openLinkedLoan(n.loan_id)} className="text-primary hover:underline">{n.account_no}</button>
+                        ) : (n.account_no || '-')}
+                      </TableCell>
                       <TableCell className="text-sm">{n.notice_type}</TableCell>
                       <TableCell className="text-xs">{n.sent_date || '-'}</TableCell>
                       <TableCell>
