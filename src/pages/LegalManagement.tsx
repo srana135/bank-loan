@@ -989,13 +989,23 @@ const LegalManagement = () => {
                       <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailCase(c); setDetailOpen(true); }}>
                         <TableCell className="font-mono text-sm font-medium">{c.case_number}</TableCell>
                         <TableCell className="text-sm">{c.case_type}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           <div>
-                            <span className="font-mono text-xs">{loan?.account_no || '-'}</span>
+                            {loan ? (
+                              <button
+                                type="button"
+                                onClick={() => openLinkedLoan(c.loan_id)}
+                                className="font-mono text-xs text-primary hover:underline"
+                              >{loan.account_no}</button>
+                            ) : <span className="font-mono text-xs">-</span>}
                             {loan?.account_name && <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{loan.account_name}</p>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{loan?.borrower_name || c.defendant_name || '-'}</TableCell>
+                        <TableCell className="text-sm" onClick={e => e.stopPropagation()}>
+                          {loan ? (
+                            <button type="button" onClick={() => openLinkedLoan(c.loan_id)} className="text-primary hover:underline">{loan.borrower_name}</button>
+                          ) : (c.defendant_name || '-')}
+                        </TableCell>
                         <TableCell><Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{c.status}</Badge></TableCell>
                         <TableCell className="text-sm">{c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</TableCell>
                         <TableCell>{nextDateBadge(c.next_date) || '-'}</TableCell>
