@@ -138,6 +138,22 @@ const LoanManagement = () => {
     return map;
   }, [legalCases]);
 
+  const loanNoticeMap = useMemo(() => {
+    const map = new Map<string, { id: string; notice_type: string; count: number }>();
+    legalNotices?.forEach(n => {
+      if (!n.loan_id) return;
+      const existing = map.get(n.loan_id);
+      if (existing) existing.count += 1;
+      else map.set(n.loan_id, { id: n.id, notice_type: n.notice_type, count: 1 });
+    });
+    return map;
+  }, [legalNotices]);
+
+  const legalCaseIdForLoan = (loanId: string): string | undefined => {
+    return legalCases?.find(c => c.loan_id === loanId && c.status === 'active')?.id
+      || legalCases?.find(c => c.loan_id === loanId)?.id;
+  };
+
   // Map: loanId → latest recovery date
   const loanRecoveryMap = useMemo(() => {
     const map = new Map<string, string>();
