@@ -660,6 +660,7 @@ const LoanManagement = () => {
               <TableBody>
                 {filteredLoans.map(loan => {
                   const lc = loanCaseMap.get(loan.id);
+                  const ln = loanNoticeMap.get(loan.id);
                   const days = lc?.next_date ? Math.ceil((new Date(lc.next_date).getTime() - new Date().setHours(0,0,0,0)) / 86400000) : null;
                   return (
                   <TableRow key={loan.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openLoanDetail(loan)}>
@@ -677,7 +678,28 @@ const LoanManagement = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{loan.borrower_name}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{loan.borrower_name}</span>
+                        {lc && (
+                          <Badge
+                            variant="destructive"
+                            className="text-[9px] h-4 px-1.5 cursor-pointer gap-0.5"
+                            onClick={(e) => { e.stopPropagation(); const cid = legalCaseIdForLoan(loan.id); if (cid) navigate(`/legal?case=${cid}`); }}
+                          >
+                            <Gavel className="h-2.5 w-2.5" /> মামলা
+                          </Badge>
+                        )}
+                        {ln && (
+                          <Badge
+                            className="text-[9px] h-4 px-1.5 bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/legal?notice=${ln.id}`); }}
+                          >
+                            নোটিশ{ln.count > 1 ? ` ${ln.count}` : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Badge variant={(loan.overdue_installment_number || 0) > 0 ? 'destructive' : 'secondary'} className="text-xs">
                         {loan.overdue_installment_number || 0}
