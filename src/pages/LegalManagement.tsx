@@ -908,10 +908,24 @@ const LegalManagement = () => {
                         {loan && (
                           <>
                             <div>
-                              <span className="text-muted-foreground">A/C:</span> <span className="font-mono">{loan.account_no}</span>
+                              <span className="text-muted-foreground">A/C:</span>{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openLinkedLoan(c.loan_id); }}
+                                className="font-mono text-primary hover:underline"
+                              >
+                                {loan.account_no}
+                              </button>
                               {loan.account_name && <p className="text-[10px] text-muted-foreground">{loan.account_name}</p>}
                             </div>
-                            <div><span className="text-muted-foreground">Borrower:</span> {loan.borrower_name}</div>
+                            <div>
+                              <span className="text-muted-foreground">Borrower:</span>{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openLinkedLoan(c.loan_id); }}
+                                className="text-primary hover:underline"
+                              >{loan.borrower_name}</button>
+                            </div>
                           </>
                         )}
                         <div><span className="text-muted-foreground">Claim:</span> {c.claim_amount ? `৳${c.claim_amount.toLocaleString()}` : '-'}</div>
