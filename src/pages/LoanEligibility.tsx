@@ -30,6 +30,8 @@ import { Loader2, Download, CheckCircle, XCircle, AlertTriangle, Trash2 } from '
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import { useIsMobile } from '@/hooks/use-mobile';
+import FaraidCalculator from '@/components/calculators/FaraidCalculator';
+import AnaGonaCalculator from '@/components/calculators/AnaGonaCalculator';
 
 const eligibilitySchema = z.object({
   customerName: z.string().trim().min(2, 'Name is required'),
@@ -228,6 +230,10 @@ const LoanEligibility = () => {
   return (
     <div className="container py-6 space-y-6">
       <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Eligibility</h1>
+      <div className="space-y-6">
+        <FaraidCalculator />
+        <AnaGonaCalculator />
+      </div>
       <Tabs defaultValue="calculator">
         <TabsList><TabsTrigger value="calculator">Calculator</TabsTrigger><TabsTrigger value="proposals">Proposals</TabsTrigger></TabsList>
 
