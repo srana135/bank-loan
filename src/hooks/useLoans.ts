@@ -283,6 +283,9 @@ export interface LoanFilters {
   classifications: string[];
   proposedDateFilter: '' | 'today' | '7days';
   expiredOnly: boolean;
+  pendingOnly: boolean;
+  recoveredOnly: boolean;
+  dueOnly: boolean;
 }
 
 export const defaultFilters: LoanFilters = {
@@ -294,6 +297,9 @@ export const defaultFilters: LoanFilters = {
   classifications: [],
   proposedDateFilter: '',
   expiredOnly: false,
+  pendingOnly: false,
+  recoveredOnly: false,
+  dueOnly: false,
 };
 
 export function applyFilters(loans: Loan[], filters: LoanFilters, search: string): Loan[] {
@@ -328,11 +334,34 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
       if (!l.expiry_date || l.expiry_date >= todayStr) return false;
     }
 
+    // Proposed-date based status filters
+    // Pending  → latest_proposed_date >= today (future/today commitment, awaiting)
+    // Recovered → recovery_status / account_status indicates recovered, OR proposed date passed and marked recovered
+    // Due (Overdue) → latest_proposed_date < today and not recovered
+    const isRecovered = (l.account_status || '').toLowerCase().includes('recover')
+      || (l as any).recovery_status === 'recovered';
+
+    if (filters.pendingOnly) {
+      if (!l.latest_proposed_date || l.latest_proposed_date < todayStr || isRecovered) return false;
+    }
+    if (filters.recoveredOnly) {
+      if (!isRecovered) return false;
+    }
+    if (filters.dueOnly) {
+      if (!l.latest_proposed_date || l.latest_proposed_date >= todayStr || isRecovered) return false;
+    }
+
     return true;
   });
 
   if (filters.expiredOnly) {
     result = [...result].sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+  }
+  if (filters.dueOnly) {
+    result = [...result].sort((a, b) => (a.latest_proposed_date || '').localeCompare(b.latest_proposed_date || ''));
+  }
+  if (filters.pendingOnly) {
+    result = [...result].sort((a, b) => (a.latest_proposed_date || '').localeCompare(b.latest_proposed_date || ''));
   }
 
   return result;
