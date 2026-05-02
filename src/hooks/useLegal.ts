@@ -90,17 +90,30 @@ export const useCaseOrders = (caseId: string | null) => {
 // Recompute latest_order_date / latest_order_summary / next_date on the parent case
 // after add/update/delete of an order.
 async function recomputeCaseLatestOrder(caseId: string) {
-  const { data: orders } = await supabase
+  // Latest order (by order_date) → drives latest_order_date / latest_order_summary
+  const { data: latestOrders } = await supabase
     .from('legal_case_orders')
-    .select('order_date, order_summary, next_date')
+    .select('order_date, order_summary')
     .eq('case_id', caseId)
     .order('order_date', { ascending: false })
     .limit(1);
-  const latest = orders?.[0];
+  const latest = latestOrders?.[0];
+
+  // next_date = the future-most next_date across ALL orders (not tied to latest order)
+  // Falls back to the most recent non-null next_date if none are in the future.
+  const { data: nextDateRows } = await supabase
+    .from('legal_case_orders')
+    .select('next_date')
+    .eq('case_id', caseId)
+    .not('next_date', 'is', null)
+    .order('next_date', { ascending: false })
+    .limit(1);
+  const nextDate = nextDateRows?.[0]?.next_date || null;
+
   await supabase.from('legal_cases').update({
     latest_order_date: latest?.order_date || null,
     latest_order_summary: latest?.order_summary || null,
-    next_date: latest?.next_date || null,
+    next_date: nextDate,
   }).eq('id', caseId);
 }
 
