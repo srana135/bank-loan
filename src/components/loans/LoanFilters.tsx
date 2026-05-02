@@ -54,6 +54,7 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
   const hasActiveFilters = filters.accountName || filters.borrowerName || filters.accountType ||
     filters.accountStatus || filters.address || filters.classifications.length > 0 ||
     filters.proposedDateFilter || filters.expiredOnly ||
+    filters.pendingOnly || filters.recoveredOnly || filters.dueOnly ||
     (branchFilter && branchFilter !== '__all__');
 
   const activeFilterTags: { label: string; clear: () => void }[] = [];
@@ -65,6 +66,9 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
   if (filters.classifications.length > 0) activeFilterTags.push({ label: `Class: ${filters.classifications.join(', ')}`, clear: () => update({ classifications: [] }) });
   if (filters.proposedDateFilter) activeFilterTags.push({ label: `Proposed: ${filters.proposedDateFilter}`, clear: () => update({ proposedDateFilter: '' }) });
   if (filters.expiredOnly) activeFilterTags.push({ label: 'Expired Loans', clear: () => update({ expiredOnly: false }) });
+  if (filters.pendingOnly) activeFilterTags.push({ label: 'Pending', clear: () => update({ pendingOnly: false }) });
+  if (filters.recoveredOnly) activeFilterTags.push({ label: 'Recovered', clear: () => update({ recoveredOnly: false }) });
+  if (filters.dueOnly) activeFilterTags.push({ label: 'Due / Overdue', clear: () => update({ dueOnly: false }) });
 
   const clearAll = () => {
     onChange(defaultFilters);
@@ -167,6 +171,18 @@ const LoanFilters = ({ filters, onChange, loans, branches, showBranchFilter, bra
           <label className="flex items-center gap-1.5 cursor-pointer ml-2 border-l pl-3">
             <Checkbox checked={filters.expiredOnly} onCheckedChange={v => update({ expiredOnly: !!v })} />
             <span className="text-sm font-medium text-destructive">Expired Loan</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={filters.pendingOnly} onCheckedChange={v => update({ pendingOnly: !!v })} />
+            <span className="text-sm font-medium text-amber-600">Pending</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={filters.recoveredOnly} onCheckedChange={v => update({ recoveredOnly: !!v })} />
+            <span className="text-sm font-medium text-green-600">Recovered</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={filters.dueOnly} onCheckedChange={v => update({ dueOnly: !!v })} />
+            <span className="text-sm font-medium text-orange-600">Due</span>
           </label>
         </div>
       </div>
