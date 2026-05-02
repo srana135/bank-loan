@@ -231,34 +231,6 @@ const LoanEligibility = () => {
   return (
     <div className="container py-6 space-y-6">
       <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Loan Eligibility</h1>
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveCalc(activeCalc === 'faraid' ? 'none' : 'faraid')}
-            className={`px-4 py-2 rounded-md border font-semibold text-sm transition-colors ${
-              activeCalc === 'faraid'
-                ? 'bg-[#b87a48] text-white border-[#b48752]'
-                : 'bg-[#fff3e6] text-[#1b4d2e] border-[#b48752] hover:bg-[#f3e3c8]'
-            }`}
-          >
-            🕌 ইসলামী ফারায়েজ ক্যালকুলেটর
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveCalc(activeCalc === 'anagona' ? 'none' : 'anagona')}
-            className={`px-4 py-2 rounded-md border font-semibold text-sm transition-colors ${
-              activeCalc === 'anagona'
-                ? 'bg-[#b87a48] text-white border-[#b48752]'
-                : 'bg-[#fff3e6] text-[#1b4d2e] border-[#b48752] hover:bg-[#f3e3c8]'
-            }`}
-          >
-            🌾 আনা-গন্ডা ক্যালকুলেটর
-          </button>
-        </div>
-        {activeCalc === 'faraid' && <FaraidCalculator />}
-        {activeCalc === 'anagona' && <AnaGonaCalculator />}
-      </div>
       <Tabs defaultValue="calculator">
         <TabsList><TabsTrigger value="calculator">Calculator</TabsTrigger><TabsTrigger value="proposals">Proposals</TabsTrigger></TabsList>
 
@@ -326,6 +298,34 @@ const LoanEligibility = () => {
                 </CardContent>
               </Card>
             )}
+          </div>
+          <div className="space-y-4 mt-6">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveCalc(activeCalc === 'faraid' ? 'none' : 'faraid')}
+                className={`px-4 py-2 rounded-md border font-semibold text-sm transition-colors ${
+                  activeCalc === 'faraid'
+                    ? 'bg-[#b87a48] text-white border-[#b48752]'
+                    : 'bg-[#fff3e6] text-[#1b4d2e] border-[#b48752] hover:bg-[#f3e3c8]'
+                }`}
+              >
+                🕌 ইসলামী ফারায়েজ ক্যালকুলেটর
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCalc(activeCalc === 'anagona' ? 'none' : 'anagona')}
+                className={`px-4 py-2 rounded-md border font-semibold text-sm transition-colors ${
+                  activeCalc === 'anagona'
+                    ? 'bg-[#b87a48] text-white border-[#b48752]'
+                    : 'bg-[#fff3e6] text-[#1b4d2e] border-[#b48752] hover:bg-[#f3e3c8]'
+                }`}
+              >
+                🌾 আনা-গন্ডা ক্যালকুলেটর
+              </button>
+            </div>
+            {activeCalc === 'faraid' && <FaraidCalculator />}
+            {activeCalc === 'anagona' && <AnaGonaCalculator />}
           </div>
         </TabsContent>
 

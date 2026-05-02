@@ -336,10 +336,18 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
 
     // Proposed-date based status filters
     // Pending  → latest_proposed_date >= today (future/today commitment, awaiting)
-    // Recovered → recovery_status / account_status indicates recovered, OR proposed date passed and marked recovered
+    // Recovered → status indicates recovered/closed/adjusted/exit, OR recovered_amount fully covers disbursed amount
     // Due (Overdue) → latest_proposed_date < today and not recovered
-    const isRecovered = (l.account_status || '').toLowerCase().includes('recover')
-      || (l as any).recovery_status === 'recovered';
+    const statusLower = (l.account_status || '').toLowerCase();
+    const recoveredAmt = Number((l as any).recovered_amount) || 0;
+    const disbursedAmt = Number((l as any).disbursed_loan_amount) || 0;
+    const isRecovered =
+      statusLower.includes('recover') ||
+      statusLower.includes('closed') ||
+      statusLower.includes('adjusted') ||
+      statusLower === 'exit' ||
+      (l as any).recovery_status === 'recovered' ||
+      (disbursedAmt > 0 && recoveredAmt >= disbursedAmt);
 
     if (filters.pendingOnly) {
       if (!l.latest_proposed_date || l.latest_proposed_date < todayStr || isRecovered) return false;
