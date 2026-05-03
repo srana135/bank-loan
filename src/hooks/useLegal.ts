@@ -134,6 +134,7 @@ export const useAddCaseOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['case-orders'] });
       qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      qc.invalidateQueries({ queryKey: ['legal-case-orders-latest'] });
       toast.success('Order added');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -155,6 +156,7 @@ export const useUpdateCaseOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['case-orders'] });
       qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      qc.invalidateQueries({ queryKey: ['legal-case-orders-latest'] });
       toast.success('Order updated');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -176,6 +178,7 @@ export const useDeleteCaseOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['case-orders'] });
       qc.invalidateQueries({ queryKey: ['legal-cases'] });
+      qc.invalidateQueries({ queryKey: ['legal-case-orders-latest'] });
       toast.success('Order deleted');
     },
     onError: (e: Error) => toast.error(e.message),
