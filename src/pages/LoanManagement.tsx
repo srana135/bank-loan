@@ -164,16 +164,6 @@ const LoanManagement = () => {
       || legalCases?.find(c => c.loan_id === loanId)?.id;
   };
 
-  // Map: loanId → latest recovery date
-  const loanRecoveryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    allRecoveries?.forEach(r => {
-      const existing = map.get(r.loan_id);
-      if (!existing || r.recovery_date > existing) map.set(r.loan_id, r.recovery_date);
-    });
-    return map;
-  }, [allRecoveries]);
-
   const getProposedStatus = (loan: Loan): { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; className: string } | null => {
     if (!loan.latest_proposed_date) return null;
     const latestRecovery = loanRecoveryMap.get(loan.id);
