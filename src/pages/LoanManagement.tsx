@@ -103,9 +103,19 @@ const LoanManagement = () => {
     }
   };
 
+  // Map: loanId → latest recovery date (used by both filters and badges)
+  const loanRecoveryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allRecoveries?.forEach(r => {
+      const existing = map.get(r.loan_id);
+      if (!existing || r.recovery_date > existing) map.set(r.loan_id, r.recovery_date);
+    });
+    return map;
+  }, [allRecoveries]);
+
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
-    let loans = applyFilters(allLoans, filters, search);
+    let loans = applyFilters(allLoans, filters, search, loanRecoveryMap);
     if (userRole === 'admin' && adminBranchFilter !== '__all__') {
       loans = loans.filter(l => l.branch_id === adminBranchFilter);
     }
@@ -123,7 +133,7 @@ const LoanManagement = () => {
       });
     }
     return loans;
-  }, [allLoans, filters, search, adminBranchFilter, userRole, sortKey, sortDir]);
+  }, [allLoans, filters, search, adminBranchFilter, userRole, sortKey, sortDir, loanRecoveryMap]);
 
   const currentDetailLoan = useMemo(() => {
     if (!detailLoan || !allLoans) return detailLoan;
@@ -153,16 +163,6 @@ const LoanManagement = () => {
     return legalCases?.find(c => c.loan_id === loanId && c.status === 'active')?.id
       || legalCases?.find(c => c.loan_id === loanId)?.id;
   };
-
-  // Map: loanId → latest recovery date
-  const loanRecoveryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    allRecoveries?.forEach(r => {
-      const existing = map.get(r.loan_id);
-      if (!existing || r.recovery_date > existing) map.set(r.loan_id, r.recovery_date);
-    });
-    return map;
-  }, [allRecoveries]);
 
   const getProposedStatus = (loan: Loan): { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; className: string } | null => {
     if (!loan.latest_proposed_date) return null;

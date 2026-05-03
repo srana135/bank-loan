@@ -20,6 +20,8 @@ const emiSubItems = [
   { label: 'FDR Calculator', path: '/emi-calculator/fdr' },
   { label: 'Loan Eligibility', path: '/emi-calculator/eligibility' },
   { label: 'Currency Converter', path: '/emi-calculator/currency' },
+  { label: 'Faraid Calculator', path: '/emi-calculator/faraid' },
+  { label: 'Ana-Gonda Calculator', path: '/emi-calculator/anagona' },
 ];
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
