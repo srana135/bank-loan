@@ -302,7 +302,7 @@ export const defaultFilters: LoanFilters = {
   dueOnly: false,
 };
 
-export function applyFilters(loans: Loan[], filters: LoanFilters, search: string): Loan[] {
+export function applyFilters(loans: Loan[], filters: LoanFilters, search: string, loanRecoveryMap?: Map<string, string>): Loan[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const todayStr = now.toISOString().split('T')[0];
@@ -334,29 +334,17 @@ export function applyFilters(loans: Loan[], filters: LoanFilters, search: string
       if (!l.expiry_date || l.expiry_date >= todayStr) return false;
     }
 
-    // Proposed-date based status filters
-    // Pending  → latest_proposed_date >= today (future/today commitment, awaiting)
-    // Recovered → status indicates recovered/closed/adjusted/exit, OR recovered_amount fully covers disbursed amount
-    // Due (Overdue) → latest_proposed_date < today and not recovered
-    const statusLower = (l.account_status || '').toLowerCase();
-    const recoveredAmt = Number((l as any).recovered_amount) || 0;
-    const disbursedAmt = Number((l as any).disbursed_loan_amount) || 0;
-    const isRecovered =
-      statusLower.includes('recover') ||
-      statusLower.includes('closed') ||
-      statusLower.includes('adjusted') ||
-      statusLower === 'exit' ||
-      (l as any).recovery_status === 'recovered' ||
-      (disbursedAmt > 0 && recoveredAmt >= disbursedAmt);
-
-    if (filters.pendingOnly) {
-      if (!l.latest_proposed_date || l.latest_proposed_date < todayStr || isRecovered) return false;
-    }
-    if (filters.recoveredOnly) {
-      if (!isRecovered) return false;
-    }
-    if (filters.dueOnly) {
-      if (!l.latest_proposed_date || l.latest_proposed_date >= todayStr || isRecovered) return false;
+    // Proposed-date based status filters — mirror badge logic in LoanManagement.
+    // Recovered → has latest_proposed_date AND a recovery on/after that date
+    // Pending   → latest_proposed_date > today AND not recovered
+    // Overdue   → latest_proposed_date <= today AND not recovered
+    if (filters.pendingOnly || filters.recoveredOnly || filters.dueOnly) {
+      if (!l.latest_proposed_date) return false;
+      const latestRecovery = loanRecoveryMap?.get(l.id);
+      const isRecovered = !!(latestRecovery && latestRecovery >= l.latest_proposed_date);
+      if (filters.recoveredOnly && !isRecovered) return false;
+      if (filters.pendingOnly && (isRecovered || !(l.latest_proposed_date > todayStr))) return false;
+      if (filters.dueOnly && (isRecovered || l.latest_proposed_date > todayStr)) return false;
     }
 
     return true;

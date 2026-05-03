@@ -105,7 +105,7 @@ const LoanManagement = () => {
 
   const filteredLoans = useMemo(() => {
     if (!allLoans) return [];
-    let loans = applyFilters(allLoans, filters, search);
+    let loans = applyFilters(allLoans, filters, search, loanRecoveryMap);
     if (userRole === 'admin' && adminBranchFilter !== '__all__') {
       loans = loans.filter(l => l.branch_id === adminBranchFilter);
     }
@@ -123,7 +123,7 @@ const LoanManagement = () => {
       });
     }
     return loans;
-  }, [allLoans, filters, search, adminBranchFilter, userRole, sortKey, sortDir]);
+  }, [allLoans, filters, search, adminBranchFilter, userRole, sortKey, sortDir, loanRecoveryMap]);
 
   const currentDetailLoan = useMemo(() => {
     if (!detailLoan || !allLoans) return detailLoan;
