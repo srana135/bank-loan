@@ -17,6 +17,8 @@ import DPSCalculator from "./pages/DPSCalculator";
 import FDRCalculator from "./pages/FDRCalculator";
 import LoanEligibility from "./pages/LoanEligibility";
 import CurrencyConverter from "./pages/CurrencyConverter";
+import FaraidCalculatorPage from "./pages/FaraidCalculatorPage";
+import AnaGonaCalculatorPage from "./pages/AnaGonaCalculatorPage";
 import ServiceProductList from "./pages/ServiceProductList";
 import ConnectUs from "./pages/ConnectUs";
 import UserProfile from "./pages/UserProfile";
@@ -49,6 +51,8 @@ const App = () => (
               <Route path="/emi-calculator/fdr" element={<FDRCalculator />} />
               <Route path="/emi-calculator/eligibility" element={<LoanEligibility />} />
               <Route path="/emi-calculator/currency" element={<CurrencyConverter />} />
+              <Route path="/emi-calculator/faraid" element={<FaraidCalculatorPage />} />
+              <Route path="/emi-calculator/anagona" element={<AnaGonaCalculatorPage />} />
               <Route path="/converter" element={<Converter />} />
               <Route path="/reports" element={<ProtectedRoute><ReportGenerator /></ProtectedRoute>} />
               <Route path="/remittance" element={<ProtectedRoute><Remittance /></ProtectedRoute>} />
