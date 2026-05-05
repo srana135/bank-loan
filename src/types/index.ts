@@ -49,6 +49,8 @@ export interface Loan {
   account_name: string | null;
   borrower_name: string;
   mobile: string | null;
+  has_whatsapp?: boolean;
+  has_imo?: boolean;
   account_type: string | null;
   account_status: string | null;
   address: string | null;
@@ -61,8 +63,12 @@ export interface Loan {
   classification: string | null;
   guarantor_1_name: string | null;
   guarantor_1_mobile: string | null;
+  guarantor_1_has_whatsapp?: boolean;
+  guarantor_1_has_imo?: boolean;
   guarantor_2_name: string | null;
   guarantor_2_mobile: string | null;
+  guarantor_2_has_whatsapp?: boolean;
+  guarantor_2_has_imo?: boolean;
   branch_id: string | null;
   disbursement_date: string | null;
   disbursed_loan_amount: number | null;
