@@ -1,16 +1,22 @@
 /**
- * Traditional Ana-Gonda-Kora-Kranti-Til Land Share Calculator
- * Fixed: 1 Satak = 16 Ana = 64 Gonda = 256 Kora = 1024 Kranti = 4096 Til
+ * Official Khatian Fraction Land Share Calculator
+ * 1 Ana = 20 Gonda; 1 Gonda = 4 Kora; 1 Kora = 3 Kranti; 1 Kranti = 20 Til
+ * => 1 Ana = 4800 Til ; 1 Satak = 16 Ana = 76800 Til
  */
 import { useState, useMemo } from 'react';
 
 const ANA_SYMBOLS = ['০','৷','৵','৶','৷','৷⁄','৷৵','৷৶','৷৷','৷৷⁄','৷৷৵','৷৷৶','৸','৸⁄','৸৵','৸৶','১'];
-const GONDA_SYMBOLS = ['০','১','২','৩'];
 const KORA_SYMBOLS = ['০','৷','৷৷','৸'];
 const KRANTI_SYMBOLS = ['০','৴','৴৴'];
-const TIL_SYMBOLS = ['০','১','২','৩'];
+const bnDigits = (n: number) => n.toString().replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d]);
+const GONDA_SYMBOLS = Array.from({ length: 20 }, (_, i) => bnDigits(i));
+const TIL_SYMBOLS = Array.from({ length: 20 }, (_, i) => bnDigits(i));
 
-const TIL_PER_SATAK = 4096;
+const TIL_PER_ANA = 4800;
+const TIL_PER_GONDA = 240;
+const TIL_PER_KORA = 60;
+const TIL_PER_KRANTI = 20;
+const TIL_PER_SATAK = 76800;
 
 type UnitProps = {
   label: string;
@@ -74,7 +80,7 @@ const AnaGonaCalculator = () => {
   const [til, setTil] = useState(0);
 
   const { selectedTil, selectedSatak, remainingSatak, selectedPct, remainingPct, exceeds } = useMemo(() => {
-    const sTil = ana * 256 + gonda * 64 + kora * 16 + kranti * 4 + til;
+    const sTil = ana * TIL_PER_ANA + gonda * TIL_PER_GONDA + kora * TIL_PER_KORA + kranti * TIL_PER_KRANTI + til;
     const sSat = totalSatak * (sTil / TIL_PER_SATAK);
     const rSat = totalSatak - sSat;
     const sPct = totalSatak > 0 ? (sSat / totalSatak) * 100 : 0;
@@ -115,11 +121,11 @@ const AnaGonaCalculator = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UnitSelector label="আনা" symbols={ANA_SYMBOLS} value={ana} onChange={setAna} max={16} />
-            <UnitSelector label="গন্ডা" symbols={GONDA_SYMBOLS} value={gonda} onChange={setGonda} max={3} />
-            <UnitSelector label="কড়া" symbols={KORA_SYMBOLS} value={kora} onChange={setKora} max={3} />
-            <UnitSelector label="ক্রান্তি" symbols={KRANTI_SYMBOLS} value={kranti} onChange={setKranti} max={2} />
-            <UnitSelector label="তিল" symbols={TIL_SYMBOLS} value={til} onChange={setTil} max={3} />
+            <UnitSelector label="আনা (0-16)" symbols={ANA_SYMBOLS} value={ana} onChange={setAna} max={16} />
+            <UnitSelector label="গন্ডা (0-19)" symbols={GONDA_SYMBOLS} value={gonda} onChange={setGonda} max={19} />
+            <UnitSelector label="কড়া (0-3)" symbols={KORA_SYMBOLS} value={kora} onChange={setKora} max={3} />
+            <UnitSelector label="ক্রান্তি (0-2)" symbols={KRANTI_SYMBOLS} value={kranti} onChange={setKranti} max={2} />
+            <UnitSelector label="তিল (0-19)" symbols={TIL_SYMBOLS} value={til} onChange={setTil} max={19} />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -148,7 +154,7 @@ const AnaGonaCalculator = () => {
           </div>
 
           <div className="p-2.5 rounded bg-[#fff3e6] border border-[#b48752] text-xs text-[#1b4d2e]">
-            <strong>স্থির সম্পর্ক:</strong> ১ সতক = ১৬ আনা | ১ আনা = ৪ গন্ডা = ১৬ কড়া = ৬৪ ক্রান্তি = ২৫৬ তিল
+            <strong>স্থির সম্পর্ক:</strong> ১ সতক = ১৬ আনা | ১ আনা = ২০ গন্ডা = ৮০ কড়া = ২৪০ ক্রান্তি = ৪৮০০ তিল
           </div>
         </div>
       </div>
