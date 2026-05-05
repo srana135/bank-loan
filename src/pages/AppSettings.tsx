@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppSettings, AppSettingsMap } from '@/hooks/useAppSettings';
+import { useContactIconSettings } from '@/contexts/ContactIconSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ const AppSettings = () => {
   const [form, setForm] = useState<AppSettingsMap | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('tax');
+  const { showOnlyFlagged, setShowOnlyFlagged } = useContactIconSettings();
 
   useEffect(() => {
     if (settings && !form) setForm({ ...settings });
@@ -797,6 +799,22 @@ const AppSettings = () => {
                 <div>
                   <Label>নতুন ব্যবহারকারী রেজিস্ট্রেশনে অ্যাডমিন অনুমোদন প্রয়োজন</Label>
                   <p className="text-xs text-muted-foreground">বন্ধ করলে নতুন ইউজার সরাসরি লগইন করতে পারবে</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">যোগাযোগ আইকন (WhatsApp / IMO)</CardTitle>
+              <CardDescription>মোবাইল নম্বরের পাশে WhatsApp ও IMO আইকন কোথায় দেখাবে তা নিয়ন্ত্রণ করুন</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                <Switch checked={showOnlyFlagged} onCheckedChange={setShowOnlyFlagged} />
+                <div>
+                  <Label>{showOnlyFlagged ? 'শুধু নিশ্চিত নম্বরে হোয়াটসঅ্যাপ/ইমো আইকন দেখান' : 'সকল নম্বরে আইকন দেখান'}</Label>
+                  <p className="text-xs text-muted-foreground">অ্যাডমিন প্রতিটি গ্রাহকের নম্বরের পাশে W/I বাটন দিয়ে নিশ্চিত করতে পারবেন</p>
                 </div>
               </div>
             </CardContent>
