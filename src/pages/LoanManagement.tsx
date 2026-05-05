@@ -37,6 +37,7 @@ import SmsUtility from '@/components/loans/SmsUtility';
 import LoanAgingAnalysis from '@/components/loans/LoanAgingAnalysis';
 import ClassificationSuggestion from '@/components/loans/ClassificationSuggestion';
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
+import PhoneWithIcons from '@/components/PhoneWithIcons';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type SortKey = 'account_no' | 'account_name' | 'borrower_name' | 'overdue_amount' | 'outstanding_amount' | 'classification' | 'overdue_installment_number' | 'latest_proposed_date';
@@ -547,7 +548,7 @@ const LoanManagement = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Account:</span> <span className="font-medium">{loan.account_name || '-'}</span></div>
-                  <div><span className="text-muted-foreground">Mobile:</span> <a href={`tel:${loan.mobile}`} className="text-primary font-medium" onClick={e => e.stopPropagation()}>{loan.mobile || '-'}</a></div>
+                  <div className="flex items-center gap-1"><span className="text-muted-foreground">Mobile:</span> <PhoneWithIcons phone={loan.mobile} loanId={loan.id} hasWhatsapp={loan.has_whatsapp} hasImo={loan.has_imo} whatsappField="has_whatsapp" imoField="has_imo" /></div>
                   <div><span className="text-muted-foreground">Outstanding:</span> <span className="font-semibold">৳{(loan.outstanding_amount || 0).toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Overdue:</span> <span className="font-medium text-destructive">৳{(loan.overdue_amount || 0).toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Installment:</span> <span className="font-medium">৳{(loan.installment_amount || 0).toLocaleString()}</span></div>
