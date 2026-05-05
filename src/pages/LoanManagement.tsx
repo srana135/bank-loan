@@ -37,6 +37,7 @@ import SmsUtility from '@/components/loans/SmsUtility';
 import LoanAgingAnalysis from '@/components/loans/LoanAgingAnalysis';
 import ClassificationSuggestion from '@/components/loans/ClassificationSuggestion';
 import DatabaseSetupBanner from '@/components/DatabaseSetupBanner';
+import PhoneWithIcons from '@/components/PhoneWithIcons';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type SortKey = 'account_no' | 'account_name' | 'borrower_name' | 'overdue_amount' | 'outstanding_amount' | 'classification' | 'overdue_installment_number' | 'latest_proposed_date';
