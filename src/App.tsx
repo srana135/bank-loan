@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ContactIconSettingsProvider } from "@/contexts/ContactIconSettings";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -33,6 +34,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ContactIconSettingsProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -64,6 +66,7 @@ const App = () => (
           </Layout>
         </BrowserRouter>
       </TooltipProvider>
+      </ContactIconSettingsProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
