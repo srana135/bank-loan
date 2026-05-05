@@ -12,6 +12,7 @@ import LoanRecoveries from './LoanRecoveries';
 import LoanTimeline from './LoanTimeline';
 import ClassificationSuggestion from './ClassificationSuggestion';
 import { useLoanRecoveries } from '@/hooks/useRecoveries';
+import PhoneWithIcons from '@/components/PhoneWithIcons';
 
 interface Props {
   loan: Loan | null;
@@ -83,12 +84,31 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
     <div className="flex justify-between py-1.5 text-sm">
       <span className="text-muted-foreground">{label}</span>
       {isPhone && value ? (
-        <a href={`tel:${value}`} className="text-primary hover:underline flex items-center gap-1">
-          <Phone className="h-3 w-3" />{value}
-        </a>
+        <span className="font-medium text-right">
+          <PhoneWithIcons phone={String(value)} showPhoneIcon />
+        </span>
       ) : (
         <span className="font-medium text-right max-w-[60%] break-words">{value ?? '-'}</span>
       )}
+    </div>
+  );
+
+  const PhoneRow = ({ label, phone, hasWhatsapp, hasImo, whatsappField, imoField }: {
+    label: string; phone?: string | null; hasWhatsapp?: boolean; hasImo?: boolean; whatsappField: string; imoField: string;
+  }) => (
+    <div className="flex justify-between items-center py-1.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right">
+        <PhoneWithIcons
+          phone={phone}
+          loanId={loan.id}
+          hasWhatsapp={hasWhatsapp}
+          hasImo={hasImo}
+          whatsappField={whatsappField}
+          imoField={imoField}
+          showPhoneIcon
+        />
+      </span>
     </div>
   );
 
@@ -160,7 +180,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
           <DetailRow label="Account No" value={loan.account_no} />
           <DetailRow label="Account Name" value={loan.account_name} />
           <DetailRow label="Borrower Name" value={loan.borrower_name} />
-          <DetailRow label="Mobile" value={loan.mobile} isPhone />
+          <PhoneRow label="Mobile" phone={loan.mobile} hasWhatsapp={loan.has_whatsapp} hasImo={loan.has_imo} whatsappField="has_whatsapp" imoField="has_imo" />
           <DetailRow label="Account Type" value={loan.account_type} />
           <DetailRow label="Account Status" value={loan.account_status} />
           <AddressRow />
@@ -233,9 +253,9 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
         <div className="space-y-1">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Guarantors</h4>
           <DetailRow label="Guarantor 1" value={loan.guarantor_1_name} />
-          <DetailRow label="G1 Mobile" value={loan.guarantor_1_mobile} isPhone />
+          <PhoneRow label="G1 Mobile" phone={loan.guarantor_1_mobile} hasWhatsapp={loan.guarantor_1_has_whatsapp} hasImo={loan.guarantor_1_has_imo} whatsappField="guarantor_1_has_whatsapp" imoField="guarantor_1_has_imo" />
           <DetailRow label="Guarantor 2" value={loan.guarantor_2_name} />
-          <DetailRow label="G2 Mobile" value={loan.guarantor_2_mobile} isPhone />
+          <PhoneRow label="G2 Mobile" phone={loan.guarantor_2_mobile} hasWhatsapp={loan.guarantor_2_has_whatsapp} hasImo={loan.guarantor_2_has_imo} whatsappField="guarantor_2_has_whatsapp" imoField="guarantor_2_has_imo" />
         </div>
 
         {hasLegalRecords && (
