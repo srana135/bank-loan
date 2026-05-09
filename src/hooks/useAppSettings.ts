@@ -25,6 +25,7 @@ export interface LoanClassificationInstallmentsSplit {
 export interface LegalCaseConfig {
   case_types: string[];
   default_court: string;
+  courts: string[];
 }
 
 export interface AppSettingsMap {
@@ -120,7 +121,7 @@ const DEFAULTS: AppSettingsMap = {
   classification_days_resch: { sma_max: 180, ss_max: 270, df_max: 360 },
   classification_installments_new:   { sma_max: 3, ss_max: 6, df_max: 9 },
   classification_installments_resch: { sma_max: 6, ss_max: 9, df_max: 12 },
-  legal_case_config: { case_types: ['NI', 'Artha Rin', 'PDR'], default_court: '' },
+  legal_case_config: { case_types: ['NI', 'Artha Rin', 'PDR'], default_court: '', courts: [] },
   default_currencies: ['USD', 'SAR', 'AED', 'EUR', 'GBP', 'KWD', 'OMR', 'QAR', 'MYR', 'SGD'],
   dps_default_rate: 8,
   fdr_default_rate: 9,
