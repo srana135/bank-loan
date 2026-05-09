@@ -172,6 +172,9 @@ const LegalManagement = () => {
   const { data: lawyers } = useLawyers();
   const { data: profiles } = useProfiles();
   const { data: notices, isLoading: noticesLoading } = useLegalNotices(branchFilter);
+  const { data: appSettings } = useAppSettings();
+  const courtList = (appSettings?.legal_case_config?.courts || []).filter(c => c && c.trim());
+  const defaultCourt = appSettings?.legal_case_config?.default_court || '';
   const createCase = useCreateLegalCase();
   const updateCase = useUpdateLegalCase();
   const deleteCase = useDeleteLegalCase();
