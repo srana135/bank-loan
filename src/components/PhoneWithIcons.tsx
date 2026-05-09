@@ -60,12 +60,16 @@ const PhoneWithIcons = ({ phone, loanId, hasWhatsapp = false, hasImo = false, wh
     setBusy(false);
   };
 
+  const hasIcons = showWa || showIm || (isAdmin && loanId && (whatsappField || imoField));
+
   return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`} onClick={e => e.stopPropagation()}>
+    <span className={`inline-flex flex-col items-start gap-0.5 ${className}`} onClick={e => e.stopPropagation()}>
       <a href={`tel:${num}`} className="text-primary hover:underline inline-flex items-center gap-1">
         {showPhoneIcon && <Phone className="h-3 w-3" />}
         {phone}
       </a>
+      {hasIcons && (
+        <span className="inline-flex items-center gap-1.5 flex-wrap">
       {showWa && (
         <a
           href={`https://wa.me/${num}`}
@@ -108,6 +112,8 @@ const PhoneWithIcons = ({ phone, loanId, hasWhatsapp = false, hasImo = false, wh
           title={im ? 'IMO confirmed (click to unflag)' : 'Mark has IMO'}
           className={`text-[9px] px-1 rounded border transition-colors ${im ? 'bg-purple-600 text-white border-purple-600' : 'bg-muted text-muted-foreground border-border'}`}
         >I</button>
+      )}
+        </span>
       )}
     </span>
   );
