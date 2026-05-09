@@ -505,7 +505,7 @@ const LegalManagement = () => {
 
   const openCreate = () => {
     setEditCase(null);
-    setCaseNumber(''); setCaseType('Artha Rin'); setCourtName(''); setFilingDate('');
+    setCaseNumber(''); setCaseType('Artha Rin'); setCourtName(defaultCourt); setFilingDate('');
     setCaseStatus('active'); setPlaintiffName(''); setDefendantName('');
     setLawyerId(''); setLoanId(''); setOfficerId(''); setBranchId(profile?.branch_id || ''); setDescription('');
     setClaimAmount(''); setFormNextDate(''); setRemarks('');
