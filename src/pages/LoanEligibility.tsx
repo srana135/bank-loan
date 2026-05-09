@@ -372,6 +372,7 @@ const LoanEligibility = () => {
                       <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type}</span></div>
                       <div><span className="text-muted-foreground">Income:</span> <span className="font-medium">৳{(p.monthly_income || 0).toLocaleString()}</span></div>
                       <div><span className="text-muted-foreground">Eligible:</span> <span className="font-medium text-primary">৳{(p.eligible_amount || 0).toLocaleString()}</span></div>
+                      <div><span className="text-muted-foreground">Proposed:</span> <span className="font-medium">{p.proposed_amount != null ? `৳${p.proposed_amount.toLocaleString()}` : '-'}</span></div>
                       <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{p.probable_disbursement_date}</span></div>
                     </div>
                     {canManage && (
@@ -400,7 +401,7 @@ const LoanEligibility = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Customer</TableHead><TableHead>Mobile</TableHead><TableHead>Type</TableHead>
-                  <TableHead className="text-right">Income</TableHead><TableHead className="text-right">Eligible</TableHead>
+                  <TableHead className="text-right">Income</TableHead><TableHead className="text-right">Eligible</TableHead><TableHead className="text-right">Proposed</TableHead>
                   <TableHead>Date</TableHead><TableHead>Status</TableHead>{canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
@@ -411,6 +412,7 @@ const LoanEligibility = () => {
                       <TableCell>{LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type}</TableCell>
                       <TableCell className="text-right">৳{(p.monthly_income || 0).toLocaleString()}</TableCell>
                       <TableCell className="text-right">৳{(p.eligible_amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{p.proposed_amount != null ? `৳${p.proposed_amount.toLocaleString()}` : '-'}</TableCell>
                       <TableCell className="text-xs">{p.probable_disbursement_date}</TableCell>
                       <TableCell>
                         <Badge variant={p.status === 'rejected' ? 'destructive' : p.status === 'disbursement' ? 'default' : 'secondary'} className="capitalize">
