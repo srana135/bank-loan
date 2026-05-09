@@ -33,6 +33,7 @@ import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 const CASE_TYPES = ['NI Act', 'Artha Rin', 'PDR', 'Civil', 'Criminal', 'Execution', 'Other'];
 const CASE_STATUSES = ['active', 'disposed', 'settled', 'stayed', 'withdrawn'];
@@ -171,6 +172,9 @@ const LegalManagement = () => {
   const { data: lawyers } = useLawyers();
   const { data: profiles } = useProfiles();
   const { data: notices, isLoading: noticesLoading } = useLegalNotices(branchFilter);
+  const { data: appSettings } = useAppSettings();
+  const courtList = (appSettings?.legal_case_config?.courts || []).filter(c => c && c.trim());
+  const defaultCourt = appSettings?.legal_case_config?.default_court || '';
   const createCase = useCreateLegalCase();
   const updateCase = useUpdateLegalCase();
   const deleteCase = useDeleteLegalCase();
@@ -501,7 +505,7 @@ const LegalManagement = () => {
 
   const openCreate = () => {
     setEditCase(null);
-    setCaseNumber(''); setCaseType('Artha Rin'); setCourtName(''); setFilingDate('');
+    setCaseNumber(''); setCaseType('Artha Rin'); setCourtName(defaultCourt); setFilingDate('');
     setCaseStatus('active'); setPlaintiffName(''); setDefendantName('');
     setLawyerId(''); setLoanId(''); setOfficerId(''); setBranchId(profile?.branch_id || ''); setDescription('');
     setClaimAmount(''); setFormNextDate(''); setRemarks('');
@@ -1242,7 +1246,26 @@ const LegalManagement = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label className="text-xs">Court Name</Label>
-                <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9" /></div>
+                {courtList.length > 0 ? (
+                  <>
+                    <Select
+                      value={courtList.includes(courtName) ? courtName : (courtName ? '__custom__' : '')}
+                      onValueChange={v => { if (v !== '__custom__') setCourtName(v); else setCourtName(courtName || ''); }}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="কোর্ট নির্বাচন" /></SelectTrigger>
+                      <SelectContent>
+                        {courtList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        <SelectItem value="__custom__">অন্যান্য (কাস্টম)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!courtList.includes(courtName) && (
+                      <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9 mt-1" placeholder="কাস্টম কোর্ট নাম" />
+                    )}
+                  </>
+                ) : (
+                  <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9" />
+                )}
+              </div>
               <div className="space-y-1.5"><Label className="text-xs">Filing Date</Label>
                 <Input type="date" value={filingDate} onChange={e => setFilingDate(e.target.value)} className="h-9" /></div>
             </div>

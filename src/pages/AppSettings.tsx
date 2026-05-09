@@ -121,6 +121,15 @@ const AppSettings = () => {
     update('legal_case_config', { ...form.legal_case_config, case_types: types });
   };
 
+  // Court list helpers
+  const courts = form.legal_case_config.courts || [];
+  const addCourt = () => update('legal_case_config', { ...form.legal_case_config, courts: [...courts, ''] });
+  const removeCourt = (i: number) => update('legal_case_config', { ...form.legal_case_config, courts: courts.filter((_, idx) => idx !== i) });
+  const updateCourt = (i: number, val: string) => {
+    const list = [...courts]; list[i] = val;
+    update('legal_case_config', { ...form.legal_case_config, courts: list });
+  };
+
   // Currency helpers
   const addCurrency = () => update('default_currencies', [...form.default_currencies, '']);
   const removeCurrency = (i: number) => update('default_currencies', form.default_currencies.filter((_, idx) => idx !== i));
@@ -460,13 +469,40 @@ const AppSettings = () => {
                   <Plus className="h-3.5 w-3.5" /> ধরণ যোগ
                 </Button>
               </div>
+              <div className="space-y-2">
+                <Label>আদালতের তালিকা (Courts)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {courts.map((ct, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <Input
+                        className="w-56 h-8 text-xs"
+                        value={ct}
+                        onChange={e => updateCourt(i, e.target.value)}
+                        placeholder="e.g. অর্থ ঋণ আদালত, ঢাকা"
+                      />
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeCourt(i)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" onClick={addCourt} className="gap-1">
+                  <Plus className="h-3.5 w-3.5" /> কোর্ট যোগ
+                </Button>
+              </div>
               <div className="space-y-1.5 max-w-md">
                 <Label>ডিফল্ট আদালত (Default Court)</Label>
-                <Input
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.legal_case_config.default_court}
                   onChange={e => update('legal_case_config', { ...form.legal_case_config, default_court: e.target.value })}
-                  placeholder="e.g. অর্থ ঋণ আদালত, ঢাকা"
-                />
+                >
+                  <option value="">-- নির্বাচন করুন --</option>
+                  {courts.filter(c => c.trim()).map((c, i) => (
+                    <option key={i} value={c}>{c}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">নতুন কোর্ট যোগ করতে উপরের তালিকায় যুক্ত করুন</p>
               </div>
             </CardContent>
           </Card>

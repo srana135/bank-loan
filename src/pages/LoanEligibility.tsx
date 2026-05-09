@@ -64,6 +64,7 @@ const LoanEligibility = () => {
   const [rejectComment, setRejectComment] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState('');
+  const [proposedAmount, setProposedAmount] = useState<string>('');
 
   const form = useForm<EligibilityForm>({
     resolver: zodResolver(eligibilitySchema),
@@ -131,18 +132,28 @@ const LoanEligibility = () => {
   const addToProposals = async () => {
     if (!eligResult || !user) return;
     const data = form.getValues();
+    const propAmt = proposedAmount ? Number(proposedAmount) : null;
+    if (propAmt !== null && (!Number.isFinite(propAmt) || propAmt <= 0)) {
+      toast.error('প্রস্তাবিত পরিমাণ সঠিক হতে হবে');
+      return;
+    }
+    if (propAmt !== null && propAmt > eligResult.maxAmount) {
+      toast.error('প্রস্তাবিত পরিমাণ এলিজিবল পরিমাণের বেশি হতে পারে না');
+      return;
+    }
     const { error } = await supabase.from('loan_proposals').insert({
       customer_name: data.customerName,
       mobile: data.mobile,
       loan_type: data.loanType,
       monthly_income: data.monthlyIncome,
       eligible_amount: eligResult.maxAmount,
+      proposed_amount: propAmt,
       probable_disbursement_date: data.disbursementDate,
       status: 'proposed',
       created_by: user.id,
     });
     if (error) toast.error(error.message);
-    else { toast.success('Added to proposals'); qc.invalidateQueries({ queryKey: ['loan-proposals'] }); }
+    else { toast.success('Added to proposals'); setProposedAmount(''); qc.invalidateQueries({ queryKey: ['loan-proposals'] }); }
   };
 
   const handleReject = async () => {
@@ -199,8 +210,8 @@ const LoanEligibility = () => {
     doc.setFontSize(8);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
     let y = 30;
-    const headers = ['Customer', 'Mobile', 'Type', 'Income', 'Eligible Amount', 'Date'];
-    const cw = [30, 25, 20, 25, 30, 25];
+    const headers = ['Customer', 'Mobile', 'Type', 'Income', 'Eligible', 'Proposed', 'Date'];
+    const cw = [28, 22, 18, 22, 25, 25, 22];
     doc.setFont('helvetica', 'bold');
     headers.forEach((h, i) => doc.text(h, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
     y += 5;
@@ -213,6 +224,7 @@ const LoanEligibility = () => {
         LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type || '',
         `${(p.monthly_income || 0).toLocaleString()}`,
         `${(p.eligible_amount || 0).toLocaleString()}`,
+        p.proposed_amount != null ? `${p.proposed_amount.toLocaleString()}` : '-',
         p.probable_disbursement_date || '',
       ];
       vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
@@ -289,6 +301,17 @@ const LoanEligibility = () => {
                         <Card className="bg-accent/10"><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Max EMI</p><p className="text-lg font-bold">৳{eligResult.maxEMI.toLocaleString()}</p></CardContent></Card>
                       </div>
                       <p className="text-xs text-muted-foreground">Rate: {eligResult.rate}% | Tenure: {eligResult.maxTenure} months</p>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">প্রস্তাবিত ঋণ পরিমাণ (Proposed Amount) ৳</Label>
+                        <Input
+                          type="number"
+                          value={proposedAmount}
+                          onChange={e => setProposedAmount(e.target.value)}
+                          placeholder={`সর্বোচ্চ ${eligResult.maxAmount.toLocaleString()}`}
+                          className="h-9"
+                        />
+                        <p className="text-[10px] text-muted-foreground">এলিজিবল পরিমাণ থেকে কম বা সমান হতে হবে</p>
+                      </div>
                       <Button onClick={addToProposals} className="w-full">Add to Proposal List</Button>
                     </>
                   )}
@@ -349,6 +372,7 @@ const LoanEligibility = () => {
                       <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type}</span></div>
                       <div><span className="text-muted-foreground">Income:</span> <span className="font-medium">৳{(p.monthly_income || 0).toLocaleString()}</span></div>
                       <div><span className="text-muted-foreground">Eligible:</span> <span className="font-medium text-primary">৳{(p.eligible_amount || 0).toLocaleString()}</span></div>
+                      <div><span className="text-muted-foreground">Proposed:</span> <span className="font-medium">{p.proposed_amount != null ? `৳${p.proposed_amount.toLocaleString()}` : '-'}</span></div>
                       <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{p.probable_disbursement_date}</span></div>
                     </div>
                     {canManage && (
@@ -377,7 +401,7 @@ const LoanEligibility = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Customer</TableHead><TableHead>Mobile</TableHead><TableHead>Type</TableHead>
-                  <TableHead className="text-right">Income</TableHead><TableHead className="text-right">Eligible</TableHead>
+                  <TableHead className="text-right">Income</TableHead><TableHead className="text-right">Eligible</TableHead><TableHead className="text-right">Proposed</TableHead>
                   <TableHead>Date</TableHead><TableHead>Status</TableHead>{canManage && <TableHead>Actions</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>
@@ -388,6 +412,7 @@ const LoanEligibility = () => {
                       <TableCell>{LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type}</TableCell>
                       <TableCell className="text-right">৳{(p.monthly_income || 0).toLocaleString()}</TableCell>
                       <TableCell className="text-right">৳{(p.eligible_amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{p.proposed_amount != null ? `৳${p.proposed_amount.toLocaleString()}` : '-'}</TableCell>
                       <TableCell className="text-xs">{p.probable_disbursement_date}</TableCell>
                       <TableCell>
                         <Badge variant={p.status === 'rejected' ? 'destructive' : p.status === 'disbursement' ? 'default' : 'secondary'} className="capitalize">

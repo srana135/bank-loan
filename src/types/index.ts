@@ -198,6 +198,7 @@ export interface LoanProposal {
   loan_type: string | null;
   monthly_income: number | null;
   eligible_amount: number | null;
+  proposed_amount: number | null;
   probable_disbursement_date: string | null;
   status: string;
   rejection_comment: string | null;

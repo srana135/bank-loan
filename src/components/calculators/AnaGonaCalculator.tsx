@@ -78,6 +78,8 @@ const AnaGonaCalculator = () => {
   const [kora, setKora] = useState(0);
   const [kranti, setKranti] = useState(0);
   const [til, setTil] = useState(0);
+  const [partnerName, setPartnerName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
 
   const { selectedTil, selectedSatak, remainingSatak, selectedPct, remainingPct, exceeds } = useMemo(() => {
     const sTil = ana * TIL_PER_ANA + gonda * TIL_PER_GONDA + kora * TIL_PER_KORA + kranti * TIL_PER_KRANTI + til;
@@ -98,6 +100,36 @@ const AnaGonaCalculator = () => {
   const reset = () => { setAna(0); setGonda(0); setKora(0); setKranti(0); setTil(0); setTotalSatak(0); };
   const symStr = symbolic(ana, gonda, kora, kranti, til);
 
+  const printReport = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>জমির বণ্টন রিপোর্ট</title>
+      <style>
+        body{font-family:'Noto Sans Bengali','SolaimanLipi',Arial,sans-serif;padding:24px;color:#1b4d2e}
+        h1{color:#b87a48;margin:0 0 4px}
+        table{width:100%;border-collapse:collapse;margin:12px 0}
+        th,td{border:1px solid #b48752;padding:8px;font-size:13px}
+        th{background:#b87a48;color:#fff;text-align:left}
+        .box{background:#fff3e6;border:1px solid #b48752;padding:10px;border-radius:6px;margin-top:12px;font-size:12px}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h1>🌾 আনা-গন্ডা-কড়া-ক্রান্তি-তিল রিপোর্ট</h1>
+      <div style="color:#555;margin-bottom:12px;font-size:13px">তারিখ: ${new Date().toLocaleDateString('bn-BD')}</div>
+      <table>
+        <tr><th>মোট জমি (সতক)</th><td>${fmt(totalSatak)}</td></tr>
+        <tr><th>মোট মালিক</th><td>${ownerName || '—'}</td></tr>
+        <tr><th>অংশীদারের নাম</th><td>${partnerName || '—'}</td></tr>
+        <tr><th>নির্বাচিত অংশ (প্রতীক)</th><td style="font-family:monospace">${symStr}</td></tr>
+        <tr><th>নির্বাচিত (সতক)</th><td>${fmt(selectedSatak)} সতক (${selectedPct.toFixed(2)}%)</td></tr>
+        <tr><th>অবশিষ্ট (সতক)</th><td>${fmt(Math.max(0, remainingSatak))} সতক (${Math.max(0, remainingPct).toFixed(2)}%)</td></tr>
+        <tr><th>তিল হিসাব</th><td>${selectedTil} তিল / ${TIL_PER_SATAK}</td></tr>
+      </table>
+      <div class="box"><b>স্থির সম্পর্ক:</b> ১ সতক = ১৬ আনা · ১ আনা = ২০ গন্ডা = ৮০ কড়া = ২৪০ ক্রান্তি = ৪৮০০ তিল</div>
+      <div style="margin-top:16px"><button onclick="window.print()" style="padding:8px 16px;background:#b87a48;color:#fff;border:0;border-radius:4px;cursor:pointer">প্রিন্ট/PDF সংরক্ষণ</button></div>
+      </body></html>`);
+    w.document.close();
+  };
+
   return (
     <div className="rounded-lg overflow-hidden shadow-lg bg-[#1b4d2e] p-3 sm:p-4">
       <div className="rounded-md bg-[#fef7e8] text-[#1b4d2e]">
@@ -107,6 +139,16 @@ const AnaGonaCalculator = () => {
         </div>
 
         <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">মালিকের নাম</label>
+              <input type="text" value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="মূল মালিক" className="w-full px-3 py-2 rounded border border-[#b48752] bg-[#fff3e6] text-[#1b4d2e] focus:outline-none focus:ring-2 focus:ring-[#b87a48]" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">অংশীদারের নাম</label>
+              <input type="text" value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="অংশীদারের নাম" className="w-full px-3 py-2 rounded border border-[#b48752] bg-[#fff3e6] text-[#1b4d2e] focus:outline-none focus:ring-2 focus:ring-[#b87a48]" />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-semibold mb-1">মোট জমি (সতক)</label>
             <input
@@ -130,6 +172,7 @@ const AnaGonaCalculator = () => {
 
           <div className="flex flex-wrap gap-2">
             <button onClick={reset} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
+            <button onClick={printReport} className="px-4 py-2 rounded bg-[#1b4d2e] text-white font-semibold hover:opacity-90">📄 রিপোর্ট ডাউনলোড / প্রিন্ট</button>
           </div>
 
           {exceeds && (
