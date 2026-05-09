@@ -64,6 +64,7 @@ const LoanEligibility = () => {
   const [rejectComment, setRejectComment] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState('');
+  const [proposedAmount, setProposedAmount] = useState<string>('');
 
   const form = useForm<EligibilityForm>({
     resolver: zodResolver(eligibilitySchema),
@@ -131,18 +132,28 @@ const LoanEligibility = () => {
   const addToProposals = async () => {
     if (!eligResult || !user) return;
     const data = form.getValues();
+    const propAmt = proposedAmount ? Number(proposedAmount) : null;
+    if (propAmt !== null && (!Number.isFinite(propAmt) || propAmt <= 0)) {
+      toast.error('প্রস্তাবিত পরিমাণ সঠিক হতে হবে');
+      return;
+    }
+    if (propAmt !== null && propAmt > eligResult.maxAmount) {
+      toast.error('প্রস্তাবিত পরিমাণ এলিজিবল পরিমাণের বেশি হতে পারে না');
+      return;
+    }
     const { error } = await supabase.from('loan_proposals').insert({
       customer_name: data.customerName,
       mobile: data.mobile,
       loan_type: data.loanType,
       monthly_income: data.monthlyIncome,
       eligible_amount: eligResult.maxAmount,
+      proposed_amount: propAmt,
       probable_disbursement_date: data.disbursementDate,
       status: 'proposed',
       created_by: user.id,
     });
     if (error) toast.error(error.message);
-    else { toast.success('Added to proposals'); qc.invalidateQueries({ queryKey: ['loan-proposals'] }); }
+    else { toast.success('Added to proposals'); setProposedAmount(''); qc.invalidateQueries({ queryKey: ['loan-proposals'] }); }
   };
 
   const handleReject = async () => {
