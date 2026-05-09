@@ -139,6 +139,16 @@ const AnaGonaCalculator = () => {
         </div>
 
         <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">মালিকের নাম</label>
+              <input type="text" value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="মূল মালিক" className="w-full px-3 py-2 rounded border border-[#b48752] bg-[#fff3e6] text-[#1b4d2e] focus:outline-none focus:ring-2 focus:ring-[#b87a48]" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">অংশীদারের নাম</label>
+              <input type="text" value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="অংশীদারের নাম" className="w-full px-3 py-2 rounded border border-[#b48752] bg-[#fff3e6] text-[#1b4d2e] focus:outline-none focus:ring-2 focus:ring-[#b87a48]" />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-semibold mb-1">মোট জমি (সতক)</label>
             <input
@@ -162,6 +172,7 @@ const AnaGonaCalculator = () => {
 
           <div className="flex flex-wrap gap-2">
             <button onClick={reset} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
+            <button onClick={printReport} className="px-4 py-2 rounded bg-[#1b4d2e] text-white font-semibold hover:opacity-90">📄 রিপোর্ট ডাউনলোড / প্রিন্ট</button>
           </div>
 
           {exceeds && (
