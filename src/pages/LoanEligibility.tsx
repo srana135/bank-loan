@@ -210,8 +210,8 @@ const LoanEligibility = () => {
     doc.setFontSize(8);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 21);
     let y = 30;
-    const headers = ['Customer', 'Mobile', 'Type', 'Income', 'Eligible Amount', 'Date'];
-    const cw = [30, 25, 20, 25, 30, 25];
+    const headers = ['Customer', 'Mobile', 'Type', 'Income', 'Eligible', 'Proposed', 'Date'];
+    const cw = [28, 22, 18, 22, 25, 25, 22];
     doc.setFont('helvetica', 'bold');
     headers.forEach((h, i) => doc.text(h, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
     y += 5;
@@ -224,6 +224,7 @@ const LoanEligibility = () => {
         LOAN_TYPE_LABELS[p.loan_type || ''] || p.loan_type || '',
         `${(p.monthly_income || 0).toLocaleString()}`,
         `${(p.eligible_amount || 0).toLocaleString()}`,
+        p.proposed_amount != null ? `${p.proposed_amount.toLocaleString()}` : '-',
         p.probable_disbursement_date || '',
       ];
       vals.forEach((v, i) => doc.text(v, 14 + cw.slice(0, i).reduce((a, b) => a + b, 0), y));
