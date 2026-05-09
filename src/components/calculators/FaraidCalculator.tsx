@@ -206,10 +206,52 @@ const FaraidCalculator = () => {
   const [estate, setEstate] = useState<number>(0);
   const [h, setH] = useState<Heirs>(DEFAULT);
   const [show, setShow] = useState(false);
+  const [deceasedName, setDeceasedName] = useState('');
+  const [heirNames, setHeirNames] = useState<Record<string, string>>({});
 
   const result = useMemo(() => show ? calculate(estate, h) : null, [show, estate, h]);
 
   const update = <K extends keyof Heirs>(k: K, v: Heirs[K]) => setH(prev => ({ ...prev, [k]: v }));
+
+  const updateName = (key: string, name: string) => setHeirNames(prev => ({ ...prev, [key]: name }));
+
+  const printReport = () => {
+    if (!result || result.error) return;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const rowsHtml = result.shares.map(s => {
+      const name = heirNames[s.label] || '';
+      return `<tr>
+        <td>${s.label}${name ? ` — <b>${name}</b>` : ''}</td>
+        <td>${s.fraction}</td>
+        <td style="text-align:right">৳ ${fmt(s.value)}</td>
+        <td style="text-align:right">${s.pct.toFixed(2)}%</td>
+      </tr>`;
+    }).join('');
+    const rulesHtml = result.appliedRules.map(r => `<li>${r}</li>`).join('');
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>ফারায়েজ রিপোর্ট</title>
+      <style>
+        body{font-family:'Noto Sans Bengali','SolaimanLipi',Arial,sans-serif;padding:24px;color:#1b4d2e}
+        h1{color:#b87a48;margin:0 0 4px} .meta{color:#555;margin-bottom:16px;font-size:13px}
+        table{width:100%;border-collapse:collapse;margin:12px 0}
+        th,td{border:1px solid #b48752;padding:6px 8px;font-size:13px}
+        th{background:#b87a48;color:#fff;text-align:left}
+        .box{background:#fff3e6;border:1px solid #b48752;padding:10px;border-radius:6px;margin-top:12px;font-size:12px}
+        .note{background:#fff7d6;border:1px solid #e0c97a;padding:10px;border-radius:6px;margin-top:10px;font-size:12px}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h1>☪️ ইসলামী ফারায়েজ উত্তরাধিকার রিপোর্ট</h1>
+      <div class="meta">মৃত ব্যক্তি: <b>${deceasedName || '—'}</b> · মোট সম্পদ: <b>৳ ${fmt(estate)}</b> · তারিখ: ${new Date().toLocaleDateString('bn-BD')}</div>
+      <table><thead><tr><th>উত্তরাধিকারী</th><th>অংশ</th><th style="text-align:right">টাকা</th><th style="text-align:right">%</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>
+      ${result.awlApplied ? '<div class="note">⚠ \'আউল প্রয়োগ করা হয়েছে</div>' : ''}
+      ${result.raddApplied ? '<div class="note">ℹ রদ্দ প্রয়োগ করা হয়েছে</div>' : ''}
+      <div class="box"><b>প্রযোজ্য বিধান (পূর্ণ শর্তাবলী):</b><ul>${rulesHtml}</ul></div>
+      <div class="note">📌 বণ্টনের পূর্বে মৃতের ঋণ পরিশোধ এবং ওসিয়ত (সর্বোচ্চ ১/৩ সম্পদ) আদায় করতে হবে।</div>
+      <div style="margin-top:16px"><button onclick="window.print()" style="padding:8px 16px;background:#b87a48;color:#fff;border:0;border-radius:4px;cursor:pointer">প্রিন্ট/PDF সংরক্ষণ</button></div>
+      </body></html>`);
+    w.document.close();
+  };
 
   const Row = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-[#b48752]/20">{children}</div>
