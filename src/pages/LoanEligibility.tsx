@@ -300,6 +300,17 @@ const LoanEligibility = () => {
                         <Card className="bg-accent/10"><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Max EMI</p><p className="text-lg font-bold">৳{eligResult.maxEMI.toLocaleString()}</p></CardContent></Card>
                       </div>
                       <p className="text-xs text-muted-foreground">Rate: {eligResult.rate}% | Tenure: {eligResult.maxTenure} months</p>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">প্রস্তাবিত ঋণ পরিমাণ (Proposed Amount) ৳</Label>
+                        <Input
+                          type="number"
+                          value={proposedAmount}
+                          onChange={e => setProposedAmount(e.target.value)}
+                          placeholder={`সর্বোচ্চ ${eligResult.maxAmount.toLocaleString()}`}
+                          className="h-9"
+                        />
+                        <p className="text-[10px] text-muted-foreground">এলিজিবল পরিমাণ থেকে কম বা সমান হতে হবে</p>
+                      </div>
                       <Button onClick={addToProposals} className="w-full">Add to Proposal List</Button>
                     </>
                   )}
