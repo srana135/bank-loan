@@ -33,6 +33,7 @@ import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 const CASE_TYPES = ['NI Act', 'Artha Rin', 'PDR', 'Civil', 'Criminal', 'Execution', 'Other'];
 const CASE_STATUSES = ['active', 'disposed', 'settled', 'stayed', 'withdrawn'];
