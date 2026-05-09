@@ -121,6 +121,15 @@ const AppSettings = () => {
     update('legal_case_config', { ...form.legal_case_config, case_types: types });
   };
 
+  // Court list helpers
+  const courts = form.legal_case_config.courts || [];
+  const addCourt = () => update('legal_case_config', { ...form.legal_case_config, courts: [...courts, ''] });
+  const removeCourt = (i: number) => update('legal_case_config', { ...form.legal_case_config, courts: courts.filter((_, idx) => idx !== i) });
+  const updateCourt = (i: number, val: string) => {
+    const list = [...courts]; list[i] = val;
+    update('legal_case_config', { ...form.legal_case_config, courts: list });
+  };
+
   // Currency helpers
   const addCurrency = () => update('default_currencies', [...form.default_currencies, '']);
   const removeCurrency = (i: number) => update('default_currencies', form.default_currencies.filter((_, idx) => idx !== i));
