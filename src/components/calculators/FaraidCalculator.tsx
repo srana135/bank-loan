@@ -338,12 +338,13 @@ const FaraidCalculator = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-[#b87a48] text-white">
-                        <tr><th className="text-left px-2 py-1.5">উত্তরাধিকারী</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
+                        <tr><th className="text-left px-2 py-1.5">উত্তরাধিকারী (সম্পর্ক)</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
                       </thead>
                       <tbody>
                         {result.shares.map((s, i) => (
                           <tr key={i} className={`border-b border-[#b48752]/20 ${s.type === 'asabah' ? 'bg-[#fff3e6]' : s.type === 'radd' ? 'bg-amber-50' : ''}`}>
                             <td className="px-2 py-1.5">{s.label}</td>
+                            <td className="px-2 py-1.5"><input type="text" value={heirNames[s.label] || ''} onChange={e => updateName(s.label, e.target.value)} className="w-full px-2 py-1 rounded border border-[#b48752]/40 bg-white text-xs" placeholder="নাম" /></td>
                             <td className="px-2 py-1.5 text-xs">{s.fraction}</td>
                             <td className="px-2 py-1.5 text-right font-semibold">৳ {fmt(s.value)}</td>
                             <td className="px-2 py-1.5 text-right">{s.pct.toFixed(2)}%</td>
@@ -351,6 +352,11 @@ const FaraidCalculator = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="flex justify-end">
+                    <button onClick={printReport} className="px-4 py-2 rounded bg-[#1b4d2e] text-white text-sm font-semibold hover:opacity-90">
+                      📄 রিপোর্ট ডাউনলোড / প্রিন্ট
+                    </button>
                   </div>
                   <div className="p-3 rounded bg-[#fff3e6] border border-[#b48752]">
                     <div className="text-xs font-semibold mb-1">প্রযোজ্য বিধান</div>
