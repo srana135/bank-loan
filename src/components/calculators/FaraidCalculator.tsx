@@ -267,6 +267,10 @@ const FaraidCalculator = () => {
 
         <div className="p-4 space-y-4">
           <div>
+            <label className="block text-sm font-semibold mb-1">মৃত ব্যক্তির নাম</label>
+            <input type="text" value={deceasedName} onChange={e => setDeceasedName(e.target.value)} className={numCls} placeholder="মৃত ব্যক্তির পূর্ণ নাম" />
+          </div>
+          <div>
             <label className="block text-sm font-semibold mb-1">মোট সম্পদ (টাকা / জমির মূল্য)</label>
             <input type="number" min={0} value={estate || ''} onChange={e => setEstate(Number(e.target.value) || 0)} className={numCls} placeholder="0" />
           </div>
