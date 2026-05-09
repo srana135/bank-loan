@@ -1246,7 +1246,26 @@ const LegalManagement = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label className="text-xs">Court Name</Label>
-                <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9" /></div>
+                {courtList.length > 0 ? (
+                  <>
+                    <Select
+                      value={courtList.includes(courtName) ? courtName : (courtName ? '__custom__' : '')}
+                      onValueChange={v => { if (v !== '__custom__') setCourtName(v); else setCourtName(courtName || ''); }}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="কোর্ট নির্বাচন" /></SelectTrigger>
+                      <SelectContent>
+                        {courtList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        <SelectItem value="__custom__">অন্যান্য (কাস্টম)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!courtList.includes(courtName) && (
+                      <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9 mt-1" placeholder="কাস্টম কোর্ট নাম" />
+                    )}
+                  </>
+                ) : (
+                  <Input value={courtName} onChange={e => setCourtName(e.target.value)} className="h-9" />
+                )}
+              </div>
               <div className="space-y-1.5"><Label className="text-xs">Filing Date</Label>
                 <Input type="date" value={filingDate} onChange={e => setFilingDate(e.target.value)} className="h-9" /></div>
             </div>
