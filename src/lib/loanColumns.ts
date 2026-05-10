@@ -31,8 +31,8 @@ export const ALL_LOAN_COLUMNS: Record<string, string> = {
 // Canonical column order — used by both Import Template and PDF/Excel exports
 export const CANONICAL_LOAN_COLUMN_ORDER = Object.keys(ALL_LOAN_COLUMNS);
 
-export const NUMERIC_LOAN_COLS = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount'];
-export const INT_LOAN_COLS = ['overdue_installment_number'];
+export const NUMERIC_LOAN_COLS = ['disbursed_loan_amount', 'installment_amount', 'overdue_amount', 'outstanding_amount', 'recovered_amount', 'overdue_installment_number'];
+export const INT_LOAN_COLS: string[] = [];
 
 // Aggregated recovery columns are computed from loan_recoveries (not stored on loans)
 // Treat them as "virtual" columns for export only.
