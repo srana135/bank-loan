@@ -241,20 +241,6 @@ const FaraidCalculator = () => {
 
   // Map share label → list of heir names belonging to that share
   const namesForShareLabel = (label: string): string[] => {
-    const prefixes: { match: RegExp; keyPrefix: string }[] = [
-      { match: /^স্বামী/, keyPrefix: 'husband_' },
-      { match: /^স্ত্রী/, keyPrefix: 'wife_' },
-      { match: /^পিতা/, keyPrefix: 'father_' },
-      { match: /^মাতা/, keyPrefix: 'mother_' },
-      { match: /^দাদা/, keyPrefix: 'pgf_' },
-      { match: /^দাদি|নানি/, keyPrefix: '' }, // grandmothers — combine
-      { match: /^পুত্রের কন্যা/, keyPrefix: 'sd_' },
-      { match: /পুত্র.*কন্যা.*২:১|পুত্র \(/, keyPrefix: 'son+daughter' },
-      { match: /^কন্যা/, keyPrefix: 'daughter_' },
-      { match: /সহোদর ভাই.*বোন|সহোদর বোন|সহোদর ভাই/, keyPrefix: 'fbs' },
-      { match: /বৈমাত্রেয় ভাই.*বোন|বৈমাত্রেয় বোন|বৈমাত্রেয় ভাই/, keyPrefix: 'cbs' },
-      { match: /বৈপিত্রেয়/, keyPrefix: 'ubs' },
-    ];
     const collect = (keys: string[]) => keys.map(k => heirNames[k]).filter(Boolean) as string[];
     if (/^স্বামী/.test(label)) return collect(['husband_0']);
     if (/^স্ত্রী/.test(label)) return Array.from({ length: h.wifeCount }, (_, i) => heirNames[`wife_${i}`]).filter(Boolean) as string[];
