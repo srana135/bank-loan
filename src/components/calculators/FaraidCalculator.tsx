@@ -391,6 +391,20 @@ const FaraidCalculator = () => {
             <Row><span className="text-sm">বৈপিত্রেয় বোন</span><input type="number" min={0} value={h.uterineSisters} onChange={e => update('uterineSisters', Math.max(0, Number(e.target.value) || 0))} className={inputCls} /></Row>
           </div>
 
+          {nameFields.length > 0 && (
+            <div className="rounded border border-[#b48752] bg-[#fff3e6] p-3">
+              <div className="text-sm font-semibold mb-2 text-[#1b4d2e]">ওয়ারিশগণের নাম</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {nameFields.map(f => (
+                  <div key={f.key} className="flex items-center gap-2">
+                    <label className="text-xs whitespace-nowrap min-w-[110px]">{f.label}</label>
+                    <input type="text" value={heirNames[f.key] || ''} onChange={e => updateName(f.key, e.target.value)} className="flex-1 px-2 py-1 rounded border border-[#b48752]/40 bg-white text-sm text-[#1b4d2e]" placeholder="নাম লিখুন" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={() => setShow(true)} className="px-4 py-2 rounded bg-[#b87a48] text-white font-semibold border border-[#b48752] hover:opacity-90">হিসাব করুন</button>
             <button onClick={() => { setH(DEFAULT); setEstate(0); setShow(false); }} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
@@ -411,13 +425,13 @@ const FaraidCalculator = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-[#b87a48] text-white">
-                        <tr><th className="text-left px-2 py-1.5">উত্তরাধিকারী (সম্পর্ক)</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
+                        <tr><th className="text-left px-2 py-1.5">সম্পর্ক</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
                       </thead>
                       <tbody>
                         {result.shares.map((s, i) => (
                           <tr key={i} className={`border-b border-[#b48752]/20 ${s.type === 'asabah' ? 'bg-[#fff3e6]' : s.type === 'radd' ? 'bg-amber-50' : ''}`}>
                             <td className="px-2 py-1.5">{s.label}</td>
-                            <td className="px-2 py-1.5"><input type="text" value={heirNames[s.label] || ''} onChange={e => updateName(s.label, e.target.value)} className="w-full px-2 py-1 rounded border border-[#b48752]/40 bg-white text-xs" placeholder="নাম" /></td>
+                            <td className="px-2 py-1.5 text-xs">{namesForShareLabel(s.label).join(', ') || '—'}</td>
                             <td className="px-2 py-1.5 text-xs">{s.fraction}</td>
                             <td className="px-2 py-1.5 text-right font-semibold">৳ {fmt(s.value)}</td>
                             <td className="px-2 py-1.5 text-right">{s.pct.toFixed(2)}%</td>
