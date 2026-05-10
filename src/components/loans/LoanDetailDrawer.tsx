@@ -192,7 +192,7 @@ const LoanDetailDrawer = ({ loan, open, onClose, onEdit, onDelete, userRole, bra
         <div className="space-y-1">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Financial</h4>
           <DetailRow label="Installment" value={`৳${(loan.installment_amount || 0).toLocaleString()}`} />
-          <DetailRow label="Overdue Installments" value={loan.overdue_installment_number} />
+          <DetailRow label="Overdue Installments" value={Number(loan.overdue_installment_number || 0).toFixed(2)} />
           <DetailRow label="Overdue Amount" value={`৳${(loan.overdue_amount || 0).toLocaleString()}`} />
           <DetailRow label="Outstanding" value={`৳${(loan.outstanding_amount || 0).toLocaleString()}`} />
           <DetailRow label="Classification" value={loan.classification} />

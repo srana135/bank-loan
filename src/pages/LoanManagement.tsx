@@ -542,7 +542,7 @@ const LoanManagement = () => {
                     </Badge>
                     <ClassificationSuggestion loan={loan} compact />
                     {(loan.overdue_installment_number || 0) > 0 && (
-                      <Badge variant="destructive" className="text-[10px]">OD: {loan.overdue_installment_number}</Badge>
+                      <Badge variant="destructive" className="text-[10px]">OD: {Number(loan.overdue_installment_number || 0).toFixed(2)}</Badge>
                     )}
                   </div>
                 </div>
@@ -703,7 +703,7 @@ const LoanManagement = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge variant={(loan.overdue_installment_number || 0) > 0 ? 'destructive' : 'secondary'} className="text-xs">
-                        {loan.overdue_installment_number || 0}
+                        {Number(loan.overdue_installment_number || 0).toFixed(2)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm font-medium">৳{(loan.outstanding_amount || 0).toLocaleString()}</TableCell>

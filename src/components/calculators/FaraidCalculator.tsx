@@ -215,14 +215,73 @@ const FaraidCalculator = () => {
 
   const updateName = (key: string, name: string) => setHeirNames(prev => ({ ...prev, [key]: name }));
 
+  // Build dynamic name fields based on selected heirs
+  type NameField = { key: string; label: string; relation: string };
+  const buildNameFields = (): NameField[] => {
+    const f: NameField[] = [];
+    if (h.husband) f.push({ key: 'husband_0', label: 'স্বামীর নাম', relation: 'স্বামী' });
+    if (h.wife) for (let i = 0; i < h.wifeCount; i++) f.push({ key: `wife_${i}`, label: `স্ত্রী ${i + 1} নাম`, relation: 'স্ত্রী' });
+    if (h.father) f.push({ key: 'father_0', label: 'পিতার নাম', relation: 'পিতা' });
+    if (h.mother) f.push({ key: 'mother_0', label: 'মাতার নাম', relation: 'মাতা' });
+    for (let i = 0; i < h.sons; i++) f.push({ key: `son_${i}`, label: `পুত্র ${i + 1} নাম`, relation: 'পুত্র' });
+    for (let i = 0; i < h.daughters; i++) f.push({ key: `daughter_${i}`, label: `কন্যা ${i + 1} নাম`, relation: 'কন্যা' });
+    if (h.paternalGrandfather) f.push({ key: 'pgf_0', label: 'দাদার নাম', relation: 'দাদা' });
+    if (h.paternalGrandmother) f.push({ key: 'pgm_0', label: 'দাদির নাম', relation: 'দাদি' });
+    if (h.maternalGrandmother) f.push({ key: 'mgm_0', label: 'নানির নাম', relation: 'নানি' });
+    if (h.sonsDaughter) for (let i = 0; i < h.sonsDaughterCount; i++) f.push({ key: `sd_${i}`, label: `পুত্রের কন্যা ${i + 1} নাম`, relation: 'পুত্রের কন্যা' });
+    for (let i = 0; i < h.fullBrothers; i++) f.push({ key: `fb_${i}`, label: `সহোদর ভাই ${i + 1} নাম`, relation: 'সহোদর ভাই' });
+    for (let i = 0; i < h.fullSisters; i++) f.push({ key: `fs_${i}`, label: `সহোদর বোন ${i + 1} নাম`, relation: 'সহোদর বোন' });
+    for (let i = 0; i < h.consanguineBrothers; i++) f.push({ key: `cb_${i}`, label: `বৈমাত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈমাত্রেয় ভাই' });
+    for (let i = 0; i < h.consanguineSisters; i++) f.push({ key: `cs_${i}`, label: `বৈমাত্রেয় বোন ${i + 1} নাম`, relation: 'বৈমাত্রেয় বোন' });
+    for (let i = 0; i < h.uterineBrothers; i++) f.push({ key: `ub_${i}`, label: `বৈপিত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈপিত্রেয় ভাই' });
+    for (let i = 0; i < h.uterineSisters; i++) f.push({ key: `us_${i}`, label: `বৈপিত্রেয় বোন ${i + 1} নাম`, relation: 'বৈপিত্রেয় বোন' });
+    return f;
+  };
+  const nameFields = buildNameFields();
+
+  // Map share label → list of heir names belonging to that share
+  const namesForShareLabel = (label: string): string[] => {
+    const collect = (keys: string[]) => keys.map(k => heirNames[k]).filter(Boolean) as string[];
+    if (/^স্বামী/.test(label)) return collect(['husband_0']);
+    if (/^স্ত্রী/.test(label)) return Array.from({ length: h.wifeCount }, (_, i) => heirNames[`wife_${i}`]).filter(Boolean) as string[];
+    if (/^পিতা/.test(label)) return collect(['father_0']);
+    if (/^মাতা/.test(label)) return collect(['mother_0']);
+    if (/^দাদা/.test(label)) return collect(['pgf_0']);
+    if (/দাদি|নানি/.test(label)) return collect(['pgm_0', 'mgm_0']);
+    if (/^পুত্রের কন্যা/.test(label)) return Array.from({ length: h.sonsDaughterCount }, (_, i) => heirNames[`sd_${i}`]).filter(Boolean) as string[];
+    if (/পুত্র.*কন্যা/.test(label)) {
+      const sons = Array.from({ length: h.sons }, (_, i) => heirNames[`son_${i}`]).filter(Boolean) as string[];
+      const daus = Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
+      return [...sons, ...daus];
+    }
+    if (/^কন্যা/.test(label)) return Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
+    if (/সহোদর/.test(label)) {
+      const b = Array.from({ length: h.fullBrothers }, (_, i) => heirNames[`fb_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.fullSisters }, (_, i) => heirNames[`fs_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    if (/বৈমাত্রেয়/.test(label)) {
+      const b = Array.from({ length: h.consanguineBrothers }, (_, i) => heirNames[`cb_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.consanguineSisters }, (_, i) => heirNames[`cs_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    if (/বৈপিত্রেয়/.test(label)) {
+      const b = Array.from({ length: h.uterineBrothers }, (_, i) => heirNames[`ub_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.uterineSisters }, (_, i) => heirNames[`us_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    return [];
+  };
+
   const printReport = () => {
     if (!result || result.error) return;
     const w = window.open('', '_blank');
     if (!w) return;
     const rowsHtml = result.shares.map(s => {
-      const name = heirNames[s.label] || '';
+      const names = namesForShareLabel(s.label);
+      const namePart = names.length ? ` — <b>${names.join(', ')}</b>` : '';
       return `<tr>
-        <td>${s.label}${name ? ` — <b>${name}</b>` : ''}</td>
+        <td>${s.label}${namePart}</td>
         <td>${s.fraction}</td>
         <td style="text-align:right">৳ ${fmt(s.value)}</td>
         <td style="text-align:right">${s.pct.toFixed(2)}%</td>
@@ -318,6 +377,20 @@ const FaraidCalculator = () => {
             <Row><span className="text-sm">বৈপিত্রেয় বোন</span><input type="number" min={0} value={h.uterineSisters} onChange={e => update('uterineSisters', Math.max(0, Number(e.target.value) || 0))} className={inputCls} /></Row>
           </div>
 
+          {nameFields.length > 0 && (
+            <div className="rounded border border-[#b48752] bg-[#fff3e6] p-3">
+              <div className="text-sm font-semibold mb-2 text-[#1b4d2e]">ওয়ারিশগণের নাম</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {nameFields.map(f => (
+                  <div key={f.key} className="flex items-center gap-2">
+                    <label className="text-xs whitespace-nowrap min-w-[110px]">{f.label}</label>
+                    <input type="text" value={heirNames[f.key] || ''} onChange={e => updateName(f.key, e.target.value)} className="flex-1 px-2 py-1 rounded border border-[#b48752]/40 bg-white text-sm text-[#1b4d2e]" placeholder="নাম লিখুন" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={() => setShow(true)} className="px-4 py-2 rounded bg-[#b87a48] text-white font-semibold border border-[#b48752] hover:opacity-90">হিসাব করুন</button>
             <button onClick={() => { setH(DEFAULT); setEstate(0); setShow(false); }} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
@@ -338,13 +411,13 @@ const FaraidCalculator = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-[#b87a48] text-white">
-                        <tr><th className="text-left px-2 py-1.5">উত্তরাধিকারী (সম্পর্ক)</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
+                        <tr><th className="text-left px-2 py-1.5">সম্পর্ক</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
                       </thead>
                       <tbody>
                         {result.shares.map((s, i) => (
                           <tr key={i} className={`border-b border-[#b48752]/20 ${s.type === 'asabah' ? 'bg-[#fff3e6]' : s.type === 'radd' ? 'bg-amber-50' : ''}`}>
                             <td className="px-2 py-1.5">{s.label}</td>
-                            <td className="px-2 py-1.5"><input type="text" value={heirNames[s.label] || ''} onChange={e => updateName(s.label, e.target.value)} className="w-full px-2 py-1 rounded border border-[#b48752]/40 bg-white text-xs" placeholder="নাম" /></td>
+                            <td className="px-2 py-1.5 text-xs">{namesForShareLabel(s.label).join(', ') || '—'}</td>
                             <td className="px-2 py-1.5 text-xs">{s.fraction}</td>
                             <td className="px-2 py-1.5 text-right font-semibold">৳ {fmt(s.value)}</td>
                             <td className="px-2 py-1.5 text-right">{s.pct.toFixed(2)}%</td>
