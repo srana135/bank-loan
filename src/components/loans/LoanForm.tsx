@@ -22,7 +22,7 @@ const loanSchema = z.object({
   disbursement_date: z.string().optional().default(''),
   expiry_date: z.string().optional().default(''),
   installment_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
-  overdue_installment_number: z.coerce.number().int().min(0, 'Must be >= 0').default(0),
+  overdue_installment_number: z.coerce.number().min(0, 'Must be >= 0').default(0),
   overdue_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
   outstanding_amount: z.coerce.number().min(0, 'Must be >= 0').default(0),
   classification: z.string().min(1, 'Classification is required'),
