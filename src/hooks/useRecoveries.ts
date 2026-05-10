@@ -98,7 +98,7 @@ export const useAddRecovery = () => {
       qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
       qc.invalidateQueries({ queryKey: ['all-recoveries'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Recovery recorded');
+      toast.success('হিসাব সফলভাবে হালনাগাদ হয়েছে');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -125,7 +125,7 @@ export const useUpdateRecovery = () => {
       qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
       qc.invalidateQueries({ queryKey: ['all-recoveries'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Recovery updated');
+      toast.success('হিসাব সফলভাবে হালনাগাদ হয়েছে');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -150,7 +150,7 @@ export const useDeleteRecovery = () => {
       qc.invalidateQueries({ queryKey: ['loan-recoveries'] });
       qc.invalidateQueries({ queryKey: ['all-recoveries'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Recovery deleted');
+      toast.success('হিসাব সফলভাবে হালনাগাদ হয়েছে');
     },
     onError: (e: Error) => toast.error(e.message),
   });
