@@ -215,14 +215,87 @@ const FaraidCalculator = () => {
 
   const updateName = (key: string, name: string) => setHeirNames(prev => ({ ...prev, [key]: name }));
 
+  // Build dynamic name fields based on selected heirs
+  type NameField = { key: string; label: string; relation: string };
+  const buildNameFields = (): NameField[] => {
+    const f: NameField[] = [];
+    if (h.husband) f.push({ key: 'husband_0', label: 'স্বামীর নাম', relation: 'স্বামী' });
+    if (h.wife) for (let i = 0; i < h.wifeCount; i++) f.push({ key: `wife_${i}`, label: `স্ত্রী ${i + 1} নাম`, relation: 'স্ত্রী' });
+    if (h.father) f.push({ key: 'father_0', label: 'পিতার নাম', relation: 'পিতা' });
+    if (h.mother) f.push({ key: 'mother_0', label: 'মাতার নাম', relation: 'মাতা' });
+    for (let i = 0; i < h.sons; i++) f.push({ key: `son_${i}`, label: `পুত্র ${i + 1} নাম`, relation: 'পুত্র' });
+    for (let i = 0; i < h.daughters; i++) f.push({ key: `daughter_${i}`, label: `কন্যা ${i + 1} নাম`, relation: 'কন্যা' });
+    if (h.paternalGrandfather) f.push({ key: 'pgf_0', label: 'দাদার নাম', relation: 'দাদা' });
+    if (h.paternalGrandmother) f.push({ key: 'pgm_0', label: 'দাদির নাম', relation: 'দাদি' });
+    if (h.maternalGrandmother) f.push({ key: 'mgm_0', label: 'নানির নাম', relation: 'নানি' });
+    if (h.sonsDaughter) for (let i = 0; i < h.sonsDaughterCount; i++) f.push({ key: `sd_${i}`, label: `পুত্রের কন্যা ${i + 1} নাম`, relation: 'পুত্রের কন্যা' });
+    for (let i = 0; i < h.fullBrothers; i++) f.push({ key: `fb_${i}`, label: `সহোদর ভাই ${i + 1} নাম`, relation: 'সহোদর ভাই' });
+    for (let i = 0; i < h.fullSisters; i++) f.push({ key: `fs_${i}`, label: `সহোদর বোন ${i + 1} নাম`, relation: 'সহোদর বোন' });
+    for (let i = 0; i < h.consanguineBrothers; i++) f.push({ key: `cb_${i}`, label: `বৈমাত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈমাত্রেয় ভাই' });
+    for (let i = 0; i < h.consanguineSisters; i++) f.push({ key: `cs_${i}`, label: `বৈমাত্রেয় বোন ${i + 1} নাম`, relation: 'বৈমাত্রেয় বোন' });
+    for (let i = 0; i < h.uterineBrothers; i++) f.push({ key: `ub_${i}`, label: `বৈপিত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈপিত্রেয় ভাই' });
+    for (let i = 0; i < h.uterineSisters; i++) f.push({ key: `us_${i}`, label: `বৈপিত্রেয় বোন ${i + 1} নাম`, relation: 'বৈপিত্রেয় বোন' });
+    return f;
+  };
+  const nameFields = buildNameFields();
+
+  // Map share label → list of heir names belonging to that share
+  const namesForShareLabel = (label: string): string[] => {
+    const prefixes: { match: RegExp; keyPrefix: string }[] = [
+      { match: /^স্বামী/, keyPrefix: 'husband_' },
+      { match: /^স্ত্রী/, keyPrefix: 'wife_' },
+      { match: /^পিতা/, keyPrefix: 'father_' },
+      { match: /^মাতা/, keyPrefix: 'mother_' },
+      { match: /^দাদা/, keyPrefix: 'pgf_' },
+      { match: /^দাদি|নানি/, keyPrefix: '' }, // grandmothers — combine
+      { match: /^পুত্রের কন্যা/, keyPrefix: 'sd_' },
+      { match: /পুত্র.*কন্যা.*২:১|পুত্র \(/, keyPrefix: 'son+daughter' },
+      { match: /^কন্যা/, keyPrefix: 'daughter_' },
+      { match: /সহোদর ভাই.*বোন|সহোদর বোন|সহোদর ভাই/, keyPrefix: 'fbs' },
+      { match: /বৈমাত্রেয় ভাই.*বোন|বৈমাত্রেয় বোন|বৈমাত্রেয় ভাই/, keyPrefix: 'cbs' },
+      { match: /বৈপিত্রেয়/, keyPrefix: 'ubs' },
+    ];
+    const collect = (keys: string[]) => keys.map(k => heirNames[k]).filter(Boolean) as string[];
+    if (/^স্বামী/.test(label)) return collect(['husband_0']);
+    if (/^স্ত্রী/.test(label)) return Array.from({ length: h.wifeCount }, (_, i) => heirNames[`wife_${i}`]).filter(Boolean) as string[];
+    if (/^পিতা/.test(label)) return collect(['father_0']);
+    if (/^মাতা/.test(label)) return collect(['mother_0']);
+    if (/^দাদা/.test(label)) return collect(['pgf_0']);
+    if (/দাদি|নানি/.test(label)) return collect(['pgm_0', 'mgm_0']);
+    if (/^পুত্রের কন্যা/.test(label)) return Array.from({ length: h.sonsDaughterCount }, (_, i) => heirNames[`sd_${i}`]).filter(Boolean) as string[];
+    if (/পুত্র.*কন্যা/.test(label)) {
+      const sons = Array.from({ length: h.sons }, (_, i) => heirNames[`son_${i}`]).filter(Boolean) as string[];
+      const daus = Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
+      return [...sons, ...daus];
+    }
+    if (/^কন্যা/.test(label)) return Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
+    if (/সহোদর/.test(label)) {
+      const b = Array.from({ length: h.fullBrothers }, (_, i) => heirNames[`fb_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.fullSisters }, (_, i) => heirNames[`fs_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    if (/বৈমাত্রেয়/.test(label)) {
+      const b = Array.from({ length: h.consanguineBrothers }, (_, i) => heirNames[`cb_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.consanguineSisters }, (_, i) => heirNames[`cs_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    if (/বৈপিত্রেয়/.test(label)) {
+      const b = Array.from({ length: h.uterineBrothers }, (_, i) => heirNames[`ub_${i}`]).filter(Boolean) as string[];
+      const s = Array.from({ length: h.uterineSisters }, (_, i) => heirNames[`us_${i}`]).filter(Boolean) as string[];
+      return [...b, ...s];
+    }
+    return [];
+  };
+
   const printReport = () => {
     if (!result || result.error) return;
     const w = window.open('', '_blank');
     if (!w) return;
     const rowsHtml = result.shares.map(s => {
-      const name = heirNames[s.label] || '';
+      const names = namesForShareLabel(s.label);
+      const namePart = names.length ? ` — <b>${names.join(', ')}</b>` : '';
       return `<tr>
-        <td>${s.label}${name ? ` — <b>${name}</b>` : ''}</td>
+        <td>${s.label}${namePart}</td>
         <td>${s.fraction}</td>
         <td style="text-align:right">৳ ${fmt(s.value)}</td>
         <td style="text-align:right">${s.pct.toFixed(2)}%</td>
