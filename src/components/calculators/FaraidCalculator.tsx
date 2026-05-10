@@ -1,7 +1,6 @@
 /**
  * Islamic Faraid (Inheritance) Calculator
- * Based on Quran: Surah An-Nisa 4:11, 4:12, 4:176
- * Implements fixed shares (Furud), residuary (Asabah), 'Awl, and Radd.
+ * Per-person output with names; rule descriptions (no verse references).
  */
 import { useState, useMemo } from 'react';
 
@@ -35,59 +34,97 @@ const DEFAULT: Heirs = {
   sonsDaughter: false, sonsDaughterCount: 1,
 };
 
+type Member = { nameKey: string; relation: string; weight: number };
+type Group = {
+  key: string;
+  groupLabel: string;
+  fraction: string;
+  share: number;          // 0..1 of estate
+  type: 'fixed' | 'asabah' | 'radd';
+  isSpouse?: boolean;
+  members: Member[];
+};
+
 type Result = {
-  shares: { label: string; fraction: string; value: number; pct: number; type: 'fixed' | 'asabah' | 'radd' }[];
+  groups: Group[];
   appliedRules: string[];
   awlApplied: boolean;
   raddApplied: boolean;
   error?: string;
 };
 
+const seq = (n: number) => Array.from({ length: n }, (_, i) => i);
+
 function calculate(estate: number, h: Heirs): Result {
   const rules: string[] = [];
-  const fixed: { key: string; label: string; share: number; fraction: string }[] = [];
-
-  if (estate <= 0) return { shares: [], appliedRules: [], awlApplied: false, raddApplied: false, error: 'মোট সম্পদ ০-এর বেশি দিন।' };
+  if (estate <= 0) return { groups: [], appliedRules: [], awlApplied: false, raddApplied: false, error: 'মোট সম্পদ ০-এর বেশি দিন।' };
 
   const hasSon = h.sons > 0;
   const hasDaughter = h.daughters > 0;
   const hasSonsDaughter = h.sonsDaughter && h.sonsDaughterCount > 0;
   const hasFather = h.father;
   const hasChildOrGrandchild = hasSon || hasDaughter || hasSonsDaughter;
-  const hasMaleDescendant = hasSon; // simplified
+  const hasMaleDescendant = hasSon;
   const totalSiblings = h.fullBrothers + h.fullSisters + h.consanguineBrothers + h.consanguineSisters + h.uterineBrothers + h.uterineSisters;
+
+  const fixed: Group[] = [];
 
   // Husband
   if (h.husband) {
     const s = hasChildOrGrandchild ? 1/4 : 1/2;
-    fixed.push({ key: 'husband', label: 'স্বামী', share: s, fraction: hasChildOrGrandchild ? '১/৪' : '১/২' });
-    rules.push('স্বামী — সূরা আন-নিসা ৪:১২');
+    fixed.push({
+      key: 'husband', groupLabel: 'স্বামী',
+      fraction: hasChildOrGrandchild ? '১/৪' : '১/২',
+      share: s, type: 'fixed', isSpouse: true,
+      members: [{ nameKey: 'husband_0', relation: 'স্বামী', weight: 1 }],
+    });
+    rules.push('স্বামী: সন্তান/পৌত্রী না থাকলে ১/২, থাকলে ১/৪।');
   }
-  // Wife (split among wives)
+  // Wife
   if (h.wife && h.wifeCount > 0) {
     const total = hasChildOrGrandchild ? 1/8 : 1/4;
-    fixed.push({ key: 'wife', label: `স্ত্রী (${h.wifeCount} জন, সমান ভাগ)`, share: total, fraction: hasChildOrGrandchild ? '১/৮' : '১/৪' });
-    rules.push('স্ত্রী — সূরা আন-নিসা ৪:১২');
+    fixed.push({
+      key: 'wife', groupLabel: `স্ত্রী (${h.wifeCount} জন, সমান ভাগ)`,
+      fraction: hasChildOrGrandchild ? '১/৮' : '১/৪',
+      share: total, type: 'fixed', isSpouse: true,
+      members: seq(h.wifeCount).map(i => ({ nameKey: `wife_${i}`, relation: `স্ত্রী ${i + 1}`, weight: 1 })),
+    });
+    rules.push('স্ত্রী: সন্তান/পৌত্রী না থাকলে ১/৪, থাকলে ১/৮ (একাধিক স্ত্রী হলে নিজেদের মধ্যে সমান বণ্টন)।');
   }
   // Mother
   if (h.mother) {
     const s = (hasChildOrGrandchild || totalSiblings >= 2) ? 1/6 : 1/3;
-    fixed.push({ key: 'mother', label: 'মাতা', share: s, fraction: s === 1/6 ? '১/৬' : '১/৩' });
-    rules.push('মাতা — সূরা আন-নিসা ৪:১১');
+    fixed.push({
+      key: 'mother', groupLabel: 'মাতা',
+      fraction: s === 1/6 ? '১/৬' : '১/৩',
+      share: s, type: 'fixed',
+      members: [{ nameKey: 'mother_0', relation: 'মাতা', weight: 1 }],
+    });
+    rules.push('মাতা: সন্তান/পৌত্রী/পৌত্র অথবা ২ বা ততোধিক ভাইবোন থাকলে ১/৬, না হলে ১/৩।');
   }
-  // Paternal Grandmother / Maternal Grandmother (1/6 shared if mother absent)
+  // Grandmothers (if mother absent)
   if (!h.mother) {
-    const grans = [h.paternalGrandmother, h.maternalGrandmother].filter(Boolean).length;
-    if (grans > 0) {
-      fixed.push({ key: 'grandmothers', label: `দাদি/নানি (${grans} জন)`, share: 1/6, fraction: '১/৬' });
-      rules.push('দাদি/নানি — হাদীস (১/৬ সমান বণ্টন)');
+    const list: Member[] = [];
+    if (h.paternalGrandmother) list.push({ nameKey: 'pgm_0', relation: 'দাদি', weight: 1 });
+    if (h.maternalGrandmother) list.push({ nameKey: 'mgm_0', relation: 'নানি', weight: 1 });
+    if (list.length > 0) {
+      fixed.push({
+        key: 'grandmothers', groupLabel: `দাদি/নানি (${list.length} জন)`,
+        fraction: '১/৬', share: 1/6, type: 'fixed', members: list,
+      });
+      rules.push('দাদি/নানি: মাতা না থাকলে ১/৬ (একাধিক হলে সমান বণ্টন)।');
     }
   }
-  // Daughters
+  // Daughters fixed (only if no son)
   if (hasDaughter && !hasSon) {
     const s = h.daughters === 1 ? 1/2 : 2/3;
-    fixed.push({ key: 'daughters', label: `কন্যা (${h.daughters} জন)`, share: s, fraction: h.daughters === 1 ? '১/২' : '২/৩' });
-    rules.push('কন্যা — সূরা আন-নিসা ৪:১১');
+    fixed.push({
+      key: 'daughters', groupLabel: `কন্যা (${h.daughters} জন)`,
+      fraction: h.daughters === 1 ? '১/২' : '২/৩',
+      share: s, type: 'fixed',
+      members: seq(h.daughters).map(i => ({ nameKey: `daughter_${i}`, relation: `কন্যা ${i + 1}`, weight: 1 })),
+    });
+    rules.push('কন্যা: পুত্র না থাকলে — একা হলে ১/২, একাধিক হলে ২/৩ (সমান বণ্টন)। পুত্র থাকলে পুত্র:কন্যা = ২:১ অনুপাতে অবশিষ্ট।');
   }
   // Son's daughters
   if (hasSonsDaughter && !hasSon) {
@@ -95,105 +132,165 @@ function calculate(estate: number, h: Heirs): Result {
     if (!hasDaughter) { s = h.sonsDaughterCount === 1 ? 1/2 : 2/3; frac = h.sonsDaughterCount === 1 ? '১/২' : '২/৩'; }
     else if (h.daughters === 1) { s = 1/6; frac = '১/৬'; }
     if (s > 0) {
-      fixed.push({ key: 'sonsDaughter', label: `পুত্রের কন্যা (${h.sonsDaughterCount} জন)`, share: s, fraction: frac });
-      rules.push('পুত্রের কন্যা — সূরা আন-নিসা ৪:১১');
+      fixed.push({
+        key: 'sonsDaughter', groupLabel: `পুত্রের কন্যা (${h.sonsDaughterCount} জন)`,
+        fraction: frac, share: s, type: 'fixed',
+        members: seq(h.sonsDaughterCount).map(i => ({ nameKey: `sd_${i}`, relation: `পুত্রের কন্যা ${i + 1}`, weight: 1 })),
+      });
+      rules.push('পুত্রের কন্যা: কন্যা না থাকলে — একা হলে ১/২, একাধিক হলে ২/৩; এক কন্যা থাকলে ১/৬ (২/৩ পূর্ণ করতে)।');
     }
   }
-  // Father — fixed 1/6 if any descendant; else asabah only
+  // Father fixed (only if descendant)
   if (hasFather && hasChildOrGrandchild) {
-    fixed.push({ key: 'father', label: 'পিতা', share: 1/6, fraction: '১/৬' });
-    rules.push('পিতা — সূরা আন-নিসা ৪:১১');
+    fixed.push({
+      key: 'father', groupLabel: 'পিতা',
+      fraction: '১/৬', share: 1/6, type: 'fixed',
+      members: [{ nameKey: 'father_0', relation: 'পিতা', weight: 1 }],
+    });
+    rules.push('পিতা: সন্তান/পৌত্রী/পৌত্র থাকলে ১/৬ ফিক্সড; পুত্র না থাকলে ১/৬-এর সাথে অবশিষ্ট অংশও পান।');
   }
-  // Paternal grandfather (only if no father), 1/6 with descendant
+  // Paternal grandfather fixed (only if no father, with descendant)
   if (!hasFather && h.paternalGrandfather && hasChildOrGrandchild) {
-    fixed.push({ key: 'pgf', label: 'দাদা', share: 1/6, fraction: '১/৬' });
-    rules.push('দাদা — পিতার অনুপস্থিতিতে (১/৬)');
+    fixed.push({
+      key: 'pgf', groupLabel: 'দাদা',
+      fraction: '১/৬', share: 1/6, type: 'fixed',
+      members: [{ nameKey: 'pgf_0', relation: 'দাদা', weight: 1 }],
+    });
+    rules.push('দাদা: পিতার অনুপস্থিতিতে পিতার ভূমিকা পালন করেন (১/৬ + অবশিষ্ট)।');
   }
-  // Uterine siblings (blocked by father, child, paternal grandfather)
+  // Uterine siblings
   const uterineTotal = h.uterineBrothers + h.uterineSisters;
   if (uterineTotal > 0 && !hasFather && !hasChildOrGrandchild && !h.paternalGrandfather) {
     const s = uterineTotal === 1 ? 1/6 : 1/3;
-    fixed.push({ key: 'uterine', label: `বৈপিত্রেয় ভাই/বোন (${uterineTotal} জন, সমান)`, share: s, fraction: uterineTotal === 1 ? '১/৬' : '১/৩' });
-    rules.push('বৈপিত্রেয় ভাই/বোন (কালালা) — সূরা আন-নিসা ৪:১২');
+    const list: Member[] = [];
+    seq(h.uterineBrothers).forEach(i => list.push({ nameKey: `ub_${i}`, relation: `বৈপিত্রেয় ভাই ${i + 1}`, weight: 1 }));
+    seq(h.uterineSisters).forEach(i => list.push({ nameKey: `us_${i}`, relation: `বৈপিত্রেয় বোন ${i + 1}`, weight: 1 }));
+    fixed.push({
+      key: 'uterine', groupLabel: `বৈপিত্রেয় ভাই/বোন (${uterineTotal} জন)`,
+      fraction: uterineTotal === 1 ? '১/৬' : '১/৩',
+      share: s, type: 'fixed', members: list,
+    });
+    rules.push('বৈপিত্রেয় ভাই/বোন (কালালা): পিতা/সন্তান/দাদা না থাকলে — একজন হলে ১/৬, একাধিক হলে ১/৩ (নারী-পুরুষ সমান)।');
   }
-  // Full sisters (only fixed if no son, no father, no full brother)
+  // Full sisters fixed
   if (h.fullSisters > 0 && !hasSon && !hasFather && h.fullBrothers === 0 && !hasChildOrGrandchild) {
     const s = h.fullSisters === 1 ? 1/2 : 2/3;
-    fixed.push({ key: 'fullSisters', label: `সহোদর বোন (${h.fullSisters} জন)`, share: s, fraction: h.fullSisters === 1 ? '১/২' : '২/৩' });
-    rules.push('সহোদর বোন — সূরা আন-নিসা ৪:১৭৬');
+    fixed.push({
+      key: 'fullSisters', groupLabel: `সহোদর বোন (${h.fullSisters} জন)`,
+      fraction: h.fullSisters === 1 ? '১/২' : '২/৩',
+      share: s, type: 'fixed',
+      members: seq(h.fullSisters).map(i => ({ nameKey: `fs_${i}`, relation: `সহোদর বোন ${i + 1}`, weight: 1 })),
+    });
+    rules.push('সহোদর বোন: সহোদর ভাই, পুত্র, পিতা ও সন্তান/পৌত্রী না থাকলে — একা হলে ১/২, একাধিক হলে ২/৩।');
   }
-  // Consanguine sisters (only fixed if no full siblings, no son, no father)
+  // Consanguine sisters fixed
   if (h.consanguineSisters > 0 && !hasSon && !hasFather && h.consanguineBrothers === 0 && h.fullBrothers === 0 && h.fullSisters === 0 && !hasChildOrGrandchild) {
     const s = h.consanguineSisters === 1 ? 1/2 : 2/3;
-    fixed.push({ key: 'conSisters', label: `বৈমাত্রেয় বোন (${h.consanguineSisters} জন)`, share: s, fraction: h.consanguineSisters === 1 ? '১/২' : '২/৩' });
-    rules.push('বৈমাত্রেয় বোন — সূরা আন-নিসা ৪:১৭৬');
+    fixed.push({
+      key: 'conSisters', groupLabel: `বৈমাত্রেয় বোন (${h.consanguineSisters} জন)`,
+      fraction: h.consanguineSisters === 1 ? '১/২' : '২/৩',
+      share: s, type: 'fixed',
+      members: seq(h.consanguineSisters).map(i => ({ nameKey: `cs_${i}`, relation: `বৈমাত্রেয় বোন ${i + 1}`, weight: 1 })),
+    });
+    rules.push('বৈমাত্রেয় বোন: সহোদর ভাইবোন, বৈমাত্রেয় ভাই, পুত্র, পিতা ও সন্তান না থাকলে — একা হলে ১/২, একাধিক হলে ২/৩।');
   }
 
-  // Total fixed
+  // Awl
   let totalFixed = fixed.reduce((s, f) => s + f.share, 0);
   let awlApplied = false;
-  if (totalFixed > 1) {
+  if (totalFixed > 1.0000001) {
     awlApplied = true;
-    rules.push("'আউল প্রয়োগ — অংশসমূহ আনুপাতিকভাবে কমানো হয়েছে");
+    rules.push("'আউল প্রয়োগ: মোট ফিক্সড অংশ ১-এর বেশি হওয়ায় আনুপাতিকভাবে কমানো হয়েছে।");
     fixed.forEach(f => { f.share = f.share / totalFixed; });
     totalFixed = 1;
   }
 
-  // Residuary heirs (Asabah)
-  type Asab = { key: string; label: string; units: number };
-  const asabah: Asab[] = [];
+  // Asabah groups
+  const asabah: Group[] = [];
   if (hasSon) {
-    // sons + daughters share 2:1
-    const units = h.sons * 2 + h.daughters;
-    asabah.push({ key: 'sonsDaughtersAsabah', label: `পুত্র (${h.sons}) ও কন্যা (${h.daughters}) — ২:১`, units });
-    rules.push('পুত্র-কন্যা আসাবাহ (২:১) — সূরা আন-নিসা ৪:১১');
+    const members: Member[] = [];
+    seq(h.sons).forEach(i => members.push({ nameKey: `son_${i}`, relation: `পুত্র ${i + 1}`, weight: 2 }));
+    seq(h.daughters).forEach(i => members.push({ nameKey: `daughter_${i}`, relation: `কন্যা ${i + 1}`, weight: 1 }));
+    asabah.push({
+      key: 'sonsDaughtersAsabah',
+      groupLabel: hasDaughter ? `পুত্র (${h.sons}) ও কন্যা (${h.daughters}) — ২:১` : `পুত্র (${h.sons})`,
+      fraction: 'অবশিষ্ট (২:১)', share: 0, type: 'asabah', members,
+    });
+    rules.push('পুত্র (ও কন্যা): অবশিষ্ট সম্পদ আসাবাহ হিসেবে পান; পুত্র:কন্যা = ২:১ অনুপাতে।');
   }
   if (hasFather && !hasMaleDescendant) {
-    // father gets residue when no male descendant
-    asabah.push({ key: 'fatherAsabah', label: 'পিতা (অবশিষ্ট)', units: 1 });
-    if (!hasChildOrGrandchild) rules.push('পিতা — অবশিষ্ট সম্পূর্ণ আসাবাহ');
+    asabah.push({
+      key: 'fatherAsabah', groupLabel: 'পিতা (অবশিষ্ট)',
+      fraction: 'অবশিষ্ট', share: 0, type: 'asabah',
+      members: [{ nameKey: 'father_0', relation: 'পিতা', weight: 1 }],
+    });
   } else if (!hasFather && h.paternalGrandfather && !hasMaleDescendant) {
-    asabah.push({ key: 'pgfAsabah', label: 'দাদা (অবশিষ্ট)', units: 1 });
+    asabah.push({
+      key: 'pgfAsabah', groupLabel: 'দাদা (অবশিষ্ট)',
+      fraction: 'অবশিষ্ট', share: 0, type: 'asabah',
+      members: [{ nameKey: 'pgf_0', relation: 'দাদা', weight: 1 }],
+    });
   } else if (!hasSon && !hasFather && (h.fullBrothers > 0 || (h.fullSisters > 0 && (hasDaughter || hasSonsDaughter)))) {
-    const units = h.fullBrothers * 2 + h.fullSisters;
-    if (units > 0) {
-      asabah.push({ key: 'fullBrosAsabah', label: `সহোদর ভাই (${h.fullBrothers}) ও বোন (${h.fullSisters}) — ২:১`, units });
-      rules.push('সহোদর ভাই-বোন আসাবাহ — সূরা আন-নিসা ৪:১৭৬');
+    const members: Member[] = [];
+    seq(h.fullBrothers).forEach(i => members.push({ nameKey: `fb_${i}`, relation: `সহোদর ভাই ${i + 1}`, weight: 2 }));
+    if (h.fullBrothers > 0) seq(h.fullSisters).forEach(i => members.push({ nameKey: `fs_${i}`, relation: `সহোদর বোন ${i + 1}`, weight: 1 }));
+    else seq(h.fullSisters).forEach(i => members.push({ nameKey: `fs_${i}`, relation: `সহোদর বোন ${i + 1}`, weight: 1 }));
+    if (members.length > 0) {
+      asabah.push({
+        key: 'fullSibAsabah',
+        groupLabel: `সহোদর ভাই (${h.fullBrothers}) ও বোন (${h.fullSisters})${h.fullBrothers ? ' — ২:১' : ''}`,
+        fraction: 'অবশিষ্ট', share: 0, type: 'asabah', members,
+      });
+      rules.push('সহোদর ভাই-বোন: কালালা ক্ষেত্রে অবশিষ্ট আসাবাহ; ভাই থাকলে ভাই:বোন = ২:১।');
     }
   } else if (!hasSon && !hasFather && h.fullBrothers === 0 && h.fullSisters === 0 && (h.consanguineBrothers > 0 || (h.consanguineSisters > 0 && (hasDaughter || hasSonsDaughter)))) {
-    const units = h.consanguineBrothers * 2 + h.consanguineSisters;
-    if (units > 0) asabah.push({ key: 'conBrosAsabah', label: `বৈমাত্রেয় ভাই (${h.consanguineBrothers}) ও বোন (${h.consanguineSisters}) — ২:১`, units });
+    const members: Member[] = [];
+    seq(h.consanguineBrothers).forEach(i => members.push({ nameKey: `cb_${i}`, relation: `বৈমাত্রেয় ভাই ${i + 1}`, weight: 2 }));
+    if (h.consanguineBrothers > 0) seq(h.consanguineSisters).forEach(i => members.push({ nameKey: `cs_${i}`, relation: `বৈমাত্রেয় বোন ${i + 1}`, weight: 1 }));
+    else seq(h.consanguineSisters).forEach(i => members.push({ nameKey: `cs_${i}`, relation: `বৈমাত্রেয় বোন ${i + 1}`, weight: 1 }));
+    if (members.length > 0) {
+      asabah.push({
+        key: 'conSibAsabah',
+        groupLabel: `বৈমাত্রেয় ভাই (${h.consanguineBrothers}) ও বোন (${h.consanguineSisters})${h.consanguineBrothers ? ' — ২:১' : ''}`,
+        fraction: 'অবশিষ্ট', share: 0, type: 'asabah', members,
+      });
+      rules.push('বৈমাত্রেয় ভাই-বোন: সহোদর ভাইবোন না থাকলে অবশিষ্ট আসাবাহ; ভাই থাকলে ভাই:বোন = ২:১।');
+    }
   }
 
   const residue = Math.max(0, 1 - totalFixed);
+  const groups: Group[] = [...fixed];
+
   let raddApplied = false;
-  const shares: Result['shares'] = [];
-
-  fixed.forEach(f => shares.push({ label: f.label, fraction: f.fraction, value: estate * f.share, pct: f.share * 100, type: 'fixed' }));
-
-  if (residue > 0 && asabah.length > 0) {
-    const totalUnits = asabah.reduce((s, a) => s + a.units, 0);
+  if (residue > 0.0001 && asabah.length > 0) {
+    const totalUnits = asabah.reduce((s, a) => s + a.members.reduce((x, m) => x + m.weight, 0), 0);
     asabah.forEach(a => {
-      const portion = residue * (a.units / totalUnits);
-      shares.push({ label: a.label, fraction: 'অবশিষ্ট (আসাবাহ)', value: estate * portion, pct: portion * 100, type: 'asabah' });
+      const units = a.members.reduce((x, m) => x + m.weight, 0);
+      a.share = residue * (units / totalUnits);
+      groups.push(a);
     });
   } else if (residue > 0.0001 && fixed.length > 0) {
-    // Radd — return surplus to fixed heirs except spouses
     raddApplied = true;
-    rules.push('রদ্দ প্রয়োগ — অবশিষ্ট অংশ স্বামী/স্ত্রী ব্যতীত ফিক্সড উত্তরাধিকারীদের মধ্যে আনুপাতিকভাবে ফেরত');
-    const eligible = fixed.filter(f => f.key !== 'husband' && f.key !== 'wife');
+    rules.push('রদ্দ প্রয়োগ: আসাবাহ না থাকায় অবশিষ্ট অংশ স্বামী/স্ত্রী ব্যতীত ফিক্সড উত্তরাধিকারীদের মধ্যে আনুপাতিকভাবে ফেরত।');
+    const eligible = fixed.filter(f => !f.isSpouse);
     const eligibleTotal = eligible.reduce((s, f) => s + f.share, 0);
     if (eligibleTotal > 0) {
       eligible.forEach(f => {
         const extra = residue * (f.share / eligibleTotal);
-        shares.push({ label: `${f.label} — রদ্দ`, fraction: 'রদ্দ অংশ', value: estate * extra, pct: extra * 100, type: 'radd' });
+        groups.push({
+          key: `${f.key}_radd`,
+          groupLabel: `${f.groupLabel} — রদ্দ`,
+          fraction: 'রদ্দ অংশ',
+          share: extra, type: 'radd',
+          members: f.members,
+        });
       });
     }
   }
 
-  if (shares.length === 0) return { shares: [], appliedRules: [], awlApplied: false, raddApplied: false, error: 'কোনো বৈধ উত্তরাধিকারী পাওয়া যায়নি। অন্তত একজন নির্বাচন করুন।' };
+  if (groups.length === 0) return { groups: [], appliedRules: [], awlApplied: false, raddApplied: false, error: 'কোনো বৈধ উত্তরাধিকারী পাওয়া যায়নি। অন্তত একজন নির্বাচন করুন।' };
 
-  return { shares, appliedRules: rules, awlApplied, raddApplied };
+  return { groups, appliedRules: rules, awlApplied, raddApplied };
 }
 
 const fmt = (n: number) => n.toLocaleString('en-BD', { maximumFractionDigits: 2 });
@@ -212,81 +309,64 @@ const FaraidCalculator = () => {
   const result = useMemo(() => show ? calculate(estate, h) : null, [show, estate, h]);
 
   const update = <K extends keyof Heirs>(k: K, v: Heirs[K]) => setH(prev => ({ ...prev, [k]: v }));
-
   const updateName = (key: string, name: string) => setHeirNames(prev => ({ ...prev, [key]: name }));
 
-  // Build dynamic name fields based on selected heirs
-  type NameField = { key: string; label: string; relation: string };
+  type NameField = { key: string; label: string };
   const buildNameFields = (): NameField[] => {
     const f: NameField[] = [];
-    if (h.husband) f.push({ key: 'husband_0', label: 'স্বামীর নাম', relation: 'স্বামী' });
-    if (h.wife) for (let i = 0; i < h.wifeCount; i++) f.push({ key: `wife_${i}`, label: `স্ত্রী ${i + 1} নাম`, relation: 'স্ত্রী' });
-    if (h.father) f.push({ key: 'father_0', label: 'পিতার নাম', relation: 'পিতা' });
-    if (h.mother) f.push({ key: 'mother_0', label: 'মাতার নাম', relation: 'মাতা' });
-    for (let i = 0; i < h.sons; i++) f.push({ key: `son_${i}`, label: `পুত্র ${i + 1} নাম`, relation: 'পুত্র' });
-    for (let i = 0; i < h.daughters; i++) f.push({ key: `daughter_${i}`, label: `কন্যা ${i + 1} নাম`, relation: 'কন্যা' });
-    if (h.paternalGrandfather) f.push({ key: 'pgf_0', label: 'দাদার নাম', relation: 'দাদা' });
-    if (h.paternalGrandmother) f.push({ key: 'pgm_0', label: 'দাদির নাম', relation: 'দাদি' });
-    if (h.maternalGrandmother) f.push({ key: 'mgm_0', label: 'নানির নাম', relation: 'নানি' });
-    if (h.sonsDaughter) for (let i = 0; i < h.sonsDaughterCount; i++) f.push({ key: `sd_${i}`, label: `পুত্রের কন্যা ${i + 1} নাম`, relation: 'পুত্রের কন্যা' });
-    for (let i = 0; i < h.fullBrothers; i++) f.push({ key: `fb_${i}`, label: `সহোদর ভাই ${i + 1} নাম`, relation: 'সহোদর ভাই' });
-    for (let i = 0; i < h.fullSisters; i++) f.push({ key: `fs_${i}`, label: `সহোদর বোন ${i + 1} নাম`, relation: 'সহোদর বোন' });
-    for (let i = 0; i < h.consanguineBrothers; i++) f.push({ key: `cb_${i}`, label: `বৈমাত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈমাত্রেয় ভাই' });
-    for (let i = 0; i < h.consanguineSisters; i++) f.push({ key: `cs_${i}`, label: `বৈমাত্রেয় বোন ${i + 1} নাম`, relation: 'বৈমাত্রেয় বোন' });
-    for (let i = 0; i < h.uterineBrothers; i++) f.push({ key: `ub_${i}`, label: `বৈপিত্রেয় ভাই ${i + 1} নাম`, relation: 'বৈপিত্রেয় ভাই' });
-    for (let i = 0; i < h.uterineSisters; i++) f.push({ key: `us_${i}`, label: `বৈপিত্রেয় বোন ${i + 1} নাম`, relation: 'বৈপিত্রেয় বোন' });
+    if (h.husband) f.push({ key: 'husband_0', label: 'স্বামীর নাম' });
+    if (h.wife) for (let i = 0; i < h.wifeCount; i++) f.push({ key: `wife_${i}`, label: `স্ত্রী ${i + 1} নাম` });
+    if (h.father) f.push({ key: 'father_0', label: 'পিতার নাম' });
+    if (h.mother) f.push({ key: 'mother_0', label: 'মাতার নাম' });
+    for (let i = 0; i < h.sons; i++) f.push({ key: `son_${i}`, label: `পুত্র ${i + 1} নাম` });
+    for (let i = 0; i < h.daughters; i++) f.push({ key: `daughter_${i}`, label: `কন্যা ${i + 1} নাম` });
+    if (h.paternalGrandfather) f.push({ key: 'pgf_0', label: 'দাদার নাম' });
+    if (h.paternalGrandmother) f.push({ key: 'pgm_0', label: 'দাদির নাম' });
+    if (h.maternalGrandmother) f.push({ key: 'mgm_0', label: 'নানির নাম' });
+    if (h.sonsDaughter) for (let i = 0; i < h.sonsDaughterCount; i++) f.push({ key: `sd_${i}`, label: `পুত্রের কন্যা ${i + 1} নাম` });
+    for (let i = 0; i < h.fullBrothers; i++) f.push({ key: `fb_${i}`, label: `সহোদর ভাই ${i + 1} নাম` });
+    for (let i = 0; i < h.fullSisters; i++) f.push({ key: `fs_${i}`, label: `সহোদর বোন ${i + 1} নাম` });
+    for (let i = 0; i < h.consanguineBrothers; i++) f.push({ key: `cb_${i}`, label: `বৈমাত্রেয় ভাই ${i + 1} নাম` });
+    for (let i = 0; i < h.consanguineSisters; i++) f.push({ key: `cs_${i}`, label: `বৈমাত্রেয় বোন ${i + 1} নাম` });
+    for (let i = 0; i < h.uterineBrothers; i++) f.push({ key: `ub_${i}`, label: `বৈপিত্রেয় ভাই ${i + 1} নাম` });
+    for (let i = 0; i < h.uterineSisters; i++) f.push({ key: `us_${i}`, label: `বৈপিত্রেয় বোন ${i + 1} নাম` });
     return f;
   };
   const nameFields = buildNameFields();
 
-  // Map share label → list of heir names belonging to that share
-  const namesForShareLabel = (label: string): string[] => {
-    const collect = (keys: string[]) => keys.map(k => heirNames[k]).filter(Boolean) as string[];
-    if (/^স্বামী/.test(label)) return collect(['husband_0']);
-    if (/^স্ত্রী/.test(label)) return Array.from({ length: h.wifeCount }, (_, i) => heirNames[`wife_${i}`]).filter(Boolean) as string[];
-    if (/^পিতা/.test(label)) return collect(['father_0']);
-    if (/^মাতা/.test(label)) return collect(['mother_0']);
-    if (/^দাদা/.test(label)) return collect(['pgf_0']);
-    if (/দাদি|নানি/.test(label)) return collect(['pgm_0', 'mgm_0']);
-    if (/^পুত্রের কন্যা/.test(label)) return Array.from({ length: h.sonsDaughterCount }, (_, i) => heirNames[`sd_${i}`]).filter(Boolean) as string[];
-    if (/পুত্র.*কন্যা/.test(label)) {
-      const sons = Array.from({ length: h.sons }, (_, i) => heirNames[`son_${i}`]).filter(Boolean) as string[];
-      const daus = Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
-      return [...sons, ...daus];
-    }
-    if (/^কন্যা/.test(label)) return Array.from({ length: h.daughters }, (_, i) => heirNames[`daughter_${i}`]).filter(Boolean) as string[];
-    if (/সহোদর/.test(label)) {
-      const b = Array.from({ length: h.fullBrothers }, (_, i) => heirNames[`fb_${i}`]).filter(Boolean) as string[];
-      const s = Array.from({ length: h.fullSisters }, (_, i) => heirNames[`fs_${i}`]).filter(Boolean) as string[];
-      return [...b, ...s];
-    }
-    if (/বৈমাত্রেয়/.test(label)) {
-      const b = Array.from({ length: h.consanguineBrothers }, (_, i) => heirNames[`cb_${i}`]).filter(Boolean) as string[];
-      const s = Array.from({ length: h.consanguineSisters }, (_, i) => heirNames[`cs_${i}`]).filter(Boolean) as string[];
-      return [...b, ...s];
-    }
-    if (/বৈপিত্রেয়/.test(label)) {
-      const b = Array.from({ length: h.uterineBrothers }, (_, i) => heirNames[`ub_${i}`]).filter(Boolean) as string[];
-      const s = Array.from({ length: h.uterineSisters }, (_, i) => heirNames[`us_${i}`]).filter(Boolean) as string[];
-      return [...b, ...s];
-    }
-    return [];
+  // Expand groups into per-person rows
+  type Row = { relation: string; name: string; fraction: string; value: number; pct: number; type: Group['type'] };
+  const buildRows = (groups: Group[]): Row[] => {
+    const rows: Row[] = [];
+    groups.forEach(g => {
+      const totalWeight = g.members.reduce((s, m) => s + m.weight, 0) || 1;
+      g.members.forEach(m => {
+        const portion = g.share * (m.weight / totalWeight);
+        rows.push({
+          relation: m.relation,
+          name: heirNames[m.nameKey] || '—',
+          fraction: g.fraction,
+          value: estate * portion,
+          pct: portion * 100,
+          type: g.type,
+        });
+      });
+    });
+    return rows;
   };
 
   const printReport = () => {
     if (!result || result.error) return;
+    const rows = buildRows(result.groups);
     const w = window.open('', '_blank');
     if (!w) return;
-    const rowsHtml = result.shares.map(s => {
-      const names = namesForShareLabel(s.label);
-      const namePart = names.length ? ` — <b>${names.join(', ')}</b>` : '';
-      return `<tr>
-        <td>${s.label}${namePart}</td>
-        <td>${s.fraction}</td>
-        <td style="text-align:right">৳ ${fmt(s.value)}</td>
-        <td style="text-align:right">${s.pct.toFixed(2)}%</td>
-      </tr>`;
-    }).join('');
+    const rowsHtml = rows.map(r => `<tr>
+        <td>${r.relation}</td>
+        <td>${r.name}</td>
+        <td>${r.fraction}</td>
+        <td style="text-align:right">৳ ${fmt(r.value)}</td>
+        <td style="text-align:right">${r.pct.toFixed(2)}%</td>
+      </tr>`).join('');
     const rulesHtml = result.appliedRules.map(r => `<li>${r}</li>`).join('');
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>ফারায়েজ রিপোর্ট</title>
       <style>
@@ -301,7 +381,7 @@ const FaraidCalculator = () => {
       </style></head><body>
       <h1>☪️ ইসলামী ফারায়েজ উত্তরাধিকার রিপোর্ট</h1>
       <div class="meta">মৃত ব্যক্তি: <b>${deceasedName || '—'}</b> · মোট সম্পদ: <b>৳ ${fmt(estate)}</b> · তারিখ: ${new Date().toLocaleDateString('bn-BD')}</div>
-      <table><thead><tr><th>উত্তরাধিকারী</th><th>অংশ</th><th style="text-align:right">টাকা</th><th style="text-align:right">%</th></tr></thead>
+      <table><thead><tr><th>সম্পর্ক</th><th>নাম</th><th>অংশ</th><th style="text-align:right">টাকা</th><th style="text-align:right">%</th></tr></thead>
       <tbody>${rowsHtml}</tbody></table>
       ${result.awlApplied ? '<div class="note">⚠ \'আউল প্রয়োগ করা হয়েছে</div>' : ''}
       ${result.raddApplied ? '<div class="note">ℹ রদ্দ প্রয়োগ করা হয়েছে</div>' : ''}
@@ -316,12 +396,14 @@ const FaraidCalculator = () => {
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-[#b48752]/20">{children}</div>
   );
 
+  const tableRows = result && !result.error ? buildRows(result.groups) : [];
+
   return (
     <div className="rounded-lg overflow-hidden shadow-lg bg-[#1b4d2e] p-3 sm:p-4">
       <div className="rounded-md bg-[#fef7e8] text-[#1b4d2e]">
         <div className="bg-[#b87a48] text-white px-4 py-3 rounded-t-md">
           <h2 className="font-bold text-base sm:text-lg">☪️ ইসলামী ফারায়েজ উত্তরাধিকার ক্যালকুলেটর</h2>
-          <p className="text-xs opacity-90 mt-0.5">কুরআন অনুযায়ী (সূরা আন-নিসা ৪:১১, ৪:১২, ৪:১৭৬)</p>
+          <p className="text-xs opacity-90 mt-0.5">কুরআন ও সুন্নাহ অনুযায়ী উত্তরাধিকার বণ্টন</p>
         </div>
 
         <div className="p-4 space-y-4">
@@ -393,7 +475,7 @@ const FaraidCalculator = () => {
 
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={() => setShow(true)} className="px-4 py-2 rounded bg-[#b87a48] text-white font-semibold border border-[#b48752] hover:opacity-90">হিসাব করুন</button>
-            <button onClick={() => { setH(DEFAULT); setEstate(0); setShow(false); }} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
+            <button onClick={() => { setH(DEFAULT); setEstate(0); setShow(false); setHeirNames({}); setDeceasedName(''); }} className="px-4 py-2 rounded bg-[#fff3e6] text-[#1b4d2e] border border-[#b48752] hover:bg-[#f3e3c8]">রিসেট</button>
           </div>
 
           {result && (
@@ -403,7 +485,8 @@ const FaraidCalculator = () => {
               ) : (
                 <>
                   <div className="p-3 rounded bg-[#1b4d2e] text-[#fef7e8]">
-                    <div className="text-xs opacity-80">মোট সম্পদ</div>
+                    <div className="text-xs opacity-80">মৃত ব্যক্তি: {deceasedName || '—'}</div>
+                    <div className="text-xs opacity-80 mt-0.5">মোট সম্পদ</div>
                     <div className="text-xl font-bold">৳ {fmt(estate)}</div>
                     {result.awlApplied && <div className="mt-1 text-xs text-amber-200">⚠ 'আউল প্রয়োগ করা হয়েছে</div>}
                     {result.raddApplied && <div className="mt-1 text-xs text-amber-200">ℹ রদ্দ প্রয়োগ করা হয়েছে</div>}
@@ -411,16 +494,22 @@ const FaraidCalculator = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-[#b87a48] text-white">
-                        <tr><th className="text-left px-2 py-1.5">সম্পর্ক</th><th className="text-left px-2 py-1.5">নাম</th><th className="text-left px-2 py-1.5">অংশ</th><th className="text-right px-2 py-1.5">টাকা</th><th className="text-right px-2 py-1.5">%</th></tr>
+                        <tr>
+                          <th className="text-left px-2 py-1.5">সম্পর্ক</th>
+                          <th className="text-left px-2 py-1.5">নাম</th>
+                          <th className="text-left px-2 py-1.5">অংশ</th>
+                          <th className="text-right px-2 py-1.5">টাকা</th>
+                          <th className="text-right px-2 py-1.5">%</th>
+                        </tr>
                       </thead>
                       <tbody>
-                        {result.shares.map((s, i) => (
-                          <tr key={i} className={`border-b border-[#b48752]/20 ${s.type === 'asabah' ? 'bg-[#fff3e6]' : s.type === 'radd' ? 'bg-amber-50' : ''}`}>
-                            <td className="px-2 py-1.5">{s.label}</td>
-                            <td className="px-2 py-1.5 text-xs">{namesForShareLabel(s.label).join(', ') || '—'}</td>
-                            <td className="px-2 py-1.5 text-xs">{s.fraction}</td>
-                            <td className="px-2 py-1.5 text-right font-semibold">৳ {fmt(s.value)}</td>
-                            <td className="px-2 py-1.5 text-right">{s.pct.toFixed(2)}%</td>
+                        {tableRows.map((r, i) => (
+                          <tr key={i} className={`border-b border-[#b48752]/20 ${r.type === 'asabah' ? 'bg-[#fff3e6]' : r.type === 'radd' ? 'bg-amber-50' : ''}`}>
+                            <td className="px-2 py-1.5">{r.relation}</td>
+                            <td className="px-2 py-1.5 text-xs">{r.name}</td>
+                            <td className="px-2 py-1.5 text-xs">{r.fraction}</td>
+                            <td className="px-2 py-1.5 text-right font-semibold">৳ {fmt(r.value)}</td>
+                            <td className="px-2 py-1.5 text-right">{r.pct.toFixed(2)}%</td>
                           </tr>
                         ))}
                       </tbody>
